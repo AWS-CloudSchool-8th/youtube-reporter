@@ -1,11 +1,8 @@
 import json
 from app.utils.caption import get_caption_from_vidcap
 from app.utils.prompt import build_analysis_prompt
-from app.utils.image import generate_image
-from app.utils.chart import generate_chart
-from app.utils.s3 import upload_bytes
-from app.agents.visual_agent import agent
 from app.fsm.types import ReportState
+from app.agents.visual_agent import VisualAgent
 
 def try_parse_table(prompt: str):
     try:
@@ -19,9 +16,9 @@ def extract_caption(state: ReportState, youtube_url: str) -> ReportState:
     state["retry_count"] = 0
     return state
 
-def analyze_paragraphs(state: ReportState) -> ReportState:
+def analyze_paragraphs(state: ReportState, agent: VisualAgent) -> ReportState:
     prompt = build_analysis_prompt(state["caption"])
-    res = agent.run(prompt)
+    res = agent.agent.run(prompt)
     try:
         arr = json.loads(res)
     except json.JSONDecodeError:
@@ -49,20 +46,18 @@ def analyze_paragraphs(state: ReportState) -> ReportState:
     state["sections"] = structured_sections
     return state
 
-def generate_visuals(state: ReportState) -> ReportState:
+def generate_visuals(state: ReportState, agent: VisualAgent) -> ReportState:
     for sec in state["sections"]:
         for p in sec["paragraphs"]:
             vt = p["visual_type"]
             prompt = p.get("visual_prompt", "")
-            if vt == "image":
-                p["visual_url"] = generate_image(prompt)
-            elif vt == "chart":
-                # 진짜 데이터를 Claude에서 받을 수도 있음
-                x = ["A", "B", "C"]
-                y = [10, 20, 15]
-                p["visual_url"] = generate_chart(x, y, prompt)
-            # table은 visual_data에 이미 들어있음
+            if vt in ["image", "chart", "table"]:
+                visual = agent.create_visual(vt, prompt)
+                if visual:
+                    p["visual_url"] = getattr(visual, "url", None)
+                    p["visual_data"] = getattr(visual, "data", None)
     return state
 
 def finalize_report(state: ReportState) -> ReportState:
     return state
+

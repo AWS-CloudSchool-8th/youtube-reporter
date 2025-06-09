@@ -1,18 +1,21 @@
-from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.redis import RedisSaver
-from app.fsm.types import ReportState
-from app.fsm.nodes import (
-    extract_caption, analyze_paragraphs,
-    generate_visuals, finalize_report
-)
+from uuid import uuid4
+from app.utils.caption import extract_video_id
 
-saver = RedisSaver.from_conn_string("redis://localhost:6379")
-builder = StateGraph(ReportState)
-builder.add_node("extract_caption", extract_caption)
-builder.add_node("analyze", analyze_paragraphs)
-builder.add_node("visuals", generate_visuals)
-builder.add_node("finish", finalize_report)
-builder.add_edge("extract_caption", "analyze")
-builder.add_edge("analyze", "visuals")
-builder.add_edge("visuals", "finish")
-graph = builder.compile(checkpointer=saver)
+def generate_report_from_url(youtube_url: str):
+    from app.fsm.graph import get_graph  # ❗️import를 함수 내부로 옮김
+
+    vid = extract_video_id(youtube_url)
+    thread = str(uuid4())
+
+    with get_graph() as graph:
+        state = graph.invoke(
+            {"video_id": vid},
+            config={"configurable": {"thread_id": thread}}
+        )
+
+    return {
+        "title": "유튜브 자동 요약 리포트",
+        "videoId": vid,
+        "sections": state["sections"]
+    }
+
