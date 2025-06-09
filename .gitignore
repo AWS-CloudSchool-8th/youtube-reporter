@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.egg-info/
+*.log
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.dll
+
+# Virtual environment
+venv/
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Pytest / coverage
+.coverage
+.cache/
+htmlcov/
+*.cover
+*.py,cover
+
+# Redis dump (just in case)
+dump.rdb
+
+# LangGraph state (if dumped locally)
+*.graph-state
+
+# Uploads / generated assets (optional)
+charts/
+images/
+captions/
+*.png
+*.svg

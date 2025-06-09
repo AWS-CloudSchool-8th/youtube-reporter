@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+langchain
+langgraph
+boto3
+python-dotenv
+redis
+matplotlib
+openai
