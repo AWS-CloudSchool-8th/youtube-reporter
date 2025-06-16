@@ -62,6 +62,7 @@ def upload_to_s3(file_path: str, object_name: str = None) -> str:
 
     return f"https://{bucket_name}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{object_name}"
 
+'''
 def merge_report_and_visuals(report_text: str, visuals: List[dict]) -> dict:
     sections = [{"type": "paragraph", "content": report_text}]
     for v in visuals:
@@ -69,6 +70,28 @@ def merge_report_and_visuals(report_text: str, visuals: List[dict]) -> dict:
             continue
         sections.append({"type": v["type"], "src": v["url"]})
     return {"format": "json", "sections": sections}
+'''
+def merge_report_and_visuals(report_text: str, visuals: List[dict]) -> dict:
+    paragraphs = [p.strip() for p in report_text.strip().split("\n") if p.strip()]
+    n, v = len(paragraphs), len(visuals)
+    sections = []
+
+    # 문단과 시각화를 교차 삽입
+    for i, para in enumerate(paragraphs):
+        sections.append({"type": "paragraph", "content": para})
+        if i < v:
+            vis = visuals[i]
+            if vis.get("url") and vis.get("type"):
+                sections.append({"type": vis["type"], "src": vis["url"]})
+
+    # 남은 시각화 블록이 있다면 추가
+    for j in range(len(paragraphs), v):
+        vis = visuals[j]
+        if vis.get("url") and vis.get("type"):
+            sections.append({"type": vis["type"], "src": vis["url"]})
+
+    return {"format": "json", "sections": sections}
+
 
 # ========== 4. 보고서 에이전트 ==========
 structure_prompt = ChatPromptTemplate.from_messages([
