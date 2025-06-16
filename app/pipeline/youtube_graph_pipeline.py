@@ -37,15 +37,17 @@ def extract_youtube_caption_tool(youtube_url: str) -> str:
     response.raise_for_status()
     return response.json().get("data", {}).get("content", "")
 
-def generate_visuals(prompt: str) -> str:
+def generate_visuals(description: str, vtype: str = "diagram") -> str:
     dalle_api = "https://api.openai.com/v1/images/generations"
+    dalle_prompt = make_image_prompt(description, vtype)
+
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
         "model": "dall-e-3",
-        "prompt": f"Create a simple and clear visual based on this sentence:\n\n{prompt}",
+        "prompt": dalle_prompt,
         "n": 1,
         "size": "1024x1024"
     }
@@ -95,18 +97,39 @@ def merge_report_and_visuals(report_text: str, visuals: List[dict]) -> dict:
 
 # ========== 4. 보고서 에이전트 ==========
 structure_prompt = ChatPromptTemplate.from_messages([
-    ("system", "너는 유튜브 자막을 보고서 형식으로 재작성하는 AI야. 다음 규칙을 따르세요:\n"
-               "1. 자막 내용을 서술형 문장으로 바꾸세요.\n"
-               "2. 3개 이상의 문단, 300자 이상.\n"
-               "3. 각 문단은 요약+설명 형식으로 작성하세요."),
+    ("system", "너는 유튜브 자막을 바탕으로 논리적이고 풍부한 설명이 담긴 전문 보고서를 작성하는 고급 AI야. 다음 지침을 반드시 따르세요:\n\n"
+     "1. 전체 자막 내용을 기반으로 주제별로 핵심 흐름을 재구성하고, 문단 단위로 재배열해.\n"
+     "2. 단순한 자막 나열을 피하고, 정보를 통합하여 하나의 자연스러운 글로 이어줘.\n"
+     "3. 각 문단은 다음의 구조를 따르도록 해:\n"
+     "   - 🔹 주제 요약 (문단의 중심 메시지)\n"
+     "   - 🔹 개념 설명 (핵심 개념이나 이론을 정확하고 쉽게 설명)\n"
+     "   - 🔹 예시 및 비유 (실제 사례나 독자가 이해하기 쉬운 비유 사용)\n"
+     "4. 전체 문단은 최소 4개 이상, 전체 길이는 500자 이상, 중복 없는 내용으로 구성해.\n"
+     "5. 설명은 **전문가가 초심자에게 가르치듯 자세하고 친절하게 써줘. 너무 간단하거나 딱딱한 어투는 피하고, 부드러운 설명체로 작성해.\n"
+     "6. 각 문단은 제목 없이 자연스럽게 이어지되, 보고서처럼 논리적 구조를 유지해.\n"
+     "7. 필요하다면 문맥을 보완해서 원래 자막에 없던 부분도 유추해서 추가해도 좋아.\n\n"
+     "마지막으로, 하나의 완결된 보고서처럼 구성해줘. 중간중간 끊기는 느낌 없이 부드럽게 연결돼야 해."),
     ("human", "{input}")
 ])
 
 llm = ChatBedrock(
-    client=boto3.client("bedrock-runtime", region_name="ap-northeast-2"),
-    model_id="anthropic.claude-3-haiku-20240307-v1:0",
-    model_kwargs={"temperature": 0.0, "max_tokens": 4096}
+    client=boto3.client("bedrock-runtime", region_name="us-west-2"),
+    model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    model_kwargs={"temperature": 0.7, "max_tokens": 4096}
 )
+
+visual_prompt_template = ChatPromptTemplate.from_messages([
+    ("system",
+     "당신은 이미지 생성 전문가입니다. 주어진 설명을 보고, "
+     "{type} 형태의 시각화를 만들기 위한 DALL·E 프롬프트를 작성해 주세요. "
+     "항상 최소한의 스타일 가이드(예: 검은 실선, 흰 배경, 핵심 레이블)를 포함하고, "
+     "내용을 명확히 전달할 수 있도록 작성해야 합니다."),
+    ("human", "{description}")
+])
+
+def make_image_prompt(description: str, vtype: str) -> str:
+    msgs = visual_prompt_template.format_messages(description=description, type=vtype)
+    return llm.invoke(msgs).content.strip()
 
 def structure_report(caption: str) -> str:
     messages = structure_prompt.format_messages(input=caption)
@@ -119,7 +142,7 @@ report_agent_executor_runnable = RunnableLambda(structure_report)
 visual_split_prompt = ChatPromptTemplate.from_messages([
     ("system", "너는 보고서를 다음 형식의 JSON 배열로 시각화 블록을 출력해야 해:\n"
      "[{{\"type\": \"chart\", \"text\": \"...\"}}]\n"
-     "type은 반드시 chart, table, image 중 하나고,\n" # diagram, mindmap 추가 예정정
+     "type은 반드시 chart, table, image 중 하나고,\n" # diagram, mindmap 추가 예정
      "text는 설명 문장이다. key 이름은 꼭 type, text를 그대로 써."),
     ("human", "{input}")
 ])
@@ -211,7 +234,7 @@ def dispatch_visual_block_with_python_tool(blocks: List[dict]) -> List[dict]:
                     url = f"[Image not created: {result}]"
 
             elif t == "image":
-                url = generate_visuals(txt)
+                url = generate_visuals(txt, vtype=t)
 
             else:
                 url = f"[Unsupported type: {t}]"
