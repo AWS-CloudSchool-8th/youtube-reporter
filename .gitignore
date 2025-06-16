@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# VSCode or PyCharm IDE files
+.vscode/
+.idea/
+
+# OS or editor junk files
+.DS_Store
+Thumbs.db
+
+# dotenv 환경변수 파일
+.env
+.env.*
+
+# Uvicorn log files or runtime
+*.log
+
+# Coverage/test output
+htmlcov/
+.tox/
+.nox/
+.coverage
+coverage.xml
+pytest_cache/
+.pytest_cache/
+.cache/
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+
+# Pydantic cache
+__pydantic__/ 
+
+# Bytecode cache
+.pyre/
+.pytype/
+
+# FastAPI openapi cache (optional)
+openapi.json
