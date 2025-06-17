@@ -1,17 +1,16 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
-from langchain_aws import ChatBedrock
+from utils.llm_factory import create_llm
 from app.tools.code_exec import generate_visual_from_code
 from app.tools.s3 import upload_to_s3
-import boto3, os, requests, uuid
+from config.settings import api_config
+from utils.exceptions import VisualizationError
+from utils.error_handler import handle_error
+import os, requests, uuid
 from typing import List, Dict
 
-# Claude 모델 초기화
-llm = ChatBedrock(
-    client=boto3.client("bedrock-runtime", region_name="us-west-2"),
-    model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
-    model_kwargs={"temperature": 0.7, "max_tokens": 2048}
-)
+# LLM 인스턴스는 함수 호출 시 생성 (visual_gen에서는 더 적은 토큰 사용)
+llm = create_llm(custom_max_tokens=2048)
 
 # 통합 시각화 프롬프트
 descriptive_visual_prompt = ChatPromptTemplate.from_messages([
@@ -29,26 +28,41 @@ descriptive_visual_prompt = ChatPromptTemplate.from_messages([
     ("human", "{description}")
 ])
 
+
 # 시각화 자산 생성기
 class GenerateVisualAsset(Runnable):
     def invoke(self, input: dict, config=None) -> dict:
-        description = input.get("text")
-        vtype = input.get("type")
+        description = input.get("text", "")
+        vtype = input.get("type", "text")
+
+        # 기본 반환 형식
+        default_result = {"type": vtype, "text": description, "url": ""}
 
         try:
+            if not description:
+                raise VisualizationError("Empty description provided", "GenerateVisualAsset")
+
             response = llm.invoke(
                 descriptive_visual_prompt.format_messages(description=description)
             ).content.strip()
 
+            if not response:
+                raise VisualizationError("Empty response from LLM", "GenerateVisualAsset")
+
             if vtype in ["chart", "table"]:
                 url = generate_visual_from_code(response)
+                if not url or url.startswith("[Error"):
+                    raise VisualizationError("Code execution failed", "GenerateVisualAsset")
                 return {"type": vtype, "text": description, "url": url}
 
             elif vtype == "image":
+                if not api_config.openai_api_key:
+                    raise VisualizationError("OpenAI API key not configured", "GenerateVisualAsset")
+
                 dalle_response = requests.post(
                     "https://api.openai.com/v1/images/generations",
                     headers={
-                        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+                        "Authorization": f"Bearer {api_config.openai_api_key}",
                         "Content-Type": "application/json"
                     },
                     json={
@@ -59,23 +73,58 @@ class GenerateVisualAsset(Runnable):
                     }
                 )
                 dalle_response.raise_for_status()
-                image_url = dalle_response.json().get("data", [{}])[0].get("url")
+
+                data = dalle_response.json().get("data", [])
+                if not data:
+                    raise VisualizationError("No image data in DALL-E response", "GenerateVisualAsset")
+
+                image_url = data[0].get("url")
+                if not image_url:
+                    raise VisualizationError("No image URL in DALL-E response", "GenerateVisualAsset")
+
                 return {"type": vtype, "text": description, "url": image_url}
 
             else:
                 return {"type": vtype, "text": description, "url": "[Unsupported type]"}
 
+        except VisualizationError:
+            # 이미 우리가 정의한 예외는 그대로 처리
+            raise
         except Exception as e:
-            return {"type": vtype, "text": description, "url": f"[Error: {e}]"}
+            # 예상치 못한 예외는 VisualizationError로 래핑
+            raise VisualizationError(str(e), "GenerateVisualAsset")
+
 
 # Runnable로 묶어서 LangGraph에서 사용 가능
 visual_asset_generator = GenerateVisualAsset()
 
+
 def dispatch_visual_blocks_runnable(blocks: List[Dict]) -> List[Dict]:
+    """시각화 블록들을 처리하는 함수 (에러 처리 포함)"""
     results = []
-    for block in blocks:
-        if isinstance(block, dict) and "type" in block and "text" in block:
-            results.append(visual_asset_generator.invoke(block))
+    for i, block in enumerate(blocks):
+        try:
+            if isinstance(block, dict) and "type" in block and "text" in block:
+                result = visual_asset_generator.invoke(block)
+                results.append(result)
+            else:
+                # 잘못된 블록 형식
+                error_result = handle_error(
+                    VisualizationError("Invalid block format", f"block_{i}"),
+                    f"dispatch_visual_blocks_runnable[{i}]",
+                    {"type": "text", "text": str(block), "url": ""}
+                )
+                results.append(error_result)
+        except Exception as e:
+            # 개별 블록 처리 실패 시 에러 정보 포함하여 계속 진행
+            error_result = handle_error(
+                e,
+                f"dispatch_visual_blocks_runnable[{i}]",
+                {"type": block.get("type", "text"), "text": block.get("text", ""), "url": ""}
+            )
+            results.append(error_result)
+
     return results
+
 
 visual_node_runnable = RunnableLambda(dispatch_visual_blocks_runnable)

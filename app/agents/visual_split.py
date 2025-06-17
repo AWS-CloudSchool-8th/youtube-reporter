@@ -1,13 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_aws import ChatBedrock
+from utils.llm_factory import create_llm
+from utils.exceptions import VisualSplitError
+from utils.error_handler import safe_execute
 import json
-import boto3
 
-llm = ChatBedrock(
-    client=boto3.client("bedrock-runtime", region_name="us-west-2"),
-    model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
-    model_kwargs={"temperature": 0.7, "max_tokens": 4096}
-)
+# LLM 인스턴스는 함수 호출 시 생성
+llm = create_llm()
 
 split_prompt = ChatPromptTemplate.from_messages([
     ("system", """너는 보고서를 분석해 각 문단을 시각화 가능한 정보 블록으로 나누는 역할을 해. 각 블록은 다음 형식을 따라야 해:
@@ -27,10 +25,31 @@ split_prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
-def extract_visual_blocks(text: str):
+
+def _extract_visual_blocks_impl(text: str) -> list:
+    """실제 시각화 블록 추출 로직 (내부용)"""
+    if not text or text.startswith("[Error"):
+        raise VisualSplitError("Invalid text input", "extract_visual_blocks")
+
+    result = llm.invoke(split_prompt.format_messages(input=text))
+
+    if not result or not result.content:
+        raise VisualSplitError("Empty response from LLM", "extract_visual_blocks")
+
     try:
-        result = llm.invoke(split_prompt.format_messages(input=text)).content
-        parsed = json.loads(result)
-        return parsed if isinstance(parsed, list) else []
-    except Exception as e:
-        return []
+        parsed = json.loads(result.content)
+        if not isinstance(parsed, list):
+            raise VisualSplitError("Response is not a list", "extract_visual_blocks")
+        return parsed
+    except json.JSONDecodeError as e:
+        raise VisualSplitError(f"JSON parsing failed: {e}", "extract_visual_blocks")
+
+
+def extract_visual_blocks(text: str) -> list:
+    """안전한 시각화 블록 추출 (에러 처리 포함)"""
+    return safe_execute(
+        _extract_visual_blocks_impl,
+        text,
+        context="extract_visual_blocks",
+        default_return=[]
+    )

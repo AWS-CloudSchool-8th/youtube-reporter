@@ -1,12 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_aws import ChatBedrock
-import boto3
+from utils.llm_factory import create_llm
+from utils.exceptions import ReportGenerationError
+from utils.error_handler import safe_execute
 
-llm = ChatBedrock(
-    client=boto3.client("bedrock-runtime", region_name="us-west-2"),
-    model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
-    model_kwargs={"temperature": 0.7, "max_tokens": 4096}
-)
+# LLM 인스턴스는 함수 호출 시 생성
+llm = create_llm()
 
 structure_prompt = ChatPromptTemplate.from_messages([
     ("system", """너는 유튜브 영상 자막을 바탕으로 명확하고 논리적인 보고서를 작성하는 AI야. 자막은 대화체일 수 있으니 이를 잘 정제하고 요약해서 보고서 형식으로 바꿔야 해. 보고서는 다음 구조를 따라야 해:
@@ -20,9 +18,26 @@ structure_prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
+
+def _generate_report_impl(caption: str) -> str:
+    """실제 보고서 생성 로직 (내부용)"""
+    if not caption or caption.startswith("[Error"):
+        raise ReportGenerationError("Invalid caption input", "generate_report")
+
+    messages = structure_prompt.format_messages(input=caption)
+    response = llm.invoke(messages)
+
+    if not response or not response.content:
+        raise ReportGenerationError("Empty response from LLM", "generate_report")
+
+    return response.content.strip()
+
+
 def generate_report(caption: str) -> str:
-    try:
-        messages = structure_prompt.format_messages(input=caption)
-        return llm.invoke(messages).content.strip()
-    except Exception as e:
-        return f"[Report generation error: {e}]"
+    """안전한 보고서 생성 (에러 처리 포함)"""
+    return safe_execute(
+        _generate_report_impl,
+        caption,
+        context="generate_report",
+        default_return=""
+    )
