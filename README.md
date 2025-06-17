@@ -194,7 +194,9 @@ MIT License
 # 환경 변수 확인
 python -c "import os; print(os.getenv('VIDCAP_API_KEY'))"
 ```
-
+# AWS 설정 확인 및 설정
+aws configure list
+aws configure  # 필요시 실행
 **AWS 권한 오류**:
 - IAM 정책에 S3 및 Bedrock 권한 확인
 - AWS CLI 설정 확인: `aws configure`
