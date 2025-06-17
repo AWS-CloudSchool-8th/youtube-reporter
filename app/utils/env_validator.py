@@ -33,6 +33,11 @@ OPTIONAL_ENV_VARS = [
     EnvVar("DALLE_IMAGE_SIZE", "DALL-E 이미지 크기", required=False, default="1024x1024"),
     EnvVar("LLM_TEMPERATURE", "LLM 온도 설정", required=False, default="0.7"),
     EnvVar("LLM_MAX_TOKENS", "LLM 최대 토큰 수", required=False, default="4096"),
+    # LangChain 추적 설정
+    EnvVar("LANGCHAIN_API_KEY", "LangChain API 키 (LangSmith 추적용)", required=False),
+    EnvVar("LANGCHAIN_ENDPOINT", "LangChain 엔드포인트", required=False, default="https://api.smith.langchain.com"),
+    EnvVar("LANGCHAIN_PROJECT", "LangChain 프로젝트명", required=False, default="youtube-reporter"),
+    EnvVar("LANGCHAIN_TRACING_V2", "LangChain 추적 활성화", required=False, default="true"),
 ]
 
 
