@@ -11,12 +11,12 @@ split_prompt = ChatPromptTemplate.from_messages([
     ("system", """너는 보고서를 분석해 각 문단을 시각화 가능한 정보 블록으로 나누는 역할을 해. 각 블록은 다음 형식을 따라야 해:
 
 [
-  {
+  {{
     "type": "bar_chart | line_chart | pie_chart | timeline | text | image",
     "text": "시각화할 내용에 대한 설명",
     "title": "블록 제목 (선택사항)",
     "data": "필요한 경우 시각화에 사용될 데이터 설명"
-  },
+  }},
   ...
 ]
 
@@ -29,6 +29,8 @@ split_prompt = ChatPromptTemplate.from_messages([
 - 이미지가 필요한 내용은 "image"
 
 문단 내용을 바탕으로 적절한 시각화 타입을 판단하고, "text" 필드에 시각화 생성에 필요한 명확한 설명을 포함해.
+
+반드시 유효한 JSON 배열 형태로만 응답해야 합니다.
 """),
     ("human", "{input}")
 ])
@@ -45,7 +47,16 @@ def _extract_visual_blocks_impl(text: str) -> list:
         raise VisualSplitError("Empty response from LLM", "extract_visual_blocks")
 
     try:
-        parsed = json.loads(result.content)
+        # JSON 파싱 전에 내용 정리
+        content = result.content.strip()
+
+        # 코드 블록 마커 제거 (```json ... ``` 형태)
+        if content.startswith("```"):
+            lines = content.split('\n')
+            if len(lines) > 2:
+                content = '\n'.join(lines[1:-1])
+
+        parsed = json.loads(content)
         if not isinstance(parsed, list):
             raise VisualSplitError("Response is not a list", "extract_visual_blocks")
 
@@ -72,7 +83,8 @@ def _extract_visual_blocks_impl(text: str) -> list:
         return cleaned_blocks
 
     except json.JSONDecodeError as e:
-        raise VisualSplitError(f"JSON parsing failed: {e}", "extract_visual_blocks")
+        # JSON 파싱 실패 시 디버깅 정보 포함
+        raise VisualSplitError(f"JSON parsing failed: {e}. Content: {content[:200]}...", "extract_visual_blocks")
 
 
 def extract_visual_blocks(text: str) -> list:
