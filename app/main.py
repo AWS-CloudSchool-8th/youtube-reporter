@@ -2,6 +2,14 @@
 
 import sys
 from pprint import pprint
+
+# .env 파일 로드 (환경 변수 검증 전에 실행)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    print("⚠️  python-dotenv가 설치되지 않았습니다. 시스템 환경 변수를 사용합니다.")
+
 from utils.env_validator import check_environment_comprehensive
 from utils.logger import setup_logger
 from core.workflow.fsm import run_graph

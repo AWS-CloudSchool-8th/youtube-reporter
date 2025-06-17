@@ -1,35 +1,35 @@
-# Core
+# Core LangChain
 langchain==0.1.20
 langgraph==0.0.45
 langsmith==0.1.31
 langchain-aws==0.1.4
 
 # Python tool interpreter
-ipython  # PythonREPLTool에서 사용 가능 (langchain.tools.python.tool)
+ipython  # PythonREPLTool에서 사용 가능
 langchain-experimental  # PythonREPLTool 사용을 위한 langchain 확장
 
 # LLM API
-boto3  # Bedrock (Claude)
+boto3  # AWS Bedrock (Claude)
 openai  # DALL·E API 사용
 
-# 요청 및 .env
-requests
-python-dotenv
+# 환경 변수 및 HTTP 요청
+python-dotenv  # .env 파일 로드
+requests  # HTTP 요청
 
 # 타입 지원
 typing-extensions
 
-# LangGraph 의존성 (선택적으로 최신화)
+# LangGraph 의존성
 pydantic<2.0  # LangChain 일부 버전에서 2.x 미지원
-
-# Web API (선택사항)
-fastapi
-uvicorn
 
 # 시각화 및 데이터 처리
 matplotlib
 pandas
 numpy
+
+# Web API (선택사항)
+fastapi
+uvicorn
 
 # 개발 및 테스트 (선택사항)
 pytest
