@@ -48,29 +48,29 @@ def _extract_visual_blocks_impl(text: str) -> list:
         parsed = json.loads(result.content)
         if not isinstance(parsed, list):
             raise VisualSplitError("Response is not a list", "extract_visual_blocks")
-
+        
         # 데이터 형식 검증 및 정리
         cleaned_blocks = []
         for i, block in enumerate(parsed):
             if not isinstance(block, dict):
                 continue
-
+                
             # 필수 필드 확인 및 기본값 설정
             cleaned_block = {
                 "type": block.get("type", "text"),
-                "text": block.get("text", block.get("title", f"Block {i + 1}"))
+                "text": block.get("text", block.get("title", f"Block {i+1}"))
             }
-
+            
             # 선택적 필드 추가
             if "title" in block:
                 cleaned_block["title"] = block["title"]
             if "data" in block:
                 cleaned_block["data"] = block["data"]
-
+                
             cleaned_blocks.append(cleaned_block)
-
+            
         return cleaned_blocks
-
+        
     except json.JSONDecodeError as e:
         raise VisualSplitError(f"JSON parsing failed: {e}", "extract_visual_blocks")
 
