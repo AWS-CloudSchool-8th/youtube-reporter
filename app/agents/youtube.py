@@ -7,7 +7,7 @@ from utils.error_handler import safe_execute
 def _extract_caption_impl(youtube_url: str) -> str:
     """실제 자막 추출 로직 (내부용)"""
     response = requests.get(
-        "https://vidcap.xyz/api/v1/youtube/caption",
+        api_config.vidcap_api_url,  # 하드코딩 제거
         params={"url": youtube_url, "locale": "ko"},
         headers={"Authorization": f"Bearer {api_config.vidcap_api_key}"}
     )

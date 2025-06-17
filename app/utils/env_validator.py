@@ -21,12 +21,18 @@ REQUIRED_ENV_VARS = [
     EnvVar("OPENAI_API_KEY", "OpenAI API 키 (DALL-E 이미지 생성용)", required=True),
     EnvVar("AWS_REGION", "AWS 리전 (예: us-west-2)", required=True),
     EnvVar("S3_BUCKET_NAME", "S3 버킷 이름 (이미지 저장용)", required=True),
+    EnvVar("AWS_BEDROCK_MODEL_ID", "AWS Bedrock 모델 ID", required=True),
 ]
 
 # 선택적 환경 변수 정의
 OPTIONAL_ENV_VARS = [
     EnvVar("LOG_LEVEL", "로그 레벨 (DEBUG, INFO, WARNING, ERROR)", required=False, default="INFO"),
     EnvVar("PYTHONPATH", "Python 경로", required=False),
+    EnvVar("VIDCAP_API_URL", "VidCap API URL", required=False, default="https://vidcap.xyz/api/v1/youtube/caption"),
+    EnvVar("DALLE_MODEL", "DALL-E 모델명", required=False, default="dall-e-3"),
+    EnvVar("DALLE_IMAGE_SIZE", "DALL-E 이미지 크기", required=False, default="1024x1024"),
+    EnvVar("LLM_TEMPERATURE", "LLM 온도 설정", required=False, default="0.7"),
+    EnvVar("LLM_MAX_TOKENS", "LLM 최대 토큰 수", required=False, default="4096"),
 ]
 
 
@@ -100,7 +106,6 @@ def validate_environment_values() -> Dict[str, List[str]]:
     # AWS 리전 검증
     aws_region = os.getenv("AWS_REGION")
     if aws_region:
-        # 일반적인 AWS 리전 형식 검증 (예: us-west-2, eu-central-1)
         import re
         if not re.match(r'^[a-z]{2}-[a-z]+-\d+$', aws_region):
             errors.setdefault("AWS_REGION", []).append(f"잘못된 리전 형식: {aws_region}")
@@ -111,7 +116,6 @@ def validate_environment_values() -> Dict[str, List[str]]:
     # S3 버킷 이름 검증
     s3_bucket = os.getenv("S3_BUCKET_NAME")
     if s3_bucket:
-        # S3 버킷 명명 규칙 검증
         import re
         if not re.match(r'^[a-z0-9][a-z0-9.-]*[a-z0-9]$', s3_bucket) or len(s3_bucket) < 3 or len(s3_bucket) > 63:
             errors.setdefault("S3_BUCKET_NAME", []).append(f"잘못된 S3 버킷 이름: {s3_bucket}")
@@ -119,7 +123,16 @@ def validate_environment_values() -> Dict[str, List[str]]:
         else:
             print(f"✅ S3_BUCKET_NAME: 형식이 올바릅니다 ({s3_bucket})")
 
-    # API 키 길이 검증 (기본적인 체크)
+    # Bedrock 모델 ID 검증
+    model_id = os.getenv("AWS_BEDROCK_MODEL_ID")
+    if model_id:
+        if not model_id.startswith(("anthropic.", "amazon.", "ai21.", "cohere.", "meta.")):
+            errors.setdefault("AWS_BEDROCK_MODEL_ID", []).append(f"알 수 없는 모델 제공업체: {model_id}")
+            print(f"⚠️  AWS_BEDROCK_MODEL_ID: 지원되지 않는 모델일 수 있습니다 ({model_id})")
+        else:
+            print(f"✅ AWS_BEDROCK_MODEL_ID: 올바른 형식입니다 ({model_id})")
+
+    # API 키 길이 검증
     api_keys = ["VIDCAP_API_KEY", "OPENAI_API_KEY"]
     for key_name in api_keys:
         key_value = os.getenv(key_name)
@@ -129,6 +142,26 @@ def validate_environment_values() -> Dict[str, List[str]]:
                 print(f"⚠️  {key_name}: 길이가 너무 짧을 수 있습니다")
             else:
                 print(f"✅ {key_name}: 길이가 적절합니다")
+
+    # 숫자 값 검증
+    numeric_vars = {
+        "LLM_TEMPERATURE": (0.0, 2.0),
+        "LLM_MAX_TOKENS": (100, 100000)
+    }
+
+    for var_name, (min_val, max_val) in numeric_vars.items():
+        value = os.getenv(var_name)
+        if value:
+            try:
+                numeric_value = float(value)
+                if not (min_val <= numeric_value <= max_val):
+                    errors.setdefault(var_name, []).append(f"값이 범위를 벗어남: {value} (범위: {min_val}-{max_val})")
+                    print(f"⚠️  {var_name}: 값이 권장 범위를 벗어납니다 ({value})")
+                else:
+                    print(f"✅ {var_name}: 값이 적절합니다 ({value})")
+            except ValueError:
+                errors.setdefault(var_name, []).append(f"숫자가 아님: {value}")
+                print(f"⚠️  {var_name}: 숫자 형식이 아닙니다 ({value})")
 
     if errors:
         print(f"\n⚠️  {len(errors)}개의 값 검증 경고가 있습니다.")
@@ -161,6 +194,10 @@ def check_environment_comprehensive() -> bool:
         for env_var in REQUIRED_ENV_VARS:
             if env_var.name in missing_vars:
                 print(f"{env_var.name}=your_key_here")
+        print("\n# 선택적 설정 (기본값 있음)")
+        for env_var in OPTIONAL_ENV_VARS:
+            if env_var.default:
+                print(f"# {env_var.name}={env_var.default}")
         print("-" * 30)
         return False
 

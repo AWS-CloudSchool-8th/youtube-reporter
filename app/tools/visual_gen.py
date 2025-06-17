@@ -66,10 +66,10 @@ class GenerateVisualAsset(Runnable):
                         "Content-Type": "application/json"
                     },
                     json={
-                        "model": "dall-e-3",
+                        "model": api_config.dalle_model,
                         "prompt": response,
                         "n": 1,
-                        "size": "1024x1024"
+                        "size": api_config.dalle_image_size
                     }
                 )
                 dalle_response.raise_for_status()
