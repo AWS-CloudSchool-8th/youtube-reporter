@@ -6,7 +6,7 @@ from core.agents.visual_split import extract_visual_blocks
 from utils.merge import merge_report_and_visuals
 from core.tools.visual_gen import GenerateVisualAsset
 from utils.error_handler import handle_error
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import Runnable, RunnableLambda
 import asyncio
 
 
@@ -20,8 +20,8 @@ class GraphState(TypedDict):
     final_output: dict
 
 
-# Tool 형식 노드 (에러 처리 강화)
-class ToolNode:
+# Tool 형식 노드 (Runnable 인터페이스 구현)
+class ToolNode(Runnable):
     def __init__(self, func, input_key, output_key):
         self.func = func
         self.input_key = input_key
@@ -72,7 +72,7 @@ async def dispatch_visual_blocks_async(blocks: List[Dict]) -> List[Dict]:
 
 
 # Runnable 래퍼 노드 (에러 처리 강화)
-class RunnableNode:
+class RunnableNode(Runnable):
     def __init__(self, input_key, output_key):
         self.input_key = input_key
         self.output_key = output_key
@@ -110,8 +110,8 @@ class RunnableNode:
             return {**state, self.output_key: error_result}
 
 
-# 병합 노드 (에러 처리 강화)
-class MergeNode:
+# 병합 노드 (Runnable 인터페이스 구현)
+class MergeNode(Runnable):
     def invoke(self, state: dict, config=None):
         try:
             report_text = state.get("report_text", "")
