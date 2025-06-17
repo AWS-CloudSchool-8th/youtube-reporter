@@ -1,14 +1,12 @@
 from langgraph.graph import StateGraph
 from typing import TypedDict, List, Dict
-from app.agents.youtube import extract_youtube_caption
-from app.agents.report_agent import generate_report
-from app.agents.visual_split import extract_visual_blocks
-from app.utils.merge import merge_report_and_visuals
-from app.tools.visual_gen import GenerateVisualAsset
+from core.agents import extract_youtube_caption
+from core.agents.report_agent import generate_report
+from core.agents.visual_split import extract_visual_blocks
+from utils.merge import merge_report_and_visuals
+from core.tools import GenerateVisualAsset
 from utils.error_handler import handle_error
-from langchain_core.runnables import RunnableLambda
 import asyncio
-import traceback
 
 
 # 상태 정의
@@ -174,7 +172,7 @@ def run_graph(youtube_url: str) -> dict:
         result = graph.invoke({"youtube_url": youtube_url})
 
         if "final_output" not in result:
-            raise ValueError("Final output is missing from graph result")
+            raise ValueError("Final output is missing from workflow result")
 
         return result["final_output"]
 

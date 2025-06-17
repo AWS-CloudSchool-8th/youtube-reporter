@@ -20,9 +20,15 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# dotenv 환경변수 파일
+# dotenv 환경변수 파일 (실제 값 포함)
 .env
-.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+
+# .env.example은 제외 (템플릿이므로 푸시해야 함)
+!.env.example
 
 # Uvicorn log files or runtime
 *.log

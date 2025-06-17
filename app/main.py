@@ -4,7 +4,7 @@ import sys
 from pprint import pprint
 from utils.env_validator import check_environment_comprehensive
 from utils.logger import setup_logger
-from graph.fsm import run_graph
+from core.workflow.fsm import run_graph
 
 # 로거 설정
 logger = setup_logger(__name__)

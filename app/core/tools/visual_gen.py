@@ -1,12 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
 from utils.llm_factory import create_llm
-from app.tools.code_exec import generate_visual_from_code
-from app.tools.s3 import upload_to_s3
+from core.tools.code_exec import generate_visual_from_code
 from config.settings import api_config
 from utils.exceptions import VisualizationError
 from utils.error_handler import handle_error
-import os, requests, uuid
+import requests
 from typing import List, Dict
 
 # LLM 인스턴스는 함수 호출 시 생성 (visual_gen에서는 더 적은 토큰 사용)

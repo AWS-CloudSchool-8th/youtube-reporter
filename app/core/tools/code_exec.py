@@ -6,7 +6,7 @@ import ast
 import tempfile
 import uuid
 import os
-from app.tools.s3 import upload_to_s3
+from core.tools.s3 import upload_to_s3
 from langchain_experimental.tools import PythonREPLTool
 from utils.exceptions import CodeExecutionError
 from utils.error_handler import safe_execute
