@@ -1,8 +1,3 @@
-# ✅ 코드 설명: 시각화용 파이썬 코드를 안전하게 실행해 이미지 생성
-#   - 코드가 안전한지 AST 분석함
-#   - PythonREPLTool을 통해 코드 실행 후 생성된 파일을 S3 업로드
-
-import ast
 import tempfile
 import uuid
 import os
@@ -14,38 +9,35 @@ from utils.error_handler import safe_execute
 python_tool = PythonREPLTool()
 
 
-def is_safe_code(code: str) -> bool:
-    """코드 안전성 검사"""
-    try:
-        tree = ast.parse(code)
-        return True
-    except Exception:
-        return False
-
-
 def _generate_visual_from_code_impl(code: str) -> str:
-    """실제 시각화 생성 로직 (내부용)"""
+    """실제 시각화 생성 로직 (내부용) - 참고 코드 방식 적용"""
     if not code:
         raise CodeExecutionError("Empty code provided", "generate_visual_from_code")
 
-    if not is_safe_code(code):
-        raise CodeExecutionError("Unsafe code detected", "generate_visual_from_code")
+    print(f"🔍 실행할 코드:\n{code}")  # 디버깅용
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fname = os.path.join(tmpdir, f"output-{uuid.uuid4().hex[:8]}.png")
-        safe_code = code.replace("output.png", fname)
+    # 코드 실행
+    result = python_tool.run(code)
+    print(f"🔍 실행 결과: {result}")  # 디버깅용
 
-        result = python_tool.run(safe_code)
+    # output.png 파일이 생성되었는지 확인
+    if os.path.exists("output.png"):
+        # 고유 파일명 생성 (참고 코드 방식)
+        unique_filename = f"output-{uuid.uuid4().hex[:8]}.png"
+        os.rename("output.png", unique_filename)
 
-        if not os.path.exists(fname):
-            raise CodeExecutionError(f"Image not created: {result}", "generate_visual_from_code")
+        # S3에 업로드
+        s3_url = upload_to_s3(unique_filename, object_name=unique_filename, content_type="image/png")
 
-        s3_url = upload_to_s3(fname, object_name=os.path.basename(fname), content_type="image/png")
+        # 로컬 파일 삭제
+        os.remove(unique_filename)
 
         if not s3_url or s3_url.startswith("[Error"):
             raise CodeExecutionError("S3 upload failed", "generate_visual_from_code")
 
         return s3_url
+    else:
+        raise CodeExecutionError(f"Image not created: {result}", "generate_visual_from_code")
 
 
 def generate_visual_from_code(code: str) -> str:
