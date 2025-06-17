@@ -136,21 +136,25 @@ class MergeNode:
             return {**state, "final_output": error_result}
 
 
-# FSM 구성
+# FSM 구성 (노드 이름을 상태 키와 다르게 변경)
 builder = StateGraph(GraphState)
 
-builder.add_node("caption", ToolNode(extract_youtube_caption, "youtube_url", "caption"))
-builder.add_node("report", ToolNode(generate_report, "caption", "report_text"))
-builder.add_node("split", ToolNode(extract_visual_blocks, "report_text", "visual_blocks"))
-builder.add_node("visual_node", RunnableNode("visual_blocks", "visual_results"))
-builder.add_node("merge", MergeNode())
+# 노드 이름을 상태 키와 겹치지 않게 수정
+builder.add_node("extract_caption", ToolNode(extract_youtube_caption, "youtube_url", "caption"))
+builder.add_node("generate_report", ToolNode(generate_report, "caption", "report_text"))
+builder.add_node("split_visuals", ToolNode(extract_visual_blocks, "report_text", "visual_blocks"))
+builder.add_node("create_visuals", RunnableNode("visual_blocks", "visual_results"))
+builder.add_node("merge_final", MergeNode())
 
-builder.set_entry_point("caption")
-builder.add_edge("caption", "report")
-builder.add_edge("report", "split")
-builder.add_edge("split", "visual_node")
-builder.add_edge("visual_node", "merge")
-builder.add_edge("merge", "__end__")
+# 시작점 설정
+builder.set_entry_point("extract_caption")
+
+# 엣지 연결 (새로운 노드 이름으로 업데이트)
+builder.add_edge("extract_caption", "generate_report")
+builder.add_edge("generate_report", "split_visuals")
+builder.add_edge("split_visuals", "create_visuals")
+builder.add_edge("create_visuals", "merge_final")
+builder.add_edge("merge_final", "__end__")
 
 graph = builder.compile()
 
