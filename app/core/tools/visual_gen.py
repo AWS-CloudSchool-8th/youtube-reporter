@@ -18,14 +18,29 @@ descriptive_visual_prompt = ChatPromptTemplate.from_messages([
         "가장 효과적으로 정보를 전달할 수 있을지 판단하고, 이를 생성하기 위한 명확한 출력 형식을 준비하세요.\n\n"
         "다음 조건을 지켜주세요:\n"
         "- 설명 내용을 정확히 파악한 뒤, 가장 알맞은 시각화 형식을 고르세요.\n"
-        "- 시각화 유형이 chart 또는 table인 경우, Python 코드만 출력하세요. 반드시 matplotlib 또는 pandas를 사용하세요.\n"
+        "- 시각화 유형이 chart, table, 또는 그래프 관련인 경우, Python 코드만 출력하세요. 반드시 matplotlib 또는 pandas를 사용하세요.\n"
         "- 시각화 유형이 image인 경우, DALL·E에 전달할 수 있는 명확하고 구체적인 프롬프트 한 줄만 작성하세요.\n"
-        "- chart/table일 경우 마지막 줄은 반드시 저장 명령 (plt.savefig(...) 또는 df.to_csv(...))으로 끝나야 합니다.\n\n"
-        "출력 형식 예시:\n"
-        "- type: chart\n- content: (Python 코드 또는 프롬프트 내용)"
+        "- chart/table일 경우 마지막 줄은 반드시 저장 명령 (plt.savefig('output.png', dpi=300, bbox_inches='tight'))으로 끝나야 합니다.\n\n"
+        "Python 코드 예시:\n"
+        "import matplotlib.pyplot as plt\n"
+        "import numpy as np\n"
+        "# 데이터 생성 및 차트 작성\n"
+        "plt.savefig('output.png', dpi=300, bbox_inches='tight')\n"
     )),
     ("human", "{description}")
 ])
+
+# 차트/그래프 관련 타입들 정의
+CHART_TYPES = {
+    "bar_chart", "line_chart", "pie_chart", "timeline",
+    "chart", "table", "graph", "plot", "histogram", "scatter"
+}
+
+# 이미지 관련 타입들 정의
+IMAGE_TYPES = {"image", "illustration", "diagram", "picture"}
+
+# 텍스트 관련 타입들 정의
+TEXT_TYPES = {"text"}
 
 
 # 시각화 자산 생성기
@@ -41,22 +56,32 @@ class GenerateVisualAsset(Runnable):
             if not description:
                 raise VisualizationError("Empty description provided", "GenerateVisualAsset")
 
-            response = llm.invoke(
-                descriptive_visual_prompt.format_messages(description=description)
-            ).content.strip()
+            # 타입별 처리 로직 개선
+            if vtype in CHART_TYPES:
+                # 차트/그래프 생성 (Python 코드 실행)
+                response = llm.invoke(
+                    descriptive_visual_prompt.format_messages(description=description)
+                ).content.strip()
 
-            if not response:
-                raise VisualizationError("Empty response from LLM", "GenerateVisualAsset")
+                if not response:
+                    raise VisualizationError("Empty response from LLM", "GenerateVisualAsset")
 
-            if vtype in ["chart", "table"]:
                 url = generate_visual_from_code(response)
                 if not url or url.startswith("[Error"):
                     raise VisualizationError("Code execution failed", "GenerateVisualAsset")
                 return {"type": vtype, "text": description, "url": url}
 
-            elif vtype == "image":
+            elif vtype in IMAGE_TYPES:
+                # 이미지 생성 (DALL-E)
                 if not api_config.openai_api_key:
                     raise VisualizationError("OpenAI API key not configured", "GenerateVisualAsset")
+
+                response = llm.invoke(
+                    descriptive_visual_prompt.format_messages(description=description)
+                ).content.strip()
+
+                if not response:
+                    raise VisualizationError("Empty response from LLM", "GenerateVisualAsset")
 
                 dalle_response = requests.post(
                     "https://api.openai.com/v1/images/generations",
@@ -83,8 +108,23 @@ class GenerateVisualAsset(Runnable):
 
                 return {"type": vtype, "text": description, "url": image_url}
 
+            elif vtype in TEXT_TYPES:
+                # 텍스트는 시각화 없이 그대로 반환
+                return {"type": vtype, "text": description, "url": ""}
+
             else:
-                return {"type": vtype, "text": description, "url": "[Unsupported type]"}
+                # 기본적으로 차트로 처리 시도
+                response = llm.invoke(
+                    descriptive_visual_prompt.format_messages(description=description)
+                ).content.strip()
+
+                if not response:
+                    return {"type": vtype, "text": description, "url": "[No visualization generated]"}
+
+                url = generate_visual_from_code(response)
+                if not url or url.startswith("[Error"):
+                    return {"type": vtype, "text": description, "url": "[Chart generation failed]"}
+                return {"type": vtype, "text": description, "url": url}
 
         except VisualizationError:
             # 이미 우리가 정의한 예외는 그대로 처리
