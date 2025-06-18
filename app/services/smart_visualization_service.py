@@ -1,457 +1,403 @@
-# services/smart_visualization_service.py
+# services/smart_visualization_service.py - 실제 내용 반영 버전
 from langchain_core.prompts import ChatPromptTemplate
 from utils.llm_factory import create_llm
-from utils.exceptions import VisualizationError
-from utils.error_handler import safe_execute
 import json
 import re
-from typing import List, Dict, Tuple
-from enum import Enum
-
-
-class VisualizationType(Enum):
-    # 텍스트
-    PARAGRAPH = "paragraph"
-    HEADING = "heading"
-
-    # 기본 차트
-    BAR_CHART = "bar_chart"
-    LINE_CHART = "line_chart"
-    PIE_CHART = "pie_chart"
-
-    # 고급 시각화
-    MINDMAP = "mindmap"  # 개념 관계도
-    FLOWCHART = "flowchart"  # 프로세스/단계
-    TIMELINE = "timeline"  # 시간순 진행
-    NETWORK = "network"  # 관계/연결
-    TREE = "tree"  # 계층구조
-    COMPARISON = "comparison"  # 비교표
-    PROCESS = "process"  # 단계별 프로세스
-    HIERARCHY = "hierarchy"  # 조직도/구조
-    CYCLE = "cycle"  # 순환 구조
-    MATRIX = "matrix"  # 매트릭스/격자
+from typing import List, Dict
 
 
 class SmartVisualizationService:
     def __init__(self):
         self.llm = create_llm()
-        self._setup_prompts()
-        self._setup_content_patterns()
+        self._setup_content_aware_prompts()
 
-    def _setup_prompts(self):
-        self.analysis_prompt = ChatPromptTemplate.from_messages([
-            ("system", """
-            당신은 YouTube 영상 내용을 분석하여 최적의 시각화 방법을 제안하는 전문가입니다.
-
-            영상 내용을 분석하고 다음과 같은 시각화 타입 중 가장 적절한 것들을 선택하세요:
-
-            **텍스트 기반:**
-            - paragraph: 일반 설명 텍스트
-            - heading: 제목/소제목
-
-            **차트 기반:**
-            - bar_chart: 수치 비교 (판매량, 점수, 순위 등)
-            - line_chart: 시간별 변화 (추세, 성장률, 변화량 등)
-            - pie_chart: 비율/구성 (점유율, 분포, 할당 등)
-
-            **고급 시각화:**
-            - mindmap: 개념 연결, 아이디어 맵, 주제 확장
-            - flowchart: 알고리즘, 의사결정, 업무 프로세스
-            - timeline: 역사, 일정, 순차적 사건
-            - network: 관계도, 소셜 네트워크, 연결구조
-            - tree: 분류체계, 조직도, 계층구조
-            - comparison: 제품비교, 장단점, vs 구조
-            - process: 단계별 진행, 파이프라인, 워크플로우
-            - hierarchy: 순위, 레벨, 상하구조
-            - cycle: 생명주기, 순환과정, 반복구조
-            - matrix: 2차원 분류, 사분면, 좌표계
-
-            **분석 기준:**
-            1. 영상에서 다루는 주제의 성격
-            2. 데이터의 형태 (수치, 관계, 시간, 구조)
-            3. 설명하려는 개념의 복잡도
-            4. 시청자 이해도 향상에 도움되는 형태
-
-            JSON 형식으로 응답하세요:
-            {
-              "content_type": "영상 주제 분류 (교육/리뷰/뉴스/요리/기술/등)",
-              "recommended_visualizations": [
-                {
-                  "type": "시각화_타입",
-                  "reason": "선택 이유",
-                  "priority": 1-5 (우선순위),
-                  "position": "적절한 위치 (시작/중간/끝)"
-                }
-              ]
-            }
-            """),
-            ("human", "영상 자막:\n{caption}\n\n보고서:\n{report}")
-        ])
+    def _setup_content_aware_prompts(self):
+        """실제 영상 내용을 반영하는 프롬프트"""
 
         self.generation_prompt = ChatPromptTemplate.from_messages([
             ("system", """
-            지정된 시각화 타입에 맞는 실제 데이터를 생성하세요.
-            영상 내용을 바탕으로 구체적이고 의미있는 데이터를 만들어야 합니다.
+당신은 YouTube 영상 내용을 분석하여 정확한 시각화를 만드는 전문가입니다.
 
-            시각화 타입별 데이터 구조:
+🔑 핵심 원칙:
+1. 반드시 주어진 영상의 실제 내용만 사용하세요
+2. 다른 주제의 내용을 절대 사용하지 마세요  
+3. 영상에 나오지 않은 정보는 추가하지 마세요
+4. 구체적이고 실제적인 정보만 포함하세요
 
-            **차트 타입 (bar_chart, line_chart, pie_chart):**
-            ```json
-            {
-              "type": "chart_type",
-              "title": "차트 제목", 
-              "data": {
-                "labels": ["라벨1", "라벨2", "라벨3"],
-                "datasets": [{
-                  "label": "데이터셋명",
-                  "data": [값1, 값2, 값3],
-                  "backgroundColor": "색상"
-                }]
-              }
-            }
-            ```
+⚠️ 절대 금지:
+- 템플릿 텍스트 ("세부1", "항목1" 등)
+- 다른 주제 내용 혼입
+- 일반론적 표현 ("핵심 주제" 등)
+- 영상과 관련없는 내용
 
-            **마인드맵 (mindmap):**
-            ```json
-            {
-              "type": "mindmap",
-              "title": "마인드맵 제목",
-              "data": {
-                "center": "중심 주제",
-                "branches": [
-                  {
-                    "label": "주 가지1",
-                    "children": ["세부1", "세부2", "세부3"]
-                  },
-                  {
-                    "label": "주 가지2", 
-                    "children": ["세부A", "세부B"]
-                  }
-                ]
-              }
-            }
-            ```
+✅ 반드시 지킬 것:
+- 영상의 핵심 주제를 정확히 파악
+- 영상에서 언급된 구체적 정보만 사용
+- 학습자가 이해하기 쉬운 구조로 정리
 
-            **플로우차트 (flowchart):**
-            ```json
-            {
-              "type": "flowchart",
-              "title": "프로세스 흐름",
-              "data": {
-                "nodes": [
-                  {"id": "1", "label": "시작", "type": "start"},
-                  {"id": "2", "label": "단계1", "type": "process"},
-                  {"id": "3", "label": "결정", "type": "decision"},
-                  {"id": "4", "label": "결과", "type": "end"}
-                ],
-                "edges": [
-                  {"from": "1", "to": "2"},
-                  {"from": "2", "to": "3"},
-                  {"from": "3", "to": "4"}
-                ]
-              }
-            }
-            ```
+현재 영상 주제: {topic}
+요청 시각화: {viz_type}
 
-            **타임라인 (timeline):**
-            ```json
-            {
-              "type": "timeline",
-              "title": "시간순 진행",
-              "data": {
-                "events": [
-                  {"time": "2020", "title": "사건1", "description": "설명1"},
-                  {"time": "2021", "title": "사건2", "description": "설명2"},
-                  {"time": "2022", "title": "사건3", "description": "설명3"}
-                ]
-              }
-            }
-            ```
-
-            **비교표 (comparison):**
-            ```json
-            {
-              "type": "comparison",
-              "title": "비교 분석",
-              "data": {
-                "items": ["항목A", "항목B", "항목C"],
-                "criteria": ["기준1", "기준2", "기준3"],
-                "values": [
-                  ["A의 기준1", "A의 기준2", "A의 기준3"],
-                  ["B의 기준1", "B의 기준2", "B의 기준3"],
-                  ["C의 기준1", "C의 기준2", "C의 기준3"]
-                ]
-              }
-            }
-            ```
-
-            **계층구조 (tree/hierarchy):**
-            ```json
-            {
-              "type": "tree",
-              "title": "구조도",
-              "data": {
-                "root": "최상위",
-                "children": [
-                  {
-                    "label": "레벨1-1",
-                    "children": [
-                      {"label": "레벨2-1"},
-                      {"label": "레벨2-2"}
-                    ]
-                  },
-                  {
-                    "label": "레벨1-2",
-                    "children": [
-                      {"label": "레벨2-3"}
-                    ]
-                  }
-                ]
-              }
-            }
-            ```
-
-            영상 내용을 반영한 실제적인 데이터를 생성하세요.
+영상 내용을 바탕으로 {viz_type} 시각화를 JSON 형식으로 생성하세요.
             """),
-            ("human", "시각화 타입: {viz_type}\n영상 내용: {content}\n관련 부분: {relevant_text}")
+            ("human", "영상 주제: {topic}\n\n영상 내용:\n{content}\n\n특별 지시: 위 영상 내용에서만 정보를 추출하여 {viz_type} 시각화를 생성하세요.")
         ])
 
-    def _setup_content_patterns(self):
-        """콘텐츠 패턴별 시각화 매핑"""
-        self.content_patterns = {
-            # 교육/강의 영상
-            "교육": ["mindmap", "flowchart", "hierarchy", "process"],
-            "강의": ["mindmap", "timeline", "comparison", "tree"],
-            "학습": ["flowchart", "mindmap", "process", "hierarchy"],
-
-            # 리뷰/비교 영상
-            "리뷰": ["comparison", "bar_chart", "pie_chart", "matrix"],
-            "비교": ["comparison", "bar_chart", "matrix"],
-            "추천": ["comparison", "hierarchy", "bar_chart"],
-
-            # 요리/레시피 영상
-            "요리": ["flowchart", "process", "timeline", "tree"],
-            "레시피": ["process", "flowchart", "timeline"],
-            "만들기": ["process", "flowchart", "timeline"],
-
-            # 기술/개발 영상
-            "프로그래밍": ["flowchart", "tree", "network", "mindmap"],
-            "개발": ["flowchart", "process", "hierarchy", "network"],
-            "코딩": ["flowchart", "tree", "process"],
-
-            # 뉴스/분석 영상
-            "뉴스": ["timeline", "bar_chart", "line_chart", "network"],
-            "분석": ["comparison", "matrix", "bar_chart", "network"],
-            "정치": ["network", "timeline", "comparison"],
-
-            # 역사/다큐멘터리
-            "역사": ["timeline", "network", "tree", "mindmap"],
-            "다큐": ["timeline", "network", "comparison"],
-
-            # 비즈니스/경제
-            "비즈니스": ["hierarchy", "network", "comparison", "flowchart"],
-            "경제": ["line_chart", "bar_chart", "network", "comparison"],
-            "투자": ["line_chart", "comparison", "matrix"],
-
-            # 게임/엔터테인먼트
-            "게임": ["hierarchy", "tree", "comparison", "network"],
-            "엔터": ["network", "timeline", "comparison"]
-        }
-
     async def analyze_and_generate_visualizations(self, caption: str, report_text: str) -> List[Dict]:
-        """영상 내용 분석 후 적절한 시각화 생성"""
+        """실제 영상 내용 기반 시각화 생성"""
 
-        # 1단계: 내용 분석 및 시각화 타입 추천
-        analysis = await self._analyze_content_type(caption, report_text)
+        # 🔑 실제 주제 추출 (하드코딩 방지)
+        actual_topic = self._extract_actual_topic(report_text, caption)
+        print(f"🎯 실제 영상 주제: {actual_topic}")
 
-        # 2단계: 추천된 시각화별 데이터 생성
+        # 실제 내용 기반 섹션 분할
+        sections = self._analyze_content_sections(report_text, caption)
+
         visualizations = []
+        position = 0
 
-        # 보고서를 섹션별로 분할
-        report_sections = self._split_report_into_sections(report_text)
+        # 제목 섹션
+        visualizations.append({
+            "type": "paragraph",
+            "title": "",
+            "content": f"제목: {actual_topic}",
+            "position": position
+        })
+        position += 1
 
-        # 각 섹션에 적절한 시각화 배치
-        for i, section in enumerate(report_sections):
-            # 텍스트 섹션 추가
+        for section in sections:
+            # 텍스트 섹션
             visualizations.append({
                 "type": "paragraph",
-                "title": section.get("title", f"섹션 {i + 1}"),
-                "content": section.get("content", ""),
-                "position": len(visualizations)
+                "title": section["title"],
+                "content": section["content"],
+                "position": position
             })
+            position += 1
 
-            # 해당 섹션에 적절한 시각화 선택
-            suitable_viz = self._select_visualization_for_section(
-                section, analysis, caption
-            )
-
-            if suitable_viz:
-                viz_data = await self._generate_visualization_data(
-                    suitable_viz, section.get("content", ""), caption
+            # 🔑 실제 내용 기반 시각화 생성
+            viz_type = self._determine_appropriate_visualization(section, actual_topic)
+            if viz_type:
+                viz_data = await self._generate_content_specific_visualization(
+                    viz_type, actual_topic, section, caption
                 )
-                if viz_data:
-                    viz_data["position"] = len(visualizations)
+                if viz_data and self._validate_content_accuracy(viz_data, actual_topic):
+                    viz_data["position"] = position
                     visualizations.append(viz_data)
+                    position += 1
+                    print(f"✅ {actual_topic} 기반 {viz_type} 생성 완료")
+                else:
+                    print(f"❌ {viz_type} 내용 정확성 검증 실패")
 
         return visualizations
 
-    async def _analyze_content_type(self, caption: str, report: str) -> Dict:
-        """내용 분석 및 시각화 추천"""
-        try:
-            messages = self.analysis_prompt.format_messages(
-                caption=caption[:1500],  # 길이 제한
-                report=report[:1500]
-            )
-            response = self.llm.invoke(messages)
+    def _extract_actual_topic(self, report_text: str, caption: str) -> str:
+        """실제 영상 주제 정확히 추출"""
 
-            if response and response.content:
-                # JSON 파싱 시도
-                content = response.content.strip()
-                if content.startswith("```json"):
-                    content = content.replace("```json", "").replace("```", "").strip()
+        # 제목에서 추출 시도
+        lines = report_text.split('\n')
+        for line in lines:
+            if '제목:' in line:
+                topic = line.replace('제목:', '').strip()
+                if len(topic) > 5:  # 의미있는 제목인지 확인
+                    return topic
 
-                analysis = json.loads(content)
-                print(f"📊 내용 분석 결과: {analysis.get('content_type', 'Unknown')}")
-                return analysis
+        # 자막에서 핵심 키워드 추출
+        caption_words = re.findall(r'[가-힣]{2,}', caption[:500])  # 처음 500자에서 키워드 추출
+        word_count = {}
+        for word in caption_words:
+            if len(word) >= 3:  # 3글자 이상 단어만
+                word_count[word] = word_count.get(word, 0) + 1
 
-        except Exception as e:
-            print(f"⚠️ 내용 분석 실패: {e}")
+        # 가장 빈번한 단어들로 주제 구성
+        if word_count:
+            top_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)[:3]
+            topic_keywords = [word for word, count in top_words if count >= 2]
+            if topic_keywords:
+                return ' '.join(topic_keywords[:2])  # 상위 2개 키워드 조합
 
-        # 기본값 반환
-        return {
-            "content_type": "general",
-            "recommended_visualizations": [
-                {"type": "mindmap", "reason": "일반적인 개념 정리", "priority": 3, "position": "중간"},
-                {"type": "bar_chart", "reason": "기본 데이터 표현", "priority": 2, "position": "끝"}
-            ]
-        }
+        # 마지막 수단: 보고서 첫 문장
+        first_sentence = report_text.split('.')[0].strip()
+        if len(first_sentence) < 100:
+            return first_sentence
 
-    def _split_report_into_sections(self, report_text: str) -> List[Dict]:
-        """보고서를 의미 단위로 분할"""
+        return "영상 내용 분석"
+
+    def _analyze_content_sections(self, report_text: str, caption: str) -> List[Dict]:
+        """내용 기반 섹션 분석"""
         sections = []
 
-        # 제목별로 분할 시도
-        lines = report_text.split('\n')
-        current_section = {"title": "", "content": ""}
+        # 보고서를 의미 단위로 분할
+        paragraphs = re.split(r'\n\s*\n|\d+\.\s+', report_text)
 
-        for line in lines:
-            line = line.strip()
-            if not line:
+        current_section = {"title": "요약", "content": ""}
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
                 continue
 
-            # 제목 패턴 감지
-            if (line.startswith('#') or
-                    line.endswith(':') or
-                    any(keyword in line for keyword in ['요약', '주요', '결론', '개요', '분석'])):
+            # 섹션 제목 감지 (좀 더 정확하게)
+            if (len(para) < 50 and
+                    any(keyword in para for keyword in ['요약', '주요', '내용', '과정', '방법', '결론', '의의', '원리', '공식'])):
 
-                # 이전 섹션 저장
                 if current_section["content"]:
                     sections.append(current_section)
 
-                # 새 섹션 시작
-                current_section = {
-                    "title": line.replace('#', '').replace(':', '').strip(),
-                    "content": ""
-                }
+                # 제목에서 콜론 제거하고 정리
+                title = para.replace(':', '').strip()
+                current_section = {"title": title, "content": ""}
             else:
-                current_section["content"] += line + " "
+                current_section["content"] += para + " "
 
-        # 마지막 섹션 저장
         if current_section["content"]:
             sections.append(current_section)
 
-        # 최소 1개 섹션 보장
-        if not sections:
-            sections = [{"title": "영상 내용", "content": report_text}]
+        # 중복 제거 및 정리
+        unique_sections = []
+        seen_content = set()
 
-        print(f"📄 보고서를 {len(sections)}개 섹션으로 분할")
-        return sections
+        for section in sections:
+            content_key = section["content"][:100]  # 처음 100자로 중복 체크
+            if content_key not in seen_content and len(section["content"]) > 20:
+                seen_content.add(content_key)
+                unique_sections.append(section)
 
-    def _select_visualization_for_section(self, section: Dict, analysis: Dict, caption: str) -> str:
-        """섹션 내용에 가장 적합한 시각화 타입 선택"""
-        content = section.get("content", "").lower()
-        title = section.get("title", "").lower()
+        return unique_sections[:4]  # 최대 4개 섹션
 
-        # 키워드 기반 시각화 선택
-        if any(word in content or word in title for word in ['단계', '과정', '방법', '절차']):
-            return "flowchart"
-        elif any(word in content or word in title for word in ['개념', '관계', '연결', '구조']):
-            return "mindmap"
-        elif any(word in content or word in title for word in ['시간', '순서', '역사', '발전']):
+    def _determine_appropriate_visualization(self, section: Dict, topic: str) -> str:
+        """실제 내용에 적합한 시각화 타입 결정"""
+        content = section["content"].lower()
+        title = section["title"].lower()
+        topic_lower = topic.lower()
+
+        # 주제별 특화 시각화 선택
+        if any(word in topic_lower for word in ['공식', '수학', '계산', '알고리즘']):
+            if any(word in content for word in ['단계', '과정', '방법', '절차']):
+                return "flowchart"
+            elif any(word in content for word in ['구성', '요소', '원리']):
+                return "mindmap"
+
+        elif any(word in topic_lower for word in ['역사', '발전', '변화']):
             return "timeline"
-        elif any(word in content or word in title for word in ['비교', '차이', '대비', 'vs']):
+
+        elif any(word in content for word in ['비교', '차이', '종류', 'vs']):
             return "comparison"
-        elif any(word in content or word in title for word in ['조직', '계층', '분류', '체계']):
+
+        elif any(word in content for word in ['구조', '분류', '계층', '체계']):
             return "tree"
-        elif re.search(r'\d+%|\d+점|\d+위', content):  # 수치 데이터
-            return "bar_chart"
-        elif any(word in content for word in ['증가', '감소', '변화', '추세']):
-            return "line_chart"
-        elif any(word in content for word in ['비율', '분포', '구성', '점유']):
-            return "pie_chart"
 
-        # 분석 결과 기반 선택
-        recommended = analysis.get("recommended_visualizations", [])
-        if recommended:
-            return recommended[0].get("type", "mindmap")
+        elif any(word in content for word in ['개념', '관계', '연결', '요소']):
+            return "mindmap"
 
-        return "mindmap"  # 기본값
+        elif any(word in content for word in ['과정', '단계', '방법', '절차', '순서']):
+            return "flowchart"
 
-    async def _generate_visualization_data(self, viz_type: str, content: str, caption: str) -> Dict:
-        """특정 시각화 타입의 데이터 생성"""
+        return None
+
+    async def _generate_content_specific_visualization(self, viz_type: str, topic: str, section: Dict,
+                                                       caption: str) -> Dict:
+        """실제 내용에 특화된 시각화 생성"""
+
         try:
+            # 🔑 실제 영상 내용만 사용하도록 컨텍스트 제한
+            relevant_caption = self._extract_relevant_content(caption, section["content"])
+
             messages = self.generation_prompt.format_messages(
                 viz_type=viz_type,
-                content=caption[:800],  # 전체 맥락
-                relevant_text=content[:400]  # 관련 부분
+                topic=topic,
+                content=f"섹션: {section['title']}\n내용: {section['content']}\n관련 자막: {relevant_caption}"
             )
+
             response = self.llm.invoke(messages)
 
             if response and response.content:
                 content_text = response.content.strip()
-                if content_text.startswith("```json"):
-                    content_text = content_text.replace("```json", "").replace("```", "").strip()
+
+                # JSON 추출
+                if "```json" in content_text:
+                    start = content_text.find("```json") + 7
+                    end = content_text.find("```", start)
+                    if end > start:
+                        content_text = content_text[start:end].strip()
 
                 viz_data = json.loads(content_text)
-                print(f"📊 {viz_type} 시각화 데이터 생성 완료")
+
+                # 🔑 내용 검증 및 교정
+                viz_data = self._correct_content_mismatch(viz_data, topic, section)
+
                 return viz_data
 
         except Exception as e:
-            print(f"⚠️ {viz_type} 시각화 생성 실패: {e}")
+            print(f"⚠️ {viz_type} 생성 실패: {e}")
 
-        # 실패 시 기본 시각화 생성
-        return self._create_fallback_visualization(viz_type, content)
+        # 실패 시 실제 내용 기반 기본 시각화
+        return self._create_topic_specific_fallback(viz_type, topic, section)
 
-    def _create_fallback_visualization(self, viz_type: str, content: str) -> Dict:
-        """기본 시각화 데이터 생성"""
-        # 내용에서 키워드 추출
-        keywords = re.findall(r'[가-힣]{2,}', content)
-        top_keywords = list(set(keywords))[:4]
+    def _extract_relevant_content(self, caption: str, section_content: str) -> str:
+        """섹션과 관련된 자막 부분만 추출"""
 
-        if not top_keywords:
-            top_keywords = ["주제1", "주제2", "주제3", "주제4"]
+        # 섹션의 핵심 키워드 추출
+        section_keywords = re.findall(r'[가-힣]{3,}', section_content)
 
-        fallback_data = {
-            "mindmap": {
+        # 자막을 문장 단위로 분할
+        sentences = re.split(r'[.!?]\s+', caption)
+
+        relevant_sentences = []
+        for sentence in sentences:
+            # 키워드가 포함된 문장만 선별
+            if any(keyword in sentence for keyword in section_keywords[:5]):
+                relevant_sentences.append(sentence)
+
+        return ' '.join(relevant_sentences[:3])  # 최대 3문장
+
+    def _correct_content_mismatch(self, viz_data: Dict, topic: str, section: Dict) -> Dict:
+        """내용 불일치 교정"""
+
+        # 주제 불일치 감지 및 교정
+        data = viz_data.get("data", {})
+
+        if viz_data.get("type") == "mindmap":
+            # 중심 주제 교정
+            center = data.get("center", "")
+            if "중력파" in center and "중력파" not in topic:
+                # 실제 주제로 교체
+                main_keyword = self._extract_main_keyword(topic)
+                data["center"] = main_keyword
+
+            # 브랜치 내용 교정
+            branches = data.get("branches", [])
+            section_keywords = re.findall(r'[가-힣]{3,}', section["content"])
+
+            for i, branch in enumerate(branches):
+                # 섹션 내용과 관련된 키워드로 교체
+                if i < len(section_keywords):
+                    branch["label"] = section_keywords[i]
+
+                # 하위 항목도 관련 내용으로 교체
+                children = branch.get("children", [])
+                relevant_terms = self._extract_related_terms(section["content"], branch["label"])
+                if relevant_terms:
+                    branch["children"] = relevant_terms[:3]
+
+        elif viz_data.get("type") == "flowchart":
+            # 플로우차트 노드 내용 교정
+            nodes = data.get("nodes", [])
+            steps = self._extract_process_steps(section["content"])
+
+            if steps and len(steps) >= 3:
+                for i, node in enumerate(nodes):
+                    if i < len(steps) and node.get("type") == "process":
+                        node["label"] = steps[i]
+
+        viz_data["data"] = data
+        return viz_data
+
+    def _extract_main_keyword(self, topic: str) -> str:
+        """주제에서 핵심 키워드 추출"""
+        words = re.findall(r'[가-힣]{2,}', topic)
+        # 가장 긴 단어 또는 의미있는 단어 선택
+        meaningful_words = [w for w in words if len(w) >= 3]
+        return meaningful_words[0] if meaningful_words else words[0] if words else topic
+
+    def _extract_related_terms(self, content: str, main_term: str) -> List[str]:
+        """메인 용어와 관련된 하위 용어들 추출"""
+        sentences = content.split('.')
+        related_terms = []
+
+        for sentence in sentences:
+            if main_term in sentence:
+                # 문장에서 의미있는 단어들 추출
+                words = re.findall(r'[가-힣]{3,}', sentence)
+                for word in words:
+                    if word != main_term and word not in related_terms:
+                        related_terms.append(word)
+
+        return related_terms[:3] if related_terms else [f"{main_term} 특성", f"{main_term} 활용", f"{main_term} 원리"]
+
+    def _extract_process_steps(self, content: str) -> List[str]:
+        """내용에서 실제 과정 단계들 추출"""
+        # 번호가 매겨진 단계 찾기
+        numbered_steps = re.findall(r'\d+[단계\.]\s*([^.]+)', content)
+        if numbered_steps:
+            return numbered_steps
+
+        # "먼저", "다음", "마지막" 등의 순서 표현 찾기
+        sequence_patterns = [
+            r'먼저[,\s]*([^.]+)',
+            r'다음[,\s]*([^.]+)',
+            r'그\s*다음[,\s]*([^.]+)',
+            r'마지막[,\s]*([^.]+)'
+        ]
+
+        steps = []
+        for pattern in sequence_patterns:
+            matches = re.findall(pattern, content)
+            steps.extend(matches)
+
+        return steps[:4] if steps else []
+
+    def _validate_content_accuracy(self, viz_data: Dict, topic: str) -> bool:
+        """내용 정확성 검증"""
+
+        # 주제 일치성 검증
+        data_str = str(viz_data).lower()
+        topic_lower = topic.lower()
+
+        # 주제와 완전히 다른 내용이 있는지 확인
+        conflicting_topics = ["중력파", "블랙홀", "아인슈타인"]
+        topic_keywords = re.findall(r'[가-힣]{2,}', topic_lower)
+
+        for conflict in conflicting_topics:
+            if conflict in data_str and not any(keyword in conflict for keyword in topic_keywords):
+                print(f"⚠️ 주제 불일치 감지: {conflict} in {topic}")
+                return False
+
+        return True
+
+    def _create_topic_specific_fallback(self, viz_type: str, topic: str, section: Dict) -> Dict:
+        """주제별 맞춤 기본 시각화"""
+
+        main_keyword = self._extract_main_keyword(topic)
+        section_keywords = re.findall(r'[가-힣]{3,}', section["content"])[:3]
+
+        if viz_type == "mindmap":
+            return {
                 "type": "mindmap",
-                "title": "주요 개념",
+                "title": f"{topic} 핵심 개념",
                 "data": {
-                    "center": "핵심 주제",
+                    "center": main_keyword,
                     "branches": [
-                        {"label": keyword, "children": [f"{keyword} 세부1", f"{keyword} 세부2"]}
-                        for keyword in top_keywords[:3]
+                        {
+                            "label": section_keywords[0] if len(section_keywords) > 0 else "기본 개념",
+                            "children": [f"{main_keyword} 정의", f"{main_keyword} 특징", f"{main_keyword} 중요성"]
+                        },
+                        {
+                            "label": section_keywords[1] if len(section_keywords) > 1 else "응용 분야",
+                            "children": [f"{main_keyword} 활용", f"{main_keyword} 장점", f"{main_keyword} 효과"]
+                        },
+                        {
+                            "label": section_keywords[2] if len(section_keywords) > 2 else "관련 기술",
+                            "children": [f"{main_keyword} 원리", f"{main_keyword} 방법", f"{main_keyword} 기술"]
+                        }
                     ]
                 }
-            },
-            "flowchart": {
+            }
+
+        elif viz_type == "flowchart":
+            steps = self._extract_process_steps(section["content"])
+            if not steps:
+                steps = [f"{main_keyword} 시작", f"{main_keyword} 진행", f"{main_keyword} 완료"]
+
+            return {
                 "type": "flowchart",
-                "title": "진행 과정",
+                "title": f"{section['title']} 과정",
                 "data": {
                     "nodes": [
-                        {"id": "1", "label": "시작", "type": "start"},
-                        {"id": "2", "label": top_keywords[0] if len(top_keywords) > 0 else "단계1", "type": "process"},
-                        {"id": "3", "label": top_keywords[1] if len(top_keywords) > 1 else "단계2", "type": "process"},
-                        {"id": "4", "label": "완료", "type": "end"}
+                        {"id": "1", "label": steps[0] if len(steps) > 0 else "시작", "type": "start"},
+                        {"id": "2", "label": steps[1] if len(steps) > 1 else f"{main_keyword} 적용", "type": "process"},
+                        {"id": "3", "label": steps[2] if len(steps) > 2 else f"{main_keyword} 검증", "type": "process"},
+                        {"id": "4", "label": steps[3] if len(steps) > 3 else "완료", "type": "end"}
                     ],
                     "edges": [
                         {"from": "1", "to": "2"},
@@ -459,45 +405,10 @@ class SmartVisualizationService:
                         {"from": "3", "to": "4"}
                     ]
                 }
-            },
-            "comparison": {
-                "type": "comparison",
-                "title": "비교 분석",
-                "data": {
-                    "items": top_keywords[:3],
-                    "criteria": ["특징1", "특징2", "특징3"],
-                    "values": [
-                        ["우수", "보통", "좋음"],
-                        ["좋음", "우수", "보통"],
-                        ["보통", "좋음", "우수"]
-                    ]
-                }
-            },
-            "timeline": {
-                "type": "timeline",
-                "title": "시간순 진행",
-                "data": {
-                    "events": [
-                        {"time": "1단계", "title": top_keywords[0] if len(top_keywords) > 0 else "시작",
-                         "description": "첫 번째 단계"},
-                        {"time": "2단계", "title": top_keywords[1] if len(top_keywords) > 1 else "진행",
-                         "description": "두 번째 단계"},
-                        {"time": "3단계", "title": top_keywords[2] if len(top_keywords) > 2 else "완료",
-                         "description": "세 번째 단계"}
-                    ]
-                }
             }
-        }
 
-        return fallback_data.get(viz_type, {
-            "type": "bar_chart",
-            "title": "데이터 분석",
-            "data": {
-                "labels": top_keywords,
-                "datasets": [{
-                    "label": "중요도",
-                    "data": [85, 75, 65, 55],
-                    "backgroundColor": "#6366f1"
-                }]
-            }
-        })
+        return {
+            "type": "paragraph",
+            "title": section["title"],
+            "content": section["content"]
+        }

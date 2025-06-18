@@ -74,7 +74,7 @@ reports: Dict[str, Report] = {}
 
 
 async def process_video_with_smart_visualization(job_id: str, request: ProcessVideoRequest):
-    """스마트 시각화를 포함한 영상 처리"""
+    """스마트 시각화를 포함한 영상 처리 - 디버깅 강화"""
     try:
         print(f"🎬 [Smart Viz] 작업 {job_id} 시작")
 
@@ -127,6 +127,12 @@ async def process_video_with_smart_visualization(job_id: str, request: ProcessVi
             caption, basic_report
         )
 
+        print(f"🔍 스마트 시각화 결과 디버깅:")
+        for idx, viz in enumerate(smart_visualizations):
+            print(f"  섹션 {idx}: type={viz.get('type')}, title={viz.get('title')}, has_data={bool(viz.get('data'))}")
+            if viz.get('data'):
+                print(f"    데이터 키: {list(viz['data'].keys()) if isinstance(viz.get('data'), dict) else 'non-dict'}")
+
         print(f"✅ 스마트 시각화 생성 완료: {len(smart_visualizations)}개 섹션")
 
         # 시각화 타입별 통계
@@ -140,7 +146,14 @@ async def process_video_with_smart_visualization(job_id: str, request: ProcessVi
 
         # 4단계: 보고서 완성
         report.title = extract_title_from_text(basic_report)
+
+        print(f"🔧 ReportSection 생성 시작...")
         report.sections = create_smart_sections(smart_visualizations)
+
+        print(f"🔍 생성된 섹션 확인:")
+        for idx, section in enumerate(report.sections):
+            print(f"  섹션 {idx}: type={section.type.value}, original_type={getattr(section, '_original_type', 'None')}")
+
         report.status = "completed"
 
         jobs[job_id].update({
@@ -170,7 +183,6 @@ async def process_video_with_smart_visualization(job_id: str, request: ProcessVi
             "completed_at": datetime.now().isoformat(),
             "error": str(e)
         })
-
 
 def analyze_visualization_types(visualizations: List[Dict]) -> Dict[str, Any]:
     """생성된 시각화 타입 분석"""
@@ -213,71 +225,61 @@ def extract_title_from_text(report_text: str) -> str:
 
 
 def create_smart_sections(viz_data: List[Dict]) -> List[ReportSection]:
-    """스마트 시각화 데이터를 ReportSection으로 변환"""
+    """스마트 시각화 데이터를 ReportSection으로 변환 - 완전 수정됨"""
     sections = []
 
     for i, item in enumerate(viz_data):
         try:
             viz_type_str = item.get("type", "paragraph")
+            print(f"🔧 섹션 {i} 처리: 타입={viz_type_str}")
 
-            # 확장된 VisualizationType enum 처리
+            # 🔑 enum에 있는 타입인지 확인
             try:
                 section_type = VisualizationType(viz_type_str)
+                print(f"✅ 직접 매핑 성공: {viz_type_str}")
             except ValueError:
-                # 새로운 타입이면 paragraph로 처리하되, 원본 타입 정보 보존
+                print(f"⚠️ 지원되지 않는 타입: {viz_type_str}, paragraph로 처리")
                 section_type = VisualizationType.PARAGRAPH
-                print(f"⚠️ 새로운 시각화 타입: {viz_type_str}, paragraph로 처리")
 
-            # 텍스트 섹션
-            if section_type == VisualizationType.PARAGRAPH or viz_type_str in ["heading", "paragraph"]:
-                section = ReportSection(
-                    type=section_type,
-                    title=item.get("title"),
-                    content=item.get("content"),
-                    position=item.get("position", i)
-                )
-            # 기본 차트 섹션
-            elif section_type in [VisualizationType.BAR_CHART, VisualizationType.LINE_CHART,
-                                  VisualizationType.PIE_CHART]:
-                data_dict = item.get("data", {})
+            # 🔑 모든 시각화 데이터를 VisualizationData에 저장
+            viz_data_obj = None
+            if item.get("data"):
                 viz_data_obj = VisualizationData(
-                    labels=data_dict.get("labels", []),
-                    datasets=data_dict.get("datasets", []),
-                    options=data_dict.get("options", {})
+                    labels=item.get("data", {}).get("labels", []),
+                    datasets=item.get("data", {}).get("datasets", []),
+                    options=item.get("data", {}).get("options", {}),
+                    raw_data=item.get("data", {})  # 🔑 원본 데이터 보존
                 )
-                section = ReportSection(
-                    type=section_type,
-                    title=item.get("title"),
-                    visualization_data=viz_data_obj,
-                    position=item.get("position", i)
-                )
-            # 고급 시각화 (임시로 paragraph로 처리하되 원본 데이터 보존)
-            else:
-                section = ReportSection(
-                    type=VisualizationType.PARAGRAPH,
-                    title=item.get("title", f"고급 시각화: {viz_type_str}"),
-                    content=json.dumps(item, ensure_ascii=False, indent=2),
-                    position=item.get("position", i)
-                )
-                # 원본 시각화 타입과 데이터를 메타데이터로 저장
-                section._original_type = viz_type_str
-                section._original_data = item.get("data")
+                print(f"📊 시각화 데이터 저장: {list(item['data'].keys())}")
+
+            # ReportSection 생성
+            section = ReportSection(
+                type=section_type,  # 🔑 원본 타입 직접 사용
+                title=item.get("title"),
+                content=item.get("content"),
+                visualization_data=viz_data_obj,
+                position=item.get("position", i)
+            )
 
             sections.append(section)
+            print(f"✅ 섹션 생성 완료: {section_type.value}")
 
         except Exception as e:
-            print(f"⚠️ 섹션 {i} 생성 실패: {e}")
-            # 실패한 섹션은 원본 데이터를 그대로 표시
+            print(f"❌ 섹션 {i} 생성 실패: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # 실패 시 기본 섹션
             fallback_section = ReportSection(
                 type=VisualizationType.PARAGRAPH,
                 title=item.get("title", f"섹션 {i + 1}"),
-                content=f"원본 데이터:\n{json.dumps(item, ensure_ascii=False, indent=2)}",
+                content=f"처리 실패: {str(e)}",
                 position=i
             )
             sections.append(fallback_section)
 
+    print(f"📋 총 {len(sections)}개 섹션 생성 완료")
     return sections
-
 
 # API 엔드포인트들
 @app.get("/")
@@ -394,31 +396,32 @@ async def list_jobs():
 
 
 def convert_report_to_response(report: Report) -> Dict:
-    """Report 모델을 응답 형식으로 변환 (고급 시각화 지원)"""
+    """Report를 응답으로 변환 - 완전 수정됨"""
     sections = []
 
     for section in report.sections:
         section_dict = {
             "id": section.id,
-            "type": section.type.value,
+            "type": section.type.value,  # 🔑 enum 값 직접 사용
             "title": section.title,
             "content": section.content,
             "position": section.position
         }
 
-        # 기본 차트 데이터
+        # 🔑 시각화 데이터 포함
         if section.visualization_data:
-            section_dict["data"] = {
-                "labels": section.visualization_data.labels,
-                "datasets": section.visualization_data.datasets,
-                "options": section.visualization_data.options
-            }
+            # 기본 차트용 데이터
+            if section.visualization_data.labels or section.visualization_data.datasets:
+                section_dict["data"] = {
+                    "labels": section.visualization_data.labels,
+                    "datasets": section.visualization_data.datasets,
+                    "options": section.visualization_data.options
+                }
+            # 고급 시각화용 데이터
+            elif section.visualization_data.raw_data:
+                section_dict["data"] = section.visualization_data.raw_data
 
-        # 고급 시각화 메타데이터 복원
-        if hasattr(section, '_original_type'):
-            section_dict["type"] = section._original_type
-            if hasattr(section, '_original_data'):
-                section_dict["data"] = section._original_data
+            print(f"📤 섹션 {section.id} 데이터 전송: {section.type.value}")
 
         sections.append(section_dict)
 
@@ -431,7 +434,6 @@ def convert_report_to_response(report: Report) -> Dict:
         "created_at": report.created_at.isoformat(),
         "error_message": report.error_message
     }
-
 
 if __name__ == "__main__":
     import uvicorn
