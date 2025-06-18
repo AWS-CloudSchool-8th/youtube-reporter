@@ -1,4 +1,6 @@
-/* frontend/src/App.css (Chart.js 스타일 추가) */
+/* frontend/src/App.css (스마트 시각화 지원 버전) */
+
+/* 기존 스타일들 + 새로운 시각화 스타일 */
 * {
   margin: 0;
   padding: 0;
@@ -40,6 +42,7 @@ body {
 .header p {
   font-size: 1.2rem;
   opacity: 0.9;
+  margin-bottom: 0.5rem;
 }
 
 /* 메인 컨텐츠 */
@@ -86,12 +89,6 @@ body {
   transform: translateY(-1px);
 }
 
-.url-input input:disabled {
-  background-color: #f8fafc;
-  color: #64748b;
-  cursor: not-allowed;
-}
-
 .process-btn {
   padding: 1rem 2rem;
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -104,6 +101,9 @@ body {
   transition: all 0.3s ease;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .process-btn:hover:not(:disabled) {
@@ -115,18 +115,6 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
-}
-
-/* 에러 메시지 */
-.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  border-left: 4px solid #dc2626;
-  font-weight: 500;
-  margin-top: 1rem;
 }
 
 /* 상태 섹션 */
@@ -140,27 +128,6 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.status-section h3 {
-  margin-bottom: 1.5rem;
-  color: #1e293b;
-  font-size: 1.4rem;
-  font-weight: 600;
-}
-
-.status-card {
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 1.5rem;
-  background: #fafbfc;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
 .status-badge {
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -168,6 +135,9 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .status-badge.queued {
@@ -191,6 +161,207 @@ body {
   color: white;
 }
 
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1rem 0 0.5rem 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
+  transition: width 0.5s ease;
+  border-radius: 10px;
+}
+
+/* 기능 소개 섹션 */
+.features-section .feature-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.features-section .feature-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+.features-section .feature-card h4 {
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.features-section .feature-card p {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* 시각화 컨테이너 */
+.visualization-container {
+  animation: fadeInUp 0.5s ease-out;
+  transition: all 0.3s ease;
+}
+
+.visualization-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* 마인드맵 스타일 */
+.mindmap-container {
+  padding: 1rem;
+}
+
+.mindmap-error,
+.flowchart-error,
+.timeline-error,
+.comparison-error,
+.tree-error,
+.network-error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  text-align: center;
+}
+
+/* 플로우차트 스타일 */
+.flowchart-container {
+  padding: 1rem;
+}
+
+/* 타임라인 스타일 */
+.timeline-container {
+  padding: 1rem;
+}
+
+/* 비교표 스타일 */
+.comparison-container {
+  padding: 1rem;
+}
+
+.comparison-container table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-container th,
+.comparison-container td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.comparison-container th {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  font-weight: 600;
+}
+
+/* 트리 스타일 */
+.tree-container {
+  padding: 1rem;
+}
+
+/* 네트워크 스타일 */
+.network-container {
+  padding: 1rem;
+}
+
+/* 텍스트 섹션 */
+.paragraph-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 2rem;
+  border-left: 4px solid #6366f1;
+  border-radius: 0 12px 12px 0;
+}
+
+.paragraph-section h4 {
+  color: #1e293b;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.paragraph-section p {
+  line-height: 1.7;
+  color: #475569;
+  font-size: 1rem;
+}
+
+.heading-section {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.heading-section h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* 알 수 없는 시각화 타입 */
+.unknown-visualization {
+  background: #fff3cd;
+  border: 2px dashed #ffc107;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.unknown-visualization h4 {
+  color: #856404;
+  margin-bottom: 0.5rem;
+}
+
+.unknown-visualization p {
+  color: #856404;
+  margin-bottom: 1rem;
+}
+
+.unknown-visualization details {
+  text-align: left;
+  margin-top: 1rem;
+}
+
+.unknown-visualization summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #856404;
+  margin-bottom: 0.5rem;
+}
+
+/* 로딩 스피너 */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -202,29 +373,29 @@ body {
   }
 }
 
-.status-message {
-  color: #64748b;
-  flex: 1;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 에러 메시지 */
+.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border-left: 4px solid #dc2626;
   font-weight: 500;
+  margin-top: 1rem;
 }
 
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background: #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #6366f1, #4f46e5);
-  transition: width 0.5s ease;
-  border-radius: 10px;
-}
-
-/* 결과 섹션 */
+/* 결과 컨테이너 */
 .result-container {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -240,93 +411,13 @@ body {
   color: #1e293b;
   font-size: 1.5rem;
   font-weight: 600;
+  text-align: center;
 }
 
 .sections {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-}
-
-.section {
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-/* 텍스트 섹션 */
-.paragraph {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  padding: 2rem;
-  border-left: 4px solid #6366f1;
-}
-
-.paragraph h4 {
-  color: #1e293b;
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-.paragraph p {
-  line-height: 1.7;
-  color: #475569;
-  font-size: 1rem;
-}
-
-/* 차트 섹션 */
-.visual-chart {
-  background: #ffffff;
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #f1f5f9;
-}
-
-.chart-container {
-  position: relative;
-  height: 400px;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #f1f5f9;
-}
-
-.chart-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  background: #fef2f2;
-  border: 2px dashed #fca5a5;
-  border-radius: 12px;
-  color: #dc2626;
-  font-weight: 500;
-}
-
-/* 이미지 섹션 */
-.visual {
-  text-align: center;
-  background: #fff;
-  padding: 1.5rem;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-}
-
-.visual img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.error-placeholder {
-  color: #dc2626;
-  padding: 2rem;
-  background: #fef2f2;
-  border-radius: 8px;
-  font-style: italic;
 }
 
 /* 작업 기록 섹션 */
@@ -428,39 +519,42 @@ body {
     font-size: 1rem;
   }
 
-  .chart-container {
-    height: 300px;
-    padding: 1rem;
+  .features-section {
+    padding: 1.5rem;
+  }
+
+  .features-section > div {
+    grid-template-columns: 1fr;
+  }
+
+  .mindmap-svg-container {
+    height: 300px !important;
+  }
+
+  .flowchart-content {
+    padding: 20px !important;
   }
 }
 
-/* 애니메이션 효과 */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 차트 컨테이너 (기존) */
+.chart-container {
+  position: relative;
+  height: 400px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f1f5f9;
 }
 
-.section {
-  animation: fadeInUp 0.5s ease-out;
-}
-
-/* 로딩 스피너 */
-.loading-spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.chart-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  background: #fef2f2;
+  border: 2px dashed #fca5a5;
+  border-radius: 12px;
+  color: #dc2626;
+  font-weight: 500;
 }

@@ -1,7 +1,7 @@
 # controllers/report_controller.py
 from .base_controller import BaseController
 from services.youtube_service import YouTubeService
-from services.claude_service import ClaudeService
+from services.smart_visualization_service import ClaudeService
 from models.report import Report, ReportSection, VisualizationData, VisualizationType
 from views.schemas import ProcessVideoRequest, ReportResponse, VisualizationResponse
 from typing import Dict, Any, List
