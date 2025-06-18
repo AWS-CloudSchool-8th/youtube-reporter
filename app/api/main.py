@@ -1,62 +1,70 @@
-# app/api/main.py (MVC 적용 버전)
+# app/api/main.py (PyCharm 디버그 친화적 버전)
+"""Pure MVC API - PyCharm 최적화"""
+
 import os
 import sys
 from pathlib import Path
 
-# 환경 변수 먼저 로드
+# PyCharm에서 실행시 경로 자동 설정
+if __name__ == "__main__":
+    # 현재 파일의 부모의 부모 폴더를 Python 경로에 추가
+    app_root = Path(__file__).parent.parent
+    if str(app_root) not in sys.path:
+        sys.path.insert(0, str(app_root))
+    print(f"🐍 Python 경로 추가됨: {app_root}")
+
+# 환경 변수 로드
 try:
     from dotenv import load_dotenv
 
     env_path = Path(__file__).parent.parent / '.env'
-    load_dotenv(env_path)
-    print(f"✅ .env 파일 로드됨: {env_path}")
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✅ .env 파일 로드됨: {env_path}")
+    else:
+        print(f"⚠️  .env 파일 없음: {env_path}")
+        print("💡 PyCharm Run Configuration에서 환경 변수를 직접 설정하세요")
 except ImportError:
-    print("⚠️  python-dotenv가 설치되지 않았습니다.")
+    print("⚠️  python-dotenv가 설치되지 않음. pip install python-dotenv")
 
-# Python 경로 설정
-app_root = Path(__file__).parent.parent
-sys.path.insert(0, str(app_root))
+# 필수 환경 변수 확인
+required_vars = ['VIDCAP_API_KEY', 'OPENAI_API_KEY', 'AWS_REGION', 'S3_BUCKET_NAME']
+missing_vars = [var for var in required_vars if not os.getenv(var)]
 
-print(f"📁 Python 경로에 추가됨: {app_root}")
+if missing_vars:
+    print(f"❌ 누락된 환경 변수: {missing_vars}")
+    print("\n💡 PyCharm에서 환경 변수 설정 방법:")
+    print("1. Run Configuration 편집")
+    print("2. Environment variables 섹션에 추가:")
+    for var in missing_vars:
+        print(f"   {var}=your_value_here")
+    print("\n또는 .env 파일을 app/.env 경로에 생성하세요")
 
-# FastAPI 및 기본 라이브러리
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any
+from pydantic import BaseModel, HttpUrl
+from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
+import json
 
-# 환경 변수 검증
+# MVC 컴포넌트들 import
 try:
-    from utils.env_validator import check_environment_comprehensive
+    from services.youtube_service import YouTubeService
+    from services.claude_service import ClaudeService
+    from models.report import Report, ReportSection, VisualizationType, VisualizationData
+    from views.schemas import ProcessVideoRequest, ReportResponse, VisualizationResponse
 
-    if not check_environment_comprehensive():
-        print("❌ 환경 변수 검증 실패!")
-        sys.exit(1)
+    print("✅ MVC 컴포넌트 import 성공")
 except ImportError as e:
-    print(f"❌ utils.env_validator import 실패: {e}")
+    print(f"❌ MVC 컴포넌트 import 실패: {e}")
+    print("💡 PyCharm에서 app 폴더를 소스 루트로 설정해보세요:")
+    print("   app 폴더 우클릭 → Mark Directory as → Sources Root")
     sys.exit(1)
 
-# MVC 모듈들 import
-try:
-    from controllers.report_controller import ReportController
-    from views.schemas import ProcessVideoRequest, ProcessVideoResponse, ReportResponse
-    from utils.logger import setup_logger
-
-    print("✅ MVC 모듈 import 성공!")
-except ImportError as e:
-    print(f"❌ MVC 모듈 import 실패: {e}")
-    print("현재 작업 디렉토리:", os.getcwd())
-    sys.exit(1)
-
-# 로거 및 컨트롤러 설정
-logger = setup_logger(__name__)
-report_controller = ReportController()
-
-# FastAPI 앱 생성
 app = FastAPI(
-    title="YouTube Reporter API (MVC)",
-    description="MVC 패턴을 적용한 YouTube 영상 분석 API",
+    title="YouTube Reporter - Pure MVC (PyCharm)",
+    description="PyCharm 환경에 최적화된 Pure MVC API",
     version="2.0.0"
 )
 
@@ -69,46 +77,159 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 작업 상태 저장소 (기존 호환성 유지)
+# 서비스 인스턴스
+try:
+    youtube_service = YouTubeService()
+    claude_service = ClaudeService()
+    print("✅ 서비스 인스턴스 생성 성공")
+except Exception as e:
+    print(f"❌ 서비스 인스턴스 생성 실패: {e}")
+
+# 작업 및 보고서 저장소 (메모리)
 jobs: Dict[str, Dict[str, Any]] = {}
+reports: Dict[str, Report] = {}
 
 
-# 백그라운드 작업 함수 (MVC 버전)
 async def process_video_background_mvc(job_id: str, request: ProcessVideoRequest):
-    """MVC 패턴을 사용한 백그라운드 작업"""
+    """MVC 패턴으로 영상 처리 - PyCharm 디버그 포인트 설정 가능"""
     try:
-        logger.info(f"Job {job_id} started (MVC) for URL: {request.youtube_url}")
+        print(f"🎬 [PyCharm Debug] MVC 작업 {job_id} 시작")
 
-        # 작업 상태 업데이트
+        # 디버그 포인트 설정하기 좋은 위치 1
+        report = Report(
+            title="분석 중...",
+            youtube_url=str(request.youtube_url),
+            status="processing"
+        )
+        reports[report.id] = report
+
         jobs[job_id].update({
             "status": "processing",
             "progress": 20,
-            "message": "MVC 컨트롤러로 처리 중..."
+            "message": "자막 추출 중...",
+            "report_id": report.id
         })
 
-        # MVC 컨트롤러로 처리
-        result = await report_controller.process_video(request)
+        # 디버그 포인트 설정하기 좋은 위치 2
+        print(f"📝 [PyCharm Debug] 자막 추출 시작")
+        caption = await youtube_service.extract_caption(str(request.youtube_url))
 
-        # 완료 상태 업데이트
+        if not caption or caption.startswith("[Error"):
+            raise ValueError("자막 추출 실패")
+
+        print(f"✅ [PyCharm Debug] 자막 추출 완료: {len(caption)} 글자")
+
+        jobs[job_id].update({
+            "progress": 50,
+            "message": "보고서 생성 중..."
+        })
+
+        # 디버그 포인트 설정하기 좋은 위치 3
+        print(f"📄 [PyCharm Debug] 보고서 생성 시작")
+        report_text = await claude_service.generate_report(caption)
+
+        if not report_text or report_text.startswith("[Error"):
+            raise ValueError("보고서 생성 실패")
+
+        print(f"✅ [PyCharm Debug] 보고서 생성 완료: {len(report_text)} 글자")
+
+        jobs[job_id].update({
+            "progress": 80,
+            "message": "시각화 데이터 생성 중..."
+        })
+
+        # 디버그 포인트 설정하기 좋은 위치 4
+        print(f"📊 [PyCharm Debug] 시각화 데이터 추출 시작")
+        viz_data = await claude_service.extract_visualizations(report_text)
+
+        print(f"✅ [PyCharm Debug] 시각화 데이터 추출 완료: {len(viz_data)}개 섹션")
+
+        # 디버그 포인트 설정하기 좋은 위치 5
+        report.title = extract_title_from_text(report_text)
+        report.sections = create_sections_from_viz_data(viz_data)
+        report.status = "completed"
+
         jobs[job_id].update({
             "status": "completed",
             "progress": 100,
-            "message": "분석이 완료되었습니다!",
+            "message": "분석 완료!",
             "completed_at": datetime.now().isoformat(),
-            "result": result
+            "report_id": report.id
         })
 
-        logger.info(f"Job {job_id} completed successfully (MVC)")
+        print(f"🎉 [PyCharm Debug] MVC 작업 {job_id} 완료")
 
     except Exception as e:
-        logger.error(f"Job {job_id} failed (MVC): {str(e)}")
+        print(f"❌ [PyCharm Debug] MVC 작업 {job_id} 실패: {e}")
+        # PyCharm에서 예외 상세 정보 확인 가능
+
+        if 'report' in locals():
+            report.status = "failed"
+            report.error_message = str(e)
+
         jobs[job_id].update({
             "status": "failed",
             "progress": 0,
-            "message": f"처리 중 오류가 발생했습니다: {str(e)}",
+            "message": f"처리 실패: {str(e)}",
             "completed_at": datetime.now().isoformat(),
             "error": str(e)
         })
+
+
+def extract_title_from_text(report_text: str) -> str:
+    """보고서 텍스트에서 제목 추출"""
+    lines = report_text.split('\n')
+    for line in lines:
+        if line.startswith('제목:'):
+            return line.replace('제목:', '').strip()
+        elif line.startswith('#'):
+            return line.replace('#', '').strip()
+    return "YouTube 영상 분석 보고서"
+
+
+def create_sections_from_viz_data(viz_data: List[Dict]) -> List[ReportSection]:
+    """시각화 데이터를 ReportSection으로 변환"""
+    sections = []
+
+    for i, item in enumerate(viz_data):
+        try:
+            section_type = VisualizationType(item.get("type", "paragraph"))
+
+            if section_type == VisualizationType.PARAGRAPH:
+                section = ReportSection(
+                    type=section_type,
+                    title=item.get("title"),
+                    content=item.get("content"),
+                    position=item.get("position", i)
+                )
+            else:
+                # 차트 데이터만 저장
+                data_dict = item.get("data", {})
+                viz_data_obj = VisualizationData(
+                    labels=data_dict.get("labels", []),
+                    datasets=data_dict.get("datasets", []),
+                    options=data_dict.get("options", {})
+                )
+                section = ReportSection(
+                    type=section_type,
+                    title=item.get("title"),
+                    visualization_data=viz_data_obj,
+                    position=item.get("position", i)
+                )
+
+            sections.append(section)
+
+        except Exception as e:
+            print(f"⚠️ [PyCharm Debug] 섹션 {i} 생성 실패: {e}")
+            fallback_section = ReportSection(
+                type=VisualizationType.PARAGRAPH,
+                title=item.get("title", f"섹션 {i + 1}"),
+                content=str(item.get("content", item)),
+                position=i
+            )
+            sections.append(fallback_section)
+
+    return sections
 
 
 # API 엔드포인트들
@@ -116,10 +237,11 @@ async def process_video_background_mvc(job_id: str, request: ProcessVideoRequest
 async def root():
     """API 상태 확인"""
     return {
-        "message": "YouTube Reporter API (MVC Pattern)",
+        "message": "YouTube Reporter - Pure MVC (PyCharm Optimized)",
         "version": "2.0.0",
         "status": "running",
-        "architecture": "MVC",
+        "environment": "PyCharm",
+        "python_path": sys.path[:3],  # 처음 3개 경로만 표시
         "endpoints": {
             "docs": "/docs",
             "process": "/api/v1/process",
@@ -129,46 +251,38 @@ async def root():
     }
 
 
-@app.post("/api/v1/process", response_model=ProcessVideoResponse)
+@app.post("/api/v1/process")
 async def process_youtube_video(request: ProcessVideoRequest, background_tasks: BackgroundTasks):
-    """YouTube 영상 처리 시작 (MVC 버전)"""
+    """YouTube 영상 처리 시작"""
     try:
-        # 작업 ID 생성
         job_id = str(uuid.uuid4())
+        print(f"📋 [PyCharm Debug] 새 작업 생성: {job_id}")
 
-        # 작업 정보 저장
         jobs[job_id] = {
             "job_id": job_id,
             "status": "queued",
             "progress": 0,
-            "message": "MVC 패턴으로 작업이 대기열에 추가되었습니다.",
+            "message": "작업 대기 중...",
             "created_at": datetime.now().isoformat(),
             "youtube_url": str(request.youtube_url),
-            "options": request.options
+            "options": request.options,
+            "report_id": None
         }
 
-        # MVC 백그라운드 작업 시작
-        background_tasks.add_task(
-            process_video_background_mvc,
-            job_id,
-            request
-        )
+        background_tasks.add_task(process_video_background_mvc, job_id, request)
 
-        logger.info(f"Created MVC job {job_id} for URL: {request.youtube_url}")
-
-        return ProcessVideoResponse(
-            job_id=job_id,
-            report_id="",  # 처리 완료 후 설정됨
-            status="queued",
-            message="MVC 패턴으로 작업이 시작되었습니다."
-        )
+        return {
+            "job_id": job_id,
+            "report_id": "",
+            "status": "queued",
+            "message": "PyCharm MVC 패턴으로 작업이 시작되었습니다."
+        }
 
     except Exception as e:
-        logger.error(f"Failed to create MVC job: {str(e)}")
+        print(f"❌ [PyCharm Debug] 작업 생성 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 기존 job 관련 엔드포인트들 (호환성 유지)
 @app.get("/api/v1/jobs/{job_id}/status")
 async def get_job_status(job_id: str):
     """작업 상태 조회"""
@@ -191,7 +305,22 @@ async def get_job_result(job_id: str):
     if job_data["status"] == "failed":
         raise HTTPException(status_code=500, detail=job_data.get("error", "Job failed"))
 
-    return job_data.get("result", {})
+    # 보고서 반환
+    if job_data.get("report_id") and job_data["report_id"] in reports:
+        report = reports[job_data["report_id"]]
+        return convert_report_to_response(report)
+
+    return {"message": "Job completed but no report available"}
+
+
+@app.get("/api/v1/reports/{report_id}")
+async def get_report(report_id: str):
+    """보고서 상세 조회"""
+    if report_id not in reports:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report = reports[report_id]
+    return convert_report_to_response(report)
 
 
 @app.get("/api/v1/jobs")
@@ -200,49 +329,46 @@ async def list_jobs():
     return {"jobs": list(jobs.values()), "total": len(jobs)}
 
 
-# 새로운 MVC 엔드포인트들
-@app.get("/api/v1/reports/{report_id}", response_model=ReportResponse)
-async def get_report(report_id: str):
-    """보고서 상세 조회 (새로운 MVC 엔드포인트)"""
-    try:
-        report = report_controller.get_report(report_id)
-        return report
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to get report {report_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+def convert_report_to_response(report: Report) -> Dict:
+    """Report 모델을 응답 형식으로 변환"""
+    sections = []
+    for section in report.sections:
+        section_dict = {
+            "id": section.id,
+            "type": section.type.value,
+            "title": section.title,
+            "content": section.content,
+            "position": section.position
+        }
 
+        if section.visualization_data:
+            section_dict["data"] = {
+                "labels": section.visualization_data.labels,
+                "datasets": section.visualization_data.datasets,
+                "options": section.visualization_data.options
+            }
 
-@app.get("/api/v1/reports", response_model=list[ReportResponse])
-async def list_reports():
-    """모든 보고서 목록 조회 (새로운 MVC 엔드포인트)"""
-    try:
-        reports = report_controller.list_reports()
-        return reports
-    except Exception as e:
-        logger.error(f"Failed to list reports: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        sections.append(section_dict)
 
-
-@app.delete("/api/v1/jobs/{job_id}")
-async def delete_job(job_id: str):
-    """작업 삭제"""
-    if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    del jobs[job_id]
-    return {"message": f"Job {job_id} deleted successfully"}
+    return {
+        "id": report.id,
+        "title": report.title,
+        "youtube_url": report.youtube_url,
+        "status": report.status,
+        "sections": sections,
+        "created_at": report.created_at.isoformat(),
+        "error_message": report.error_message
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    print("🚀 YouTube Reporter API 서버 시작 (MVC Pattern)")
+    print("🚀 [PyCharm] YouTube Reporter API 서버 시작")
+    print("🐍 [PyCharm] 디버그 모드로 실행하면 중단점 설정 가능")
     print("📖 API 문서: http://localhost:8000/docs")
-    print("🏗️ 아키텍처: MVC")
-    print("🌐 메인 페이지: http://localhost:8000")
 
+    # PyCharm에서 실행할 때는 reload=True로 설정하면 편함
     uvicorn.run(
         app,
         host="0.0.0.0",
