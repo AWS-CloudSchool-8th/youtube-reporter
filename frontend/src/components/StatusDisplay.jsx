@@ -6,6 +6,7 @@ const StatusDisplay = ({ job }) => {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case 'starting': return '🚀';
       case 'queued': return '🔄';
       case 'processing': return '⚙️';
       case 'completed': return '✅';
@@ -16,6 +17,7 @@ const StatusDisplay = ({ job }) => {
 
   const getStatusText = (status) => {
     switch (status) {
+      case 'starting': return '시작 중';
       case 'queued': return '대기';
       case 'processing': return '처리 중';
       case 'completed': return '완료';

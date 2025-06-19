@@ -61,11 +61,23 @@ async def process_video_task(job_id: str, youtube_url: str):
     try:
         print(f"🎬 작업 {job_id} 시작: {youtube_url}")
 
-        # 진행률 업데이트
+        # 1단계: 자막 추출
         jobs[job_id].update({
             "status": "processing",
-            "progress": 10,
-            "message": "자막 추출 중..."
+            "progress": 20,
+            "message": "📝 자막을 추출하고 있습니다..."
+        })
+
+        # 2단계: 요약 생성
+        jobs[job_id].update({
+            "progress": 50,
+            "message": "🧠 영상 내용을 요약하고 있습니다..."
+        })
+
+        # 3단계: 시각화 생성
+        jobs[job_id].update({
+            "progress": 80,
+            "message": "📊 시각화 자료를 생성하고 있습니다..."
         })
 
         # 워크플로우 실행
@@ -76,7 +88,7 @@ async def process_video_task(job_id: str, youtube_url: str):
         jobs[job_id].update({
             "status": "completed",
             "progress": 100,
-            "message": "분석 완료!",
+            "message": "🎉 분석이 완료되었습니다!",
             "completed_at": datetime.now().isoformat()
         })
 
@@ -87,7 +99,7 @@ async def process_video_task(job_id: str, youtube_url: str):
         jobs[job_id].update({
             "status": "failed",
             "progress": 0,
-            "message": f"처리 실패: {str(e)}",
+            "message": f"❌ 처리 실패: {str(e)}",
             "error": str(e),
             "completed_at": datetime.now().isoformat()
         })
@@ -100,6 +112,14 @@ async def root():
         "status": "running",
         "version": "1.0.0",
         "docs": "/docs"
+    }
+
+@app.get("/api/v1/")
+async def api_root():
+    return {
+        "service": "YouTube Reporter API",
+        "status": "running",
+        "version": "1.0.0"
     }
 
 @app.post("/api/v1/process")

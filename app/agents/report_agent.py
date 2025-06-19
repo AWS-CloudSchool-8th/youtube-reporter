@@ -17,61 +17,55 @@ class ReportAgent(Runnable):
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """
-당신은 YouTube 영상 요약을 바탕으로 시각적 보고서를 생성하는 전문가입니다.
+당신은 YouTube 영상 요약을 분석하여 시각적 보고서를 생성하는 전문가입니다.
 
-주어진 영상 요약을 분석하여:
-1. 구조화된 보고서 생성
-2. 영상에서 언급된 실제 데이터나 개념을 추출
-3. 내용과 관련성 있는 시각화 생성
+**중요: 반드시 최소 1개 이상의 시각화를 생성해야 합니다.**
 
-다음 JSON 형식으로 응답하세요:
+**시각화 생성 전략:**
+1. 영상에서 언급된 구체적인 수치/비율이 있으면 → 해당 데이터로 차트 생성
+2. 단계별 과정이나 순서가 있으면 → process_flow 생성
+3. 시간순 이벤트나 역사가 있으면 → timeline 생성
+4. 여러 개념이나 카테고리가 있으면 → mindmap 생성
+5. 비교 내용이 있으면 → comparison_table 생성
+6. 위 모든 것이 없어도 → 영상의 주요 키워드나 개념을 mindmap으로 생성
+
+**시각화 우선순위:**
+1순위: 실제 수치 데이터 → bar_chart, pie_chart, line_chart
+2순위: 과정/단계 → process_flow
+3순위: 시간순 내용 → timeline  
+4순위: 비교 내용 → comparison_table
+5순위: 개념 정리 → mindmap (항상 가능)
+
+JSON 형식으로 응답하세요:
 {{
-  "title": "영상 주제 (요약에서 추출)",
+  "title": "영상 제목",
   "sections": [
     {{
       "type": "heading",
       "title": "핵심 요약",
-      "content": "요약에서 제공된 핵심 내용"
+      "content": "영상의 핵심 내용 2-3문장"
     }},
     {{
-      "type": "paragraph", 
-      "title": "상세 내용",
-      "content": "요약에서 언급된 주요 포인트들을 구체적으로 설명"
+      "type": "paragraph",
+      "title": "주요 내용",
+      "content": "영상에서 다룬 구체적인 내용들"
     }},
     {{
-      "type": "bar_chart",
-      "title": "관련 데이터 분석",
-      "data": {{
-        "labels": ["요약에서 언급된 실제 항목들"],
-        "datasets": [{{
-          "label": "데이터",
-          "data": [관련_수치들],
-          "backgroundColor": "#6366f1"
-        }}]
-      }}
-    }},
-    {{
-      "type": "mindmap",
-      "title": "핵심 개념 구조",
-      "data": {{
-        "center": "영상의 중심 주제",
-        "branches": [
-          {{
-            "label": "요약에서 언급된 주요 개념",
-            "children": ["구체적인 세부사항들"]
-          }}
-        ]
-      }}
+      "type": "적절한_시각화_타입",
+      "title": "의미있는 제목",
+      "data": {{ 관련_데이터 }}
     }}
   ]
 }}
 
-중요: 
-- 요약에서 실제로 언급된 내용만 사용하세요
-- 가상의 데이터를 만들지 마세요
-- 영상 내용과 관련없는 일반적인 데이터는 생성하지 마세요
+**데이터 형식 예시:**
+- mindmap: {{"center": "영상의 중심 주제", "branches": [{{"label": "주요 개념1", "children": ["세부내용1", "세부내용2"]}}, {{"label": "주요 개념2", "children": ["세부내용3", "세부내용4"]}}]}}
+- process_flow: {{"steps": [{{"title": "1단계", "description": "설명1"}}, {{"title": "2단계", "description": "설명2"}}]}}
+- bar_chart: {{"labels": ["항목1", "항목2"], "datasets": [{{"label": "데이터", "data": [수치1, 수치2], "backgroundColor": "#6366f1"}}]}}
+
+**반드시 최소 1개의 시각화를 포함하세요. 데이터가 부족하면 mindmap을 사용하세요.**
             """),
-            ("human", "다음은 YouTube 영상의 요약입니다. 이를 바탕으로 시각적 보고서를 생성해주세요:\n\n{summary}")
+            ("human", "다음 YouTube 영상 요약을 분석하여 반드시 시각화를 포함한 보고서를 생성해주세요:\n\n{summary}")
         ])
 
     def invoke(self, state: dict, config=None):
@@ -140,11 +134,12 @@ class ReportAgent(Runnable):
         return result
     
     def _create_fallback_result(self, content: str, error: str = None) -> dict:
-        """실패시 기본 결과 생성"""
+        """실패시 기본 결과 생성 (시각화 포함)"""
         display_content = "분석에 실패했습니다."
         if content and "요약 생성 실패" not in content and "자막을 찾을 수 없습니다" not in content:
             display_content = content[:500] + "..." if len(content) > 500 else content
             
+        # 기본 마인드맵 생성 (항상 시각화 제공)
         fallback = {
             "title": "YouTube 영상 분석",
             "sections": [
@@ -157,6 +152,23 @@ class ReportAgent(Runnable):
                     "type": "paragraph",
                     "title": "내용",
                     "content": display_content
+                },
+                {
+                    "type": "mindmap",
+                    "title": "영상 구조",
+                    "data": {
+                        "center": "YouTube 영상",
+                        "branches": [
+                            {
+                                "label": "내용 분석",
+                                "children": ["자막 추출", "핵심 내용", "주요 포인트"]
+                            },
+                            {
+                                "label": "처리 과정",
+                                "children": ["AI 분석", "요약 생성", "시각화"]
+                            }
+                        ]
+                    }
                 }
             ]
         }

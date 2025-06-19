@@ -13,6 +13,8 @@ import {
   Legend
 } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
+import AdvancedVisualization from './AdvancedVisualization';
+import './AdvancedVisualization.css';
 
 // Chart.js 등록
 ChartJS.register(
@@ -179,10 +181,15 @@ const ResultViewer = ({ result }) => {
       case 'bar_chart':
       case 'line_chart':
       case 'pie_chart':
+      case 'scatter_plot':
+      case 'timeline':
+      case 'comparison_table':
+      case 'process_flow':
+      case 'gauge_chart':
         return (
           <div {...sectionProps}>
             <div className="chart-section">
-              <ChartRenderer type={type} data={data} title={title} />
+              <AdvancedVisualization type={type} data={data} title={title} />
             </div>
           </div>
         );

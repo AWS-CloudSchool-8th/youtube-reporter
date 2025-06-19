@@ -22,6 +22,15 @@ const App = () => {
 
       console.log('🎬 영상 처리 시작:', url);
 
+      // 즉시 시작 알림 표시
+      setCurrentJob({
+        job_id: 'starting...',
+        status: 'starting',
+        progress: 0,
+        message: '🚀 분석을 시작합니다...',
+        created_at: new Date().toISOString()
+      });
+
       const response = await fetch(`${API_BASE}/api/v1/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,8 +48,8 @@ const App = () => {
       setCurrentJob({
         job_id: data.job_id,
         status: 'queued',
-        progress: 0,
-        message: data.message,
+        progress: 5,
+        message: '✅ 분석이 시작되었습니다! 자막을 추출하고 있습니다...',
         created_at: new Date().toISOString()
       });
 
