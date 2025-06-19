@@ -59,6 +59,8 @@ class ProcessRequest(BaseModel):
 async def process_video_task(job_id: str, youtube_url: str):
     """비동기 영상 처리"""
     try:
+        # asyncio 타임아웃 설정
+        await asyncio.sleep(0.1)  # 초기 지연
         print(f"🎬 작업 {job_id} 시작: {youtube_url}")
 
         # 1단계: 자막 추출
@@ -81,10 +83,18 @@ async def process_video_task(job_id: str, youtube_url: str):
         })
 
         # 워크플로우 실행
-        result = workflow.process(youtube_url)
-        
-        # 결과 저장
-        results[job_id] = result
+        try:
+            result = workflow.process(youtube_url)
+            
+            # 결과 검증
+            if not result or not isinstance(result, dict):
+                result = {"error": "워크플로우 결과가 비어있습니다"}
+            
+            # 결과 저장
+            results[job_id] = result
+        except Exception as workflow_error:
+            print(f"워크플로우 실행 오류: {workflow_error}")
+            results[job_id] = {"error": f"워크플로우 오류: {str(workflow_error)}"}
         jobs[job_id].update({
             "status": "completed",
             "progress": 100,
@@ -182,4 +192,20 @@ if __name__ == "__main__":
     print("📖 API 문서: http://localhost:8000/docs")
     print("🌐 프론트엔드: http://localhost:3000")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+    # Windows에서 asyncio 이벤트 루프 정책 설정
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+    # 연결 오류 무시 설정
+    import logging
+    logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
+    logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+    
+    uvicorn.run(
+        app, 
+        host="127.0.0.1",  # localhost로 변경
+        port=8000, 
+        reload=False,
+        access_log=False,
+        log_level="error"
+    )

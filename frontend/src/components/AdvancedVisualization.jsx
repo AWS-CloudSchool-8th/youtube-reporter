@@ -96,7 +96,7 @@ const AdvancedVisualization = ({ type, data, title }) => {
               <Legend wrapperStyle={{ fontSize: '12px', color: '#6b7280' }} />
               {currentData.datasets?.map((dataset, index) => (
                 <Bar 
-                  key={index}
+                  key={`${theme}-${index}`}
                   dataKey={dataset.label || `데이터${index + 1}`}
                   fill={colors[index % colors.length]}
                   radius={[2, 2, 0, 0]}
@@ -132,7 +132,7 @@ const AdvancedVisualization = ({ type, data, title }) => {
               <Legend wrapperStyle={{ fontSize: '12px', color: '#6b7280' }} />
               {currentData.datasets?.map((dataset, index) => (
                 <Line 
-                  key={index}
+                  key={`${theme}-${index}`}
                   type="monotone"
                   dataKey={dataset.label || `데이터${index + 1}`}
                   stroke={colors[index % colors.length]}
@@ -164,7 +164,7 @@ const AdvancedVisualization = ({ type, data, title }) => {
                 dataKey="value"
               >
                 {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  <Cell key={`${theme}-cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
               <Tooltip 
