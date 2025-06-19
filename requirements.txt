@@ -1,8 +1,9 @@
-# YouTube Reporter - MVC 구조
-# 핵심 LangChain & LangGraph
-langchain==0.1.20
-langgraph==0.0.45
-langchain-aws==0.1.7
+# YouTube Reporter - 의존성 충돌 해결
+# 핵심 LangChain & LangGraph (최신 호환 버전)
+langchain>=0.2.0
+langgraph>=0.1.0
+langchain-aws>=0.1.15
+langchain-core>=0.2.2
 
 # AWS & LLM API
 boto3
@@ -14,7 +15,7 @@ fastapi
 uvicorn[standard]
 
 # 데이터 모델
-pydantic<2.0
+pydantic>=2.0
 
 # 타입 지원
 typing-extensions
