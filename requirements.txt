@@ -1,38 +1,20 @@
-# Core LangChain
+# YouTube Reporter - MVC 구조
+# 핵심 LangChain & LangGraph
 langchain==0.1.20
 langgraph==0.0.45
-langsmith==0.1.31
-langchain-aws==0.1.4
+langchain-aws==0.1.7
 
-# Python tool interpreter
-ipython  # PythonREPLTool에서 사용 가능
-langchain-experimental  # PythonREPLTool 사용을 위한 langchain 확장
+# AWS & LLM API
+boto3
+requests
+python-dotenv
 
-# LLM API
-boto3  # AWS Bedrock (Claude)
-openai  # DALL·E API 사용
+# 웹 프레임워크
+fastapi
+uvicorn[standard]
 
-# 환경 변수 및 HTTP 요청
-python-dotenv  # .env 파일 로드
-requests  # HTTP 요청
+# 데이터 모델
+pydantic<2.0
 
 # 타입 지원
 typing-extensions
-
-# LangGraph 의존성
-pydantic<2.0  # LangChain 일부 버전에서 2.x 미지원
-
-# 시각화 및 데이터 처리
-matplotlib
-pandas
-numpy
-
-# Web API (선택사항)
-fastapi
-uvicorn
-
-# 개발 및 테스트 (선택사항)
-pytest
-pytest-asyncio
-black
-flake8

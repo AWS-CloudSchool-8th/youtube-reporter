@@ -1,15 +1,82 @@
 {
   "short_name": "YouTube Reporter",
-  "name": "YouTube Reporter - 영상 분석 도구",
+  "name": "YouTube Reporter - AI 영상 분석 도구",
+  "description": "AI 기반 YouTube 영상 분석 및 시각화 도구. LangGraph 에이전트와 Claude AI를 활용한 자동 보고서 생성 서비스",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "favicon-16x16.png",
+      "type": "image/png",
+      "sizes": "16x16"
+    },
+    {
+      "src": "favicon-32x32.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#667eea",
-  "background_color": "#ffffff"
+  "theme_color": "#6366f1",
+  "background_color": "#667eea",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ko",
+  "categories": ["productivity", "education", "business"],
+  "screenshots": [
+    {
+      "src": "screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "YouTube Reporter 메인 화면"
+    },
+    {
+      "src": "screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "모바일 YouTube Reporter"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 분석",
+      "short_name": "분석",
+      "description": "새로운 YouTube 영상 분석 시작",
+      "url": "/?action=new",
+      "icons": [
+        {
+          "src": "icon-analyze.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "작업 기록",
+      "short_name": "기록",
+      "description": "이전 분석 결과 보기",
+      "url": "/?action=history",
+      "icons": [
+        {
+          "src": "icon-history.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
 }
