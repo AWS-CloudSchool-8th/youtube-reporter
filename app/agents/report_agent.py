@@ -1,5 +1,6 @@
 # app/agents/report_agent.py
 import boto3
+import os
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
