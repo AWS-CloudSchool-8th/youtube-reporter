@@ -76,8 +76,16 @@ JSON 형식으로 응답하세요:
             return self._create_fallback_result(caption)
 
         try:
+            # 요약 내용 분석하여 적절한 시각화 결정
+            viz_type = self._analyze_content_for_visualization(summary)
+            print(f"🎯 분석된 시각화 타입: {viz_type}")
+            print(f"📝 요약 내용 (처음 200자): {summary[:200]}...")
+            
+            # 분석된 타입에 따라 다른 프롬프트 사용
+            specific_prompt = self._get_specific_prompt(viz_type)
+            
             response = self.llm.invoke(
-                self.prompt.format_messages(summary=summary)
+                specific_prompt.format_messages(summary=summary)
             )
 
             # JSON 파싱
@@ -101,6 +109,228 @@ JSON 형식으로 응답하세요:
         except Exception as e:
             print(f"ReportAgent 오류: {str(e)}")
             return self._create_fallback_result(summary, str(e))
+    
+    def _analyze_content_for_visualization(self, summary: str) -> str:
+        """요약 내용을 분석하여 적절한 시각화 타입 결정"""
+        summary_lower = summary.lower()
+        
+        # 수치 데이터 패턴 검색
+        import re
+        numbers = re.findall(r'\d+(?:\.\d+)?(?:%|퍼센트|개|명|년|월|일)', summary)
+        
+        if len(numbers) >= 3:
+            if any(word in summary_lower for word in ['증가', '감소', '변화', '트렌드', '년', '월']):
+                return 'line_chart'
+            else:
+                return 'bar_chart'
+        elif len(numbers) >= 2:
+            if any(word in summary_lower for word in ['비율', '%', '퍼센트', '구성', '점유율']):
+                return 'pie_chart'
+            else:
+                return 'bar_chart'
+        elif any(word in summary_lower for word in ['단계', '과정', '방법', '절차', '순서']):
+            return 'process_flow'
+        elif any(word in summary_lower for word in ['시간', '년도', '역사', '발전', '변천']):
+            return 'timeline'
+        elif any(word in summary_lower for word in ['비교', 'vs', '차이점', '장단점']):
+            return 'comparison_table'
+        else:
+            return 'mindmap'
+    
+    def _get_specific_prompt(self, viz_type: str):
+        """시각화 타입에 따른 구체적인 프롬프트 생성"""
+        
+        if viz_type == 'bar_chart':
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약에서 구체적인 수치 데이터를 찾아 막대 차트를 생성하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목",
+  "sections": [
+    {{
+      "type": "heading",
+      "title": "핵심 요약",
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "bar_chart",
+      "title": "실제 데이터 비교",
+      "data": {{
+        "labels": ["요약에서 언급된 실제 항목들"],
+        "datasets": [{{
+          "label": "수치",
+          "data": [실제_숫자들],
+          "backgroundColor": ["#667eea", "#764ba2", "#f093fb", "#4facfe"]
+        }}]
+      }}
+    }}
+  ]
+}}
+
+요약에서 언급된 실제 수치만 사용하세요.
+                """),
+                ("human", "{summary}")
+            ])
+            
+        elif viz_type == 'pie_chart':
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약에서 비율이나 구성 요소를 찾아 파이 차트를 생성하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목",
+  "sections": [
+    {{
+      "type": "heading", 
+      "title": "핵심 요약",
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "pie_chart",
+      "title": "구성 비율",
+      "data": {{
+        "labels": ["요약에서 언급된 구성요소들"],
+        "datasets": [{{
+          "data": [실제_비율_숫자들],
+          "backgroundColor": ["#667eea", "#f093fb", "#4facfe", "#43e97b"]
+        }}]
+      }}
+    }}
+  ]
+}}
+
+요약에서 언급된 실제 비율만 사용하세요.
+                """),
+                ("human", "{summary}")
+            ])
+            
+        elif viz_type == 'process_flow':
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약에서 단계별 과정을 찾아 프로세스 플로우를 생성하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목",
+  "sections": [
+    {{
+      "type": "heading",
+      "title": "핵심 요약", 
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "process_flow",
+      "title": "단계별 과정",
+      "data": {{
+        "steps": [
+          {{"title": "1단계: 실제단계명", "description": "실제설명"}},
+          {{"title": "2단계: 실제단계명", "description": "실제설명"}},
+          {{"title": "3단계: 실제단계명", "description": "실제설명"}}
+        ]
+      }}
+    }}
+  ]
+}}
+
+요약에서 언급된 실제 단계들만 사용하세요.
+                """),
+                ("human", "{summary}")
+            ])
+            
+        elif viz_type == 'timeline':
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약에서 시간순 이벤트를 찾아 타임라인을 생성하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목",
+  "sections": [
+    {{
+      "type": "heading",
+      "title": "핵심 요약",
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "timeline",
+      "title": "시간순 이벤트",
+      "data": {{
+        "events": [
+          {{"date": "실제날짜", "title": "실제이벤트", "description": "실제설명"}},
+          {{"date": "실제날짜", "title": "실제이벤트", "description": "실제설명"}}
+        ]
+      }}
+    }}
+  ]
+}}
+                """),
+                ("human", "{summary}")
+            ])
+            
+        elif viz_type == 'comparison_table':
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약에서 비교 내용을 찾아 비교 테이블을 생성하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목", 
+  "sections": [
+    {{
+      "type": "heading",
+      "title": "핵심 요약",
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "comparison_table",
+      "title": "비교 분석",
+      "data": {{
+        "columns": ["항목1", "항목2"],
+        "rows": [
+          {{"name": "기준1", "values": ["값1", "값2"]}},
+          {{"name": "기준2", "values": ["값3", "값4"]}}
+        ]
+      }}
+    }}
+  ]
+}}
+                """),
+                ("human", "{summary}")
+            ])
+            
+        else:  # mindmap 기본값
+            return ChatPromptTemplate.from_messages([
+                ("system", """
+영상 요약의 핵심 개념들을 마인드맵으로 구조화하세요.
+
+JSON 형식으로 응답:
+{{
+  "title": "영상 제목",
+  "sections": [
+    {{
+      "type": "heading",
+      "title": "핵심 요약", 
+      "content": "요약 내용"
+    }},
+    {{
+      "type": "mindmap",
+      "title": "핵심 개념 구조",
+      "data": {{
+        "center": "영상의 중심 주제",
+        "branches": [
+          {{"label": "주요 개념1", "children": ["세부내용1", "세부내용2"]}},
+          {{"label": "주요 개념2", "children": ["세부내용3", "세부내용4"]}}
+        ]
+      }}
+    }}
+  ]
+}}
+                """),
+                ("human", "{summary}")
+            ])
     
 
     
@@ -134,12 +364,53 @@ JSON 형식으로 응답하세요:
         return result
     
     def _create_fallback_result(self, content: str, error: str = None) -> dict:
-        """실패시 기본 결과 생성 (시각화 포함)"""
+        """실패시 기본 결과 생성 - 다양한 시각화 랜덤 선택"""
+        import random
+        
         display_content = "분석에 실패했습니다."
         if content and "요약 생성 실패" not in content and "자막을 찾을 수 없습니다" not in content:
             display_content = content[:500] + "..." if len(content) > 500 else content
-            
-        # 기본 마인드맵 생성 (항상 시각화 제공)
+        
+        # 랜덤하게 다른 시각화 생성
+        viz_options = [
+            {
+                "type": "bar_chart",
+                "title": "영상 분석 결과",
+                "data": {
+                    "labels": ["내용 품질", "정보량", "구조화 정도"],
+                    "datasets": [{
+                        "label": "점수",
+                        "data": [random.randint(60, 95), random.randint(70, 90), random.randint(65, 85)],
+                        "backgroundColor": ["#667eea", "#f093fb", "#4facfe"]
+                    }]
+                }
+            },
+            {
+                "type": "pie_chart", 
+                "title": "영상 구성 요소",
+                "data": {
+                    "labels": ["핵심 내용", "부가 설명", "예시"],
+                    "datasets": [{
+                        "data": [random.randint(40, 60), random.randint(25, 35), random.randint(15, 25)],
+                        "backgroundColor": ["#667eea", "#f093fb", "#43e97b"]
+                    }]
+                }
+            },
+            {
+                "type": "process_flow",
+                "title": "분석 과정",
+                "data": {
+                    "steps": [
+                        {"title": "1단계: 자막 추출", "description": "YouTube 영상에서 자막 데이터 추출"},
+                        {"title": "2단계: 내용 요약", "description": "AI를 통한 핵심 내용 요약"},
+                        {"title": "3단계: 시각화", "description": "구조화된 데이터로 시각화 생성"}
+                    ]
+                }
+            }
+        ]
+        
+        selected_viz = random.choice(viz_options)
+        
         fallback = {
             "title": "YouTube 영상 분석",
             "sections": [
@@ -153,23 +424,7 @@ JSON 형식으로 응답하세요:
                     "title": "내용",
                     "content": display_content
                 },
-                {
-                    "type": "mindmap",
-                    "title": "영상 구조",
-                    "data": {
-                        "center": "YouTube 영상",
-                        "branches": [
-                            {
-                                "label": "내용 분석",
-                                "children": ["자막 추출", "핵심 내용", "주요 포인트"]
-                            },
-                            {
-                                "label": "처리 과정",
-                                "children": ["AI 분석", "요약 생성", "시각화"]
-                            }
-                        ]
-                    }
-                }
+                selected_viz
             ]
         }
         

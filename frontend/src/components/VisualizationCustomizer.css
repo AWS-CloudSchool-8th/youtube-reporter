@@ -1,0 +1,164 @@
+/* Visualization Customizer Styles */
+.viz-customizer {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.customizer-toggle {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.customizer-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.customizer-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 20px;
+  width: 320px;
+  z-index: 1000;
+  margin-top: 8px;
+}
+
+.customizer-section {
+  margin-bottom: 20px;
+}
+
+.customizer-section:last-child {
+  margin-bottom: 0;
+}
+
+.customizer-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.theme-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 2px solid #f3f4f6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-option:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.theme-option.active {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.theme-colors {
+  display: flex;
+  gap: 4px;
+}
+
+.color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.theme-info {
+  flex: 1;
+}
+
+.theme-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.theme-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.size-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.size-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border: 2px solid #f3f4f6;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.size-option:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.size-option.active {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.size-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.size-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .customizer-panel {
+    width: 280px;
+    right: -20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .customizer-panel {
+    width: 260px;
+    right: -40px;
+  }
+}

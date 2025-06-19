@@ -1,16 +1,41 @@
 // frontend/src/components/AdvancedVisualization.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   ScatterChart, Scatter, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import Plot from 'react-plotly.js';
+import VisualizationCustomizer from './VisualizationCustomizer';
+import VisualizationEditor from './VisualizationEditor';
+import './AdvancedVisualization.css';
+import './VisualizationCustomizer.css';
+import './VisualizationEditor.css';
 
 const AdvancedVisualization = ({ type, data, title }) => {
-  if (!data) return <div>데이터가 없습니다.</div>;
+  const [theme, setTheme] = useState('website');
+  const [size, setSize] = useState('normal');
+  const [currentData, setCurrentData] = useState(data);
 
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
+  if (!currentData) return <div>데이터가 없습니다.</div>;
+
+  // 테마별 색상 팔레트
+  const themes = {
+    website: ['#667eea', '#764ba2', '#ec4899', '#f093fb', '#6366f1', '#4f46e5'],
+    professional: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
+    warm: ['#f59e0b', '#ef4444', '#f97316', '#eab308', '#dc2626', '#ea580c'],
+    cool: ['#06b6d4', '#0891b2', '#3b82f6', '#1d4ed8', '#6366f1', '#4338ca'],
+    nature: ['#10b981', '#059669', '#84cc16', '#65a30d', '#22c55e', '#16a34a']
+  };
+
+  const sizes = {
+    compact: 250,
+    normal: 300,
+    large: 400
+  };
+
+  const colors = themes[theme];
+  const chartHeight = sizes[size];
 
   // Recharts용 데이터 변환
   const convertToRechartsData = (chartData) => {
@@ -23,6 +48,10 @@ const AdvancedVisualization = ({ type, data, title }) => {
       });
       return item;
     });
+  };
+
+  const handleDataChange = (newData) => {
+    setCurrentData(newData);
   };
 
   // Plotly용 데이터 변환
@@ -42,20 +71,35 @@ const AdvancedVisualization = ({ type, data, title }) => {
   const renderVisualization = () => {
     switch (type) {
       case 'bar_chart':
-        const barData = convertToRechartsData(data);
+        const barData = convertToRechartsData(currentData);
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              {data.datasets?.map((dataset, index) => (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="2 2" stroke="#f3f4f6" />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px', color: '#6b7280' }} />
+              {currentData.datasets?.map((dataset, index) => (
                 <Bar 
                   key={index}
                   dataKey={dataset.label || `데이터${index + 1}`}
                   fill={colors[index % colors.length]}
+                  radius={[2, 2, 0, 0]}
                 />
               ))}
             </BarChart>
@@ -63,22 +107,37 @@ const AdvancedVisualization = ({ type, data, title }) => {
         );
 
       case 'line_chart':
-        const lineData = convertToRechartsData(data);
+        const lineData = convertToRechartsData(currentData);
         return (
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={lineData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              {data.datasets?.map((dataset, index) => (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <LineChart data={lineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="2 2" stroke="#f3f4f6" />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
+              />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px', color: '#6b7280' }} />
+              {currentData.datasets?.map((dataset, index) => (
                 <Line 
                   key={index}
                   type="monotone"
                   dataKey={dataset.label || `데이터${index + 1}`}
                   stroke={colors[index % colors.length]}
-                  strokeWidth={2}
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: colors[index % colors.length] }}
                 />
               ))}
             </LineChart>
@@ -86,13 +145,13 @@ const AdvancedVisualization = ({ type, data, title }) => {
         );
 
       case 'pie_chart':
-        const pieData = data.labels?.map((label, index) => ({
+        const pieData = currentData.labels?.map((label, index) => ({
           name: label,
-          value: data.datasets?.[0]?.data?.[index] || 0
+          value: currentData.datasets?.[0]?.data?.[index] || 0
         })) || [];
         
         return (
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <PieChart>
               <Pie
                 data={pieData}
@@ -100,7 +159,7 @@ const AdvancedVisualization = ({ type, data, title }) => {
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={120}
+                outerRadius={Math.min(chartHeight * 0.3, 120)}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -108,7 +167,14 @@ const AdvancedVisualization = ({ type, data, title }) => {
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         );
@@ -134,7 +200,7 @@ const AdvancedVisualization = ({ type, data, title }) => {
           <div className="timeline-container">
             <h4>{title}</h4>
             <div className="timeline">
-              {Array.isArray(data.events) ? data.events.map((event, index) => (
+              {Array.isArray(currentData.events) ? currentData.events.map((event, index) => (
                 <div key={index} className="timeline-item">
                   <div className="timeline-marker"></div>
                   <div className="timeline-content">
@@ -180,14 +246,14 @@ const AdvancedVisualization = ({ type, data, title }) => {
           <div className="process-flow-container">
             <h4>{title}</h4>
             <div className="process-flow">
-              {Array.isArray(data.steps) ? data.steps.map((step, index) => (
+              {Array.isArray(currentData.steps) ? currentData.steps.map((step, index) => (
                 <div key={index} className="process-step">
                   <div className="step-number">{index + 1}</div>
                   <div className="step-content">
                     <div className="step-title">{step.title || ''}</div>
                     <div className="step-description">{step.description || ''}</div>
                   </div>
-                  {index < data.steps.length - 1 && (
+                  {index < currentData.steps.length - 1 && (
                     <div className="step-arrow">→</div>
                   )}
                 </div>
@@ -234,7 +300,22 @@ const AdvancedVisualization = ({ type, data, title }) => {
 
   return (
     <div className="advanced-visualization">
-      {title && <h3 className="viz-title">{title}</h3>}
+      <div className="viz-header">
+        {title && <h3 className="viz-title">{title}</h3>}
+        <div className="viz-controls">
+          <VisualizationEditor
+            data={currentData}
+            onDataChange={handleDataChange}
+            type={type}
+          />
+          <VisualizationCustomizer
+            onThemeChange={setTheme}
+            onSizeChange={setSize}
+            currentTheme={theme}
+            currentSize={size}
+          />
+        </div>
+      </div>
       <div className="viz-content">
         {renderVisualization()}
       </div>
