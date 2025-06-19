@@ -70,6 +70,11 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Package locks - 보안상 제외하는 것이 좋음
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Runtime data
 pids
 *.pid
