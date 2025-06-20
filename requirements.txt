@@ -27,3 +27,7 @@ uvicorn
 
 # 기타 (이미지 생성 후 파일 저장 등 사용 시)
 matplotlib
+seaborn
+pandas
+numpy
+uvicorn

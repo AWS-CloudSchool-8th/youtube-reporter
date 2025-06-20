@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 보고서 생성기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .input-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            display: none;
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .section h3 {
+            color: #555;
+            margin: 20px 0 10px 0;
+            font-size: 1.2em;
+        }
+
+        .section p {
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .visual-item {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .visual-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .visual-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .visual-purpose {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #d63031;
+        }
+
+        .success-stats {
+            display: flex;
+            justify-content: space-around;
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #27ae60;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 YouTube 보고서 생성기</h1>
+            <p>YouTube 영상을 보지 않고도 완전히 이해할 수 있는 포괄적 보고서를 생성합니다</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="youtubeUrl" 
+                    class="input-field" 
+                    placeholder="YouTube URL을 입력하세요 (예: https://www.youtube.com/watch?v=...)"
+                >
+                <button onclick="generateReport()" class="generate-btn" id="generateBtn">
+                    보고서 생성
+                </button>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+                💡 팁: 한국어 자막이 있는 YouTube 영상에서 가장 좋은 결과를 얻을 수 있습니다.
+            </p>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h3>보고서를 생성하고 있습니다...</h3>
+            <p>YouTube 자막 추출 → AI 분석 → 시각화 생성 → 문서 완성</p>
+            <p style="color: #666; margin-top: 10px;">이 과정은 1-2분 정도 소요됩니다.</p>
+        </div>
+
+        <div class="result-section" id="result">
+            <!-- 결과가 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        async function generateReport() {
+            const url = document.getElementById('youtubeUrl').value.trim();
+            
+            if (!url) {
+                alert('YouTube URL을 입력해주세요.');
+                return;
+            }
+
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                alert('올바른 YouTube URL을 입력해주세요.');
+                return;
+            }
+
+            // UI 상태 변경
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').textContent = '생성 중...';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+
+            try {
+                const response = await fetch('/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        youtube_url: url
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResult(data.final_output);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `
+                    <div class="error">
+                        <h3>❌ 오류가 발생했습니다</h3>
+                        <p>${error.message}</p>
+                        <p>다시 시도해주세요. 문제가 계속되면 YouTube URL이 올바른지 확인해주세요.</p>
+                    </div>
+                `;
+                document.getElementById('result').style.display = 'block';
+            } finally {
+                // UI 상태 복원
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('generateBtn').textContent = '보고서 생성';
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResult(data) {
+            console.log('전체 데이터:', data);
+            
+            if (!data || !data.sections) {
+                console.error('데이터 구조 오류:', data);
+                document.getElementById('result').innerHTML = `
+                    <div class="error">
+                        <h3>❌ 결과를 불러올 수 없습니다</h3>
+                        <p>서버에서 올바른 응답을 받지 못했습니다.</p>
+                        <details>
+                            <summary>디버그 정보</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+                document.getElementById('result').style.display = 'block';
+                return;
+            }
+
+            let html = `
+                <div class="success-stats">
+                    <div class="stat">
+                        <div class="stat-number">${data.total_sections || 0}</div>
+                        <div class="stat-label">총 섹션</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">${data.visual_count || 0}</div>
+                        <div class="stat-label">생성된 시각화</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">✅</div>
+                        <div class="stat-label">완료</div>
+                    </div>
+                </div>
+            `;
+
+            data.sections.forEach(section => {
+                if (section.type === 'header') {
+                    html += `<div class="section"><h2>${section.content}</h2></div>`;
+                } else if (section.type === 'text') {
+                    const content = section.content.split('\n').map(line => {
+                        if (line.trim().startsWith('###')) {
+                            return `<h3>${line.replace('###', '').trim()}</h3>`;
+                        } else if (line.trim().startsWith('##')) {
+                            return `<h2>${line.replace('##', '').trim()}</h2>`;
+                        } else if (line.trim()) {
+                            return `<p>${line.trim()}</p>`;
+                        }
+                        return '';
+                    }).join('');
+                    
+                    html += `<div class="section">${content}</div>`;
+                } else if (section.type === 'visual' && section.data) {
+                    const visual = section.data;
+                    console.log('시각화 데이터:', visual);
+                    
+                    if (visual.success && visual.url && !visual.url.includes('[')) {
+                        html += `
+                            <div class="visual-item">
+                                <div class="visual-title">📊 ${visual.title || '시각화'}</div>
+                                <div class="visual-purpose">${visual.purpose || ''}</div>
+                                <img src="${visual.url}" alt="${visual.title || '시각화'}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                                <div style="display:none; color:red; padding:10px; background:#ffe6e6; border-radius:5px;">
+                                    이미지를 불러올 수 없습니다: ${visual.url}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // 시각화 실패 정보 표시
+                        html += `
+                            <div class="visual-item" style="background:#ffe6e6; border-left:5px solid #d63031;">
+                                <div class="visual-title">⚠️ 시각화 생성 실패</div>
+                                <div class="visual-purpose">${visual.title || '제목 없음'}</div>
+                                <p>오류: ${visual.error || visual.url || '알 수 없는 오류'}</p>
+                                <details>
+                                    <summary>디버그 정보</summary>
+                                    <pre>${JSON.stringify(visual, null, 2)}</pre>
+                                </details>
+                            </div>
+                        `;
+                    }
+                }
+            });
+
+            document.getElementById('result').innerHTML = html;
+            document.getElementById('result').style.display = 'block';
+        }
+
+        // Enter 키로 실행
+        document.getElementById('youtubeUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateReport();
+            }
+        });
+    </script>
+</body>
+</html>
