@@ -50,8 +50,11 @@ class YouTubeReporterWorkflow:
             
         return {**state, "final_output": report_result}
 
-    def process(self, youtube_url: str) -> dict:
+    def process(self, youtube_url: str, summary_level: str = "detailed") -> dict:
         """YouTube URL을 처리하여 결과 반환"""
-        initial_state = {"youtube_url": youtube_url}
+        initial_state = {
+            "youtube_url": youtube_url,
+            "summary_level": summary_level
+        }
         result = self.graph.invoke(initial_state)
         return result.get("final_output", {})

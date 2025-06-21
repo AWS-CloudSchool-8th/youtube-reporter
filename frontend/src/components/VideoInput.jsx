@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 const VideoInput = ({ onProcessVideo, isProcessing }) => {
   const [url, setUrl] = useState('');
+  const [summaryLevel, setSummaryLevel] = useState('detailed');
   const [error, setError] = useState('');
 
   const isValidYouTubeUrl = (url) => {
@@ -24,7 +25,7 @@ const VideoInput = ({ onProcessVideo, isProcessing }) => {
     }
 
     setError('');
-    onProcessVideo(url);
+    onProcessVideo(url, summaryLevel);
   };
 
   return (
@@ -39,6 +40,20 @@ const VideoInput = ({ onProcessVideo, isProcessing }) => {
             disabled={isProcessing}
             className="url-input"
           />
+          <div className="summary-level-selector">
+            <label htmlFor="summaryLevel">요약 레벨:</label>
+            <select 
+              id="summaryLevel"
+              value={summaryLevel} 
+              onChange={(e) => setSummaryLevel(e.target.value)}
+              disabled={isProcessing}
+              className="summary-select"
+            >
+              <option value="simple">간단 - 핵심만</option>
+              <option value="detailed">상세 - 기본</option>
+              <option value="expert">전문가 - 심화</option>
+            </select>
+          </div>
           <button
             type="submit"
             disabled={isProcessing || !url.trim()}

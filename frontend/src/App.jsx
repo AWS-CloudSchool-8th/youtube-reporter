@@ -14,7 +14,7 @@ const App = () => {
   const API_BASE = 'http://localhost:8000';
 
   // 영상 처리 시작
-  const handleProcessVideo = async (url) => {
+  const handleProcessVideo = async (url, summaryLevel = 'detailed') => {
     try {
       setError(null);
       setResult(null);
@@ -34,7 +34,10 @@ const App = () => {
       const response = await fetch(`${API_BASE}/api/v1/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtube_url: url }),
+        body: JSON.stringify({ 
+          youtube_url: url,
+          summary_level: summaryLevel
+        }),
       });
 
       if (!response.ok) {

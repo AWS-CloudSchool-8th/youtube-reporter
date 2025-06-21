@@ -9,10 +9,14 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["YouTube Reporter"])
 
+# 싱글톤 서비스 인스턴스
+_youtube_service = None
 
-# 서비스 의존성
 def get_youtube_service() -> YouTubeService:
-    return YouTubeService()
+    global _youtube_service
+    if _youtube_service is None:
+        _youtube_service = YouTubeService()
+    return _youtube_service
 
 
 @router.get("/")
@@ -36,11 +40,12 @@ async def process_video(
         # 작업 생성
         job_id = youtube_service.create_job(str(request.youtube_url))
 
-        # 백그라운드에서 처리
+        # 백그라운드에서 처리 (요약 레벨 포함)
         background_tasks.add_task(
             youtube_service.process_video,
             job_id,
-            str(request.youtube_url)
+            str(request.youtube_url),
+            request.summary_level
         )
 
         return ProcessVideoResponse(
@@ -101,6 +106,8 @@ async def get_job_result(
 async def list_jobs(youtube_service: YouTubeService = Depends(get_youtube_service)):
     """모든 작업 목록"""
     try:
+        # 오래된 작업 정리
+        youtube_service.cleanup_old_jobs()
         jobs = youtube_service.list_jobs()
         return {"jobs": jobs, "total": len(jobs)}
     except Exception as e:

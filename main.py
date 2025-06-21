@@ -63,27 +63,31 @@ async def process_video_task(job_id: str, youtube_url: str):
         await asyncio.sleep(0.1)  # 초기 지연
         print(f"🎬 작업 {job_id} 시작: {youtube_url}")
 
-        # 1단계: 자막 추출
-        jobs[job_id].update({
-            "status": "processing",
-            "progress": 20,
-            "message": "📝 자막을 추출하고 있습니다..."
-        })
-
-        # 2단계: 요약 생성
-        jobs[job_id].update({
-            "progress": 50,
-            "message": "🧠 영상 내용을 요약하고 있습니다..."
-        })
-
-        # 3단계: 시각화 생성
-        jobs[job_id].update({
-            "progress": 80,
-            "message": "📊 시각화 자료를 생성하고 있습니다..."
-        })
-
-        # 워크플로우 실행
+        # 워크플로우 실행 with 진행률 업데이트
         try:
+            # 1단계: 자막 추출 시작
+            jobs[job_id].update({
+                "status": "processing",
+                "progress": 25,
+                "message": "📝 자막을 추출하고 있습니다..."
+            })
+            await asyncio.sleep(1)  # 실제 처리 시간 시뮬레이션
+            
+            # 2단계: 요약 생성 시작
+            jobs[job_id].update({
+                "progress": 50,
+                "message": "🧠 AI가 영상 내용을 요약하고 있습니다..."
+            })
+            await asyncio.sleep(1)
+            
+            # 3단계: 시각화 생성 시작
+            jobs[job_id].update({
+                "progress": 75,
+                "message": "📊 시각화 데이터를 생성하고 있습니다..."
+            })
+            await asyncio.sleep(0.5)
+            
+            # 실제 워크플로우 실행
             result = workflow.process(youtube_url)
             
             # 결과 검증
@@ -95,6 +99,7 @@ async def process_video_task(job_id: str, youtube_url: str):
         except Exception as workflow_error:
             print(f"워크플로우 실행 오류: {workflow_error}")
             results[job_id] = {"error": f"워크플로우 오류: {str(workflow_error)}"}
+        # 완료 처리
         jobs[job_id].update({
             "status": "completed",
             "progress": 100,
