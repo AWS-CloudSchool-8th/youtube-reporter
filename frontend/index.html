@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube 보고서 생성기</title>
+    
+    <!-- 시각화 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/9.4.3/mermaid.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -143,31 +149,115 @@
             margin-bottom: 10px;
         }
 
-        .visual-item {
+        /* 새로운 시각화 스타일 */
+        .visual-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #28a745;
+        }
+
+        .visual-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .insight-box {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .insight-box h4 {
+            color: #0c5460;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .insight-box p {
+            color: #155724;
+            margin: 0;
+            font-size: 0.95em;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
             margin: 20px 0;
+        }
+
+        .chart-container canvas {
+            max-height: 100%;
+        }
+
+        .plotly-container {
+            height: 400px;
+            margin: 20px 0;
+        }
+
+        .mermaid-container {
+            background: #f8f9fa;
             padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
             background: white;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .visual-item img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-top: 10px;
+        .table-container th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
         }
 
-        .visual-title {
-            font-weight: bold;
-            color: #333;
+        .table-container td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .table-container tr:hover {
+            background: #f8f9fa;
+        }
+
+        .creative-container {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+
+        .creative-container h4 {
+            color: #856404;
             margin-bottom: 10px;
         }
 
-        .visual-purpose {
-            color: #666;
-            font-style: italic;
-            margin-bottom: 15px;
+        .creative-container p {
+            color: #856404;
+            margin: 5px 0;
         }
 
         .error {
@@ -202,6 +292,40 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .debug-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .visual-error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #d63031;
+        }
+
+        .purpose-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            font-weight: normal;
+        }
+
+        .purpose-overview { background: #e3f2fd; color: #1565c0; }
+        .purpose-detail { background: #f3e5f5; color: #7b1fa2; }
+        .purpose-comparison { background: #e8f5e9; color: #2e7d32; }
+        .purpose-process { background: #fff3e0; color: #f57c00; }
+        .purpose-concept { background: #fce4ec; color: #c2185b; }
     </style>
 </head>
 <body>
@@ -213,11 +337,12 @@
 
         <div class="input-section">
             <div class="input-group">
-                <input 
-                    type="text" 
-                    id="youtubeUrl" 
-                    class="input-field" 
+                <input
+                    type="text"
+                    id="youtubeUrl"
+                    class="input-field"
                     placeholder="YouTube URL을 입력하세요 (예: https://www.youtube.com/watch?v=...)"
+                    value="https://www.youtube.com/watch?v=LXJhA3VWXFA"
                 >
                 <button onclick="generateReport()" class="generate-btn" id="generateBtn">
                     보고서 생성
@@ -230,9 +355,9 @@
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <h3>보고서를 생성하고 있습니다...</h3>
-            <p>YouTube 자막 추출 → AI 분석 → 시각화 생성 → 문서 완성</p>
-            <p style="color: #666; margin-top: 10px;">이 과정은 1-2분 정도 소요됩니다.</p>
+            <h3>스마트 보고서를 생성하고 있습니다...</h3>
+            <p>🧠 컨텍스트 분석 → 🎯 시각화 기회 탐지 → 🎨 최적 시각화 생성 → 📋 보고서 완성</p>
+            <p style="color: #666; margin-top: 10px;">이 과정은 1-3분 정도 소요됩니다.</p>
         </div>
 
         <div class="result-section" id="result">
@@ -241,6 +366,19 @@
     </div>
 
     <script>
+        let chartInstances = [];
+        let plotlyInstances = [];
+
+        // Mermaid 초기화
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            flowchart: {
+                htmlLabels: true,
+                curve: 'linear'
+            }
+        });
+
         async function generateReport() {
             const url = document.getElementById('youtubeUrl').value.trim();
             
@@ -260,8 +398,13 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('result').style.display = 'none';
 
+            // 기존 인스턴스 정리
+            cleanupInstances();
+
             try {
-                const response = await fetch('/run', {
+                console.log('API 요청 시작:', url);
+                
+                const response = await fetch('http://localhost:8000/run', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -271,11 +414,15 @@
                     })
                 });
 
+                console.log('응답 상태:', response.status);
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
+                console.log('받은 데이터:', data);
+                
                 displayResult(data.final_output);
 
             } catch (error) {
@@ -285,6 +432,12 @@
                         <h3>❌ 오류가 발생했습니다</h3>
                         <p>${error.message}</p>
                         <p>다시 시도해주세요. 문제가 계속되면 YouTube URL이 올바른지 확인해주세요.</p>
+                        <div class="debug-info">
+                            <strong>디버그 정보:</strong><br>
+                            URL: ${url}<br>
+                            시간: ${new Date().toISOString()}<br>
+                            오류: ${error.message}
+                        </div>
                     </div>
                 `;
                 document.getElementById('result').style.display = 'block';
@@ -296,6 +449,22 @@
             }
         }
 
+        function cleanupInstances() {
+            // Chart.js 인스턴스 정리
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+            
+            // Plotly 인스턴스 정리
+            plotlyInstances.forEach(plotId => {
+                try {
+                    Plotly.purge(plotId);
+                } catch (e) {
+                    console.warn('Plotly cleanup warning:', e);
+                }
+            });
+            plotlyInstances = [];
+        }
+
         function displayResult(data) {
             console.log('전체 데이터:', data);
             
@@ -305,83 +474,234 @@
                     <div class="error">
                         <h3>❌ 결과를 불러올 수 없습니다</h3>
                         <p>서버에서 올바른 응답을 받지 못했습니다.</p>
-                        <details>
-                            <summary>디버그 정보</summary>
+                        <div class="debug-info">
+                            <strong>받은 데이터:</strong><br>
                             <pre>${JSON.stringify(data, null, 2)}</pre>
-                        </details>
+                        </div>
                     </div>
                 `;
                 document.getElementById('result').style.display = 'block';
                 return;
             }
 
+            const totalVisuals = data.total_visuals || 0;
+            const totalParagraphs = data.total_paragraphs || 0;
+
             let html = `
                 <div class="success-stats">
                     <div class="stat">
-                        <div class="stat-number">${data.total_sections || 0}</div>
+                        <div class="stat-number">${data.sections.length}</div>
                         <div class="stat-label">총 섹션</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-number">${data.visual_count || 0}</div>
-                        <div class="stat-label">생성된 시각화</div>
+                        <div class="stat-number">${totalParagraphs}</div>
+                        <div class="stat-label">문단</div>
                     </div>
                     <div class="stat">
-                        <div class="stat-number">✅</div>
-                        <div class="stat-label">완료</div>
+                        <div class="stat-number">${totalVisuals}</div>
+                        <div class="stat-label">스마트 시각화</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">🧠</div>
+                        <div class="stat-label">AI 분석</div>
                     </div>
                 </div>
             `;
 
-            data.sections.forEach(section => {
-                if (section.type === 'header') {
-                    html += `<div class="section"><h2>${section.content}</h2></div>`;
-                } else if (section.type === 'text') {
-                    const content = section.content.split('\n').map(line => {
-                        if (line.trim().startsWith('###')) {
-                            return `<h3>${line.replace('###', '').trim()}</h3>`;
-                        } else if (line.trim().startsWith('##')) {
-                            return `<h2>${line.replace('##', '').trim()}</h2>`;
-                        } else if (line.trim()) {
-                            return `<p>${line.trim()}</p>`;
-                        }
-                        return '';
-                    }).join('');
+            data.sections.forEach((section, index) => {
+                if (section.type === 'paragraph') {
+                    html += `
+                        <div class="section">
+                            <h3>📝 문단 ${index + 1}</h3>
+                            <p>${section.content}</p>
+                        </div>
+                    `;
+                } else if (section.type === 'chart') {
+                    const icon = getVisualizationIcon(section);
+                    const purposeBadge = getPurposeBadge(section.purpose);
                     
-                    html += `<div class="section">${content}</div>`;
-                } else if (section.type === 'visual' && section.data) {
-                    const visual = section.data;
-                    console.log('시각화 데이터:', visual);
-                    
-                    if (visual.success && visual.url && !visual.url.includes('[')) {
-                        html += `
-                            <div class="visual-item">
-                                <div class="visual-title">📊 ${visual.title || '시각화'}</div>
-                                <div class="visual-purpose">${visual.purpose || ''}</div>
-                                <img src="${visual.url}" alt="${visual.title || '시각화'}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-                                <div style="display:none; color:red; padding:10px; background:#ffe6e6; border-radius:5px;">
-                                    이미지를 불러올 수 없습니다: ${visual.url}
+                    html += `
+                        <div class="visual-section">
+                            <h3>${icon} ${section.section || '차트'}${purposeBadge}</h3>
+                            ${section.success ? 
+                                renderChartHTML(section, index) :
+                                `<div class="visual-error">
+                                    <p><strong>차트 생성 실패:</strong> ${section.error}</p>
+                                </div>`
+                            }
+                            ${section.insight ? `
+                                <div class="insight-box">
+                                    <h4>💡 인사이트</h4>
+                                    <p>${section.insight}</p>
                                 </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (section.type === 'diagram') {
+                    html += `
+                        <div class="visual-section">
+                            <h3>🔄 다이어그램: ${section.section || '제목 없음'}</h3>
+                            ${section.success ?
+                                `<div class="mermaid-container">
+                                    <div class="mermaid" id="diagram-${index}">${section.code}</div>
+                                </div>` :
+                                `<div class="visual-error">
+                                    <p><strong>다이어그램 생성 실패:</strong> ${section.error}</p>
+                                </div>`
+                            }
+                            ${section.insight ? `
+                                <div class="insight-box">
+                                    <h4>💡 인사이트</h4>
+                                    <p>${section.insight}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (section.type === 'table') {
+                    html += `
+                        <div class="visual-section">
+                            <h3>📋 표: ${section.section || '제목 없음'}</h3>
+                            ${section.success ?
+                                `<div class="table-container" id="table-${index}"></div>` :
+                                `<div class="visual-error">
+                                    <p><strong>표 생성 실패:</strong> ${section.error}</p>
+                                </div>`
+                            }
+                            ${section.insight ? `
+                                <div class="insight-box">
+                                    <h4>💡 인사이트</h4>
+                                    <p>${section.insight}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (section.type === 'creative') {
+                    html += `
+                        <div class="visual-section">
+                            <h3>🎨 창의적 표현: ${section.section || '제목 없음'}</h3>
+                            <div class="creative-container">
+                                <h4>제안 방법: ${section.method || 'N/A'}</h4>
+                                <p>${section.description || '설명 없음'}</p>
                             </div>
-                        `;
-                    } else {
-                        // 시각화 실패 정보 표시
-                        html += `
-                            <div class="visual-item" style="background:#ffe6e6; border-left:5px solid #d63031;">
-                                <div class="visual-title">⚠️ 시각화 생성 실패</div>
-                                <div class="visual-purpose">${visual.title || '제목 없음'}</div>
-                                <p>오류: ${visual.error || visual.url || '알 수 없는 오류'}</p>
-                                <details>
-                                    <summary>디버그 정보</summary>
-                                    <pre>${JSON.stringify(visual, null, 2)}</pre>
-                                </details>
-                            </div>
-                        `;
-                    }
+                            ${section.insight ? `
+                                <div class="insight-box">
+                                    <h4>💡 인사이트</h4>
+                                    <p>${section.insight}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
                 }
             });
 
             document.getElementById('result').innerHTML = html;
             document.getElementById('result').style.display = 'block';
+
+            // 시각화 렌더링
+            renderVisualizations(data.sections);
+        }
+
+        function renderChartHTML(section, index) {
+            if (section.library === 'plotly') {
+                return `<div class="plotly-container" id="plotly-${index}"></div>`;
+            } else {
+                return `<div class="chart-container">
+                    <canvas id="chart-${index}"></canvas>
+                </div>`;
+            }
+        }
+
+        function renderVisualizations(sections) {
+            sections.forEach((section, index) => {
+                try {
+                    if (section.type === 'chart' && section.success && section.config) {
+                        if (section.library === 'plotly') {
+                            // Plotly 렌더링
+                            const plotDiv = document.getElementById(`plotly-${index}`);
+                            if (plotDiv && section.config) {
+                                Plotly.newPlot(plotDiv, section.config.data || [], section.config.layout || {}, section.config.config || {});
+                                plotlyInstances.push(`plotly-${index}`);
+                                console.log('Plotly 차트 렌더링 성공:', section.section);
+                            }
+                        } else {
+                            // Chart.js 렌더링
+                            const canvas = document.getElementById(`chart-${index}`);
+                            if (canvas) {
+                                const chart = new Chart(canvas, section.config);
+                                chartInstances.push(chart);
+                                console.log('Chart.js 렌더링 성공:', section.section);
+                            }
+                        }
+                    } else if (section.type === 'table' && section.success && section.data) {
+                        const container = document.getElementById(`table-${index}`);
+                        if (container && section.data.headers && section.data.rows) {
+                            let tableHtml = '<table>';
+                            
+                            // 헤더
+                            tableHtml += '<thead><tr>';
+                            section.data.headers.forEach(header => {
+                                tableHtml += `<th>${header}</th>`;
+                            });
+                            tableHtml += '</tr></thead>';
+                            
+                            // 데이터
+                            tableHtml += '<tbody>';
+                            section.data.rows.forEach(row => {
+                                tableHtml += '<tr>';
+                                row.forEach(cell => {
+                                    tableHtml += `<td>${cell}</td>`;
+                                });
+                                tableHtml += '</tr>';
+                            });
+                            tableHtml += '</tbody></table>';
+                            
+                            container.innerHTML = tableHtml;
+                            console.log('테이블 렌더링 성공:', section.section);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`시각화 렌더링 실패 (${section.type}):`, error);
+                }
+            });
+
+            // Mermaid 다이어그램 렌더링
+            try {
+                mermaid.init(undefined, '.mermaid');
+                console.log('Mermaid 다이어그램 렌더링 완료');
+            } catch (error) {
+                console.error('Mermaid 렌더링 실패:', error);
+            }
+        }
+
+        function getVisualizationIcon(section) {
+            if (section.library === 'plotly') return '📈';
+            if (section.library === 'chartjs') {
+                const chartType = section.config?.type;
+                switch(chartType) {
+                    case 'bar': return '📊';
+                    case 'line': return '📈';
+                    case 'pie': return '🥧';
+                    case 'radar': return '🎯';
+                    case 'scatter': return '🔸';
+                    default: return '📊';
+                }
+            }
+            return '📊';
+        }
+
+        function getPurposeBadge(purpose) {
+            if (!purpose) return '';
+            
+            const purposeMap = {
+                'overview': '전체 개요',
+                'detail': '세부 분석', 
+                'comparison': '비교',
+                'process': '프로세스',
+                'concept': '개념 설명'
+            };
+            
+            const label = purposeMap[purpose] || purpose;
+            return `<span class="purpose-badge purpose-${purpose}">${label}</span>`;
         }
 
         // Enter 키로 실행

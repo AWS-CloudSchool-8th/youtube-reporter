@@ -1,18 +1,15 @@
 import os
 import requests
 import json
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict, Any, Optional
 import boto3
-import uuid
-import matplotlib.pyplot as plt
-import numpy as np
+import time
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langsmith.run_helpers import traceable
-from langchain_experimental.tools import PythonREPLTool
 import logging
 
 # 로깅 설정
@@ -22,427 +19,471 @@ logger = logging.getLogger(__name__)
 # ========== 1. 상태 정의 ==========
 class GraphState(TypedDict):
     youtube_url: str
-    raw_caption: str
-    comprehensive_report: str
-    content_insights: Dict[str, Any]
-    essential_visuals: List[Dict[str, Any]]
-    final_document: Dict[str, Any]
+    caption: str
+    report_text: str
+    visual_requirements: List[Dict]
+    visual_results: List[Dict]
+    final_output: Dict
 
-# ========== 2. 환경 설정 ==========
+# ========== 2. 환경 변수 로딩 ==========
 load_dotenv()
 VIDCAP_API_KEY = os.getenv("VIDCAP_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-AWS_REGION = os.getenv("AWS_REGION") or "us-west-2"
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID") or "anthropic.claude-3-5-sonnet-20241022-v2:0"
+AWS_REGION = os.getenv("AWS_REGION")
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID")
 
-# 한글 폰트 설정
-def setup_korean_font():
-    korean_fonts = ['Malgun Gothic', 'AppleGothic', 'NanumGothic']
-    for font in korean_fonts:
-        try:
-            plt.rcParams['font.family'] = font
-            plt.rcParams['axes.unicode_minus'] = False
-            logger.info(f"한글 폰트 설정 완료: {font}")
-            return font
-        except:
-            continue
-    plt.rcParams['font.family'] = 'sans-serif'
-    plt.rcParams['axes.unicode_minus'] = False
-    logger.warning("한글 폰트 설정 실패, 기본 폰트 사용")
-    return 'sans-serif'
-
-setup_korean_font()
-
-# ========== 3. 핵심 도구들 ==========
-def extract_youtube_caption(youtube_url: str) -> str:
-    logger.info(f"YouTube 자막 추출 시작: {youtube_url}")
-    api_url = "https://vidcap.xyz/api/v1/youtube/caption"
-    params = {"url": youtube_url, "locale": "ko"}
-    headers = {"Authorization": f"Bearer {VIDCAP_API_KEY}"}
-    response = requests.get(api_url, params=params, headers=headers)
-    response.raise_for_status()
-    caption = response.json().get("data", {}).get("content", "")
-    logger.info(f"자막 추출 완료: {len(caption)}자")
-    return caption
-
-def upload_to_s3(file_path: str, object_name: str = None) -> str:
-    logger.info(f"S3 업로드 시작: {file_path}")
+# ========== 3. 자막 추출 도구 ==========
+def extract_youtube_caption_tool(youtube_url: str) -> str:
+    """YouTube 자막 추출"""
     try:
-        s3 = boto3.client("s3", region_name=AWS_REGION)
-        bucket_name = os.getenv("S3_BUCKET_NAME")
-        object_name = object_name or os.path.basename(file_path)
-        s3.upload_file(file_path, bucket_name, object_name)
-        url = f"https://{bucket_name}.s3.{AWS_REGION}.amazonaws.com/{object_name}"
-        logger.info(f"S3 업로드 완료: {url}")
-        return url
+        api_url = "https://vidcap.xyz/api/v1/youtube/caption"
+        params = {"url": youtube_url, "locale": "ko"}
+        headers = {"Authorization": f"Bearer {VIDCAP_API_KEY}"}
+        response = requests.get(api_url, params=params, headers=headers)
+        response.raise_for_status()
+        return response.json().get("data", {}).get("content", "")
     except Exception as e:
-        logger.error(f"S3 업로드 실패: {e}")
-        return f"[S3 Upload Error: {e}]"
+        logger.error(f"자막 추출 오류: {e}")
+        return f"[자막 추출 실패: {str(e)}]"
 
 # ========== 4. LLM 설정 ==========
 llm = ChatBedrock(
     client=boto3.client("bedrock-runtime", region_name=AWS_REGION),
     model_id=BEDROCK_MODEL_ID,
-    model_kwargs={"temperature": 0.1, "max_tokens": 4096}
+    model_kwargs={"temperature": 0.0, "max_tokens": 4096}
 )
 
-# ========== 5. 포괄적 보고서 생성 ==========
-comprehensive_report_prompt = ChatPromptTemplate.from_messages([
-    ("system", """너는 YouTube 영상을 보지 않고도 완전히 이해할 수 있는 포괄적 보고서를 작성하는 전문가입니다.
-
-목표: 독자가 YouTube 영상을 보지 않아도 모든 핵심 내용을 파악할 수 있도록 상세한 보고서 작성
-
-작성 규칙:
-1. **완전성**: 영상의 모든 중요한 정보 포함
-2. **구조화**: 논리적 흐름으로 섹션 구분
-3. **구체성**: 추상적 표현보다 구체적 내용 우선
-4. **맥락 제공**: 배경 정보와 연결점 명시
-5. **길이**: 800-1200자 (충분히 상세하게)
-
-보고서 구조:
-# [영상 제목 또는 주제]
-
-## 핵심 요약
-[3-4문장으로 전체 내용 요약]
-
-## 주요 내용
-### [첫 번째 핵심 주제]
-[상세 설명, 구체적 사례, 수치 데이터 포함]
-
-### [두 번째 핵심 주제]
-[상세 설명, 비교/대조 내용 포함]
-
-### [세 번째 핵심 주제]
-[프로세스, 단계, 방법론 등 포함]
-
-## 핵심 인사이트
-[결론, 시사점, 실용적 적용 방안]
-
-## 추가 정보
-[언급된 참고자료, 관련 개념, 후속 내용 등]"""),
-    ("human", "YouTube 자막 내용:\n{caption}")
+# ========== 5. 보고서 생성 ==========
+structure_prompt = ChatPromptTemplate.from_messages([
+    ("system", "너는 유튜브 자막을 보고서 형식으로 재작성하는 AI야. 다음 규칙을 따르세요:\n"
+               "1. 자막 내용을 서술형 문장으로 바꾸세요.\n"
+               "2. 3개 이상의 문단, 300자 이상.\n"
+               "3. 각 문단은 요약+설명 형식으로 작성하세요.\n"
+               "4. 핵심 내용을 누락하지 말고 포괄적으로 작성하세요."),
+    ("human", "{input}")
 ])
 
-def create_comprehensive_report(caption: str) -> str:
-    logger.info("포괄적 보고서 생성 시작")
-    messages = comprehensive_report_prompt.format_messages(caption=caption)
-    response = llm.invoke(messages)
-    report = response.content.strip()
-    logger.info(f"보고서 생성 완료: {len(report)}자")
-    return report
-
-# ========== 6. 내용 분석 및 인사이트 추출 ==========
-content_analysis_prompt = ChatPromptTemplate.from_messages([
-    ("system", """너는 보고서를 분석해서 시각화가 꼭 필요한 핵심 요소만 식별하는 전문가입니다.
-
-분석 기준:
-1. **데이터 중심**: 구체적 수치, 통계, 비율이 있는가?
-2. **비교 요소**: 여러 항목을 비교/대조하는 내용인가?
-3. **프로세스**: 단계별 절차나 흐름이 있는가?
-4. **관계성**: 복잡한 개념 간 연결관계가 있는가?
-5. **핵심성**: 전체 내용 이해에 필수적인가?
-
-다음 JSON 형태로 출력:
-{{
-  "key_data_points": [
-    {{"content": "구체적 데이터 내용", "importance": "high/medium", "visualization_need": "essential/helpful/unnecessary"}}
-  ],
-  "comparison_elements": [
-    {{"items": ["비교대상1", "비교대상2"], "criteria": "비교기준", "importance": "high/medium"}}
-  ],
-  "process_flows": [
-    {{"name": "프로세스명", "steps": ["단계1", "단계2"], "complexity": "high/medium/low"}}
-  ],
-  "concept_relationships": [
-    {{"central_concept": "중심개념", "related_concepts": ["관련개념들"], "relationship_type": "hierarchy/network/flow"}}
-  ],
-  "visualization_priority": {{
-    "essential": ["꼭 필요한 시각화 요소들"],
-    "helpful": ["도움이 되는 시각화 요소들"],
-    "skip": ["불필요한 요소들"]
-  }}
-}}"""),
-    ("human", "보고서 내용:\n{report}")
-])
-
-def analyze_content_insights(report: str) -> Dict[str, Any]:
-    logger.info("내용 분석 시작")
-    messages = content_analysis_prompt.format_messages(report=report)
-    response = llm.invoke(messages)
+def structure_report(caption: str) -> str:
+    """자막을 구조화된 보고서로 변환"""
     try:
-        analysis = json.loads(response.content)
-        logger.info("내용 분석 완료")
-        return analysis
+        messages = structure_prompt.format_messages(input=caption)
+        response = llm.invoke(messages)
+        return response.content.strip()
     except Exception as e:
-        logger.error(f"내용 분석 실패: {e}")
-        return {"error": "분석 실패", "raw_response": response.content}
+        logger.error(f"보고서 생성 오류: {e}")
+        return f"[보고서 생성 실패: {str(e)}]"
 
-# ========== 7. 필수 시각화 요소 선별 ==========
-essential_visual_prompt = ChatPromptTemplate.from_messages([
-    ("system", """너는 보고서 이해에 꼭 필요한 시각화만 선별하는 전문가입니다.
+report_agent_executor_runnable = RunnableLambda(structure_report)
 
-선별 기준 (모두 만족해야 함):
-1. **필수성**: 이 시각화 없이는 내용 이해가 어려운가?
-2. **명확성**: 텍스트보다 시각화가 훨씬 명확한가?
-3. **데이터성**: 구체적 데이터나 구조가 있는가?
-
-시각화 타입별 적용:
-- **차트**: 수치 비교, 트렌드, 분포 (3개 이상 데이터 포인트)
-- **표**: 구조화된 정보, 다중 속성 비교
-- **다이어그램**: 복잡한 프로세스, 시스템 구조
-- **마인드맵**: 개념 간 복잡한 관계성
-
-최대 2-3개만 선별하여 JSON 배열로 출력:
-[
-  {{
-    "type": "chart|table|diagram|mindmap",
-    "title": "시각화 제목",
-    "purpose": "왜 꼭 필요한지 이유",
-    "data_source": "보고서에서 추출할 구체적 데이터",
-    "chart_type": "bar|line|pie|flow|hierarchy (해당시)",
-    "priority_score": 1-10,
-    "section": "해당 보고서 섹션"
-  }}
-]"""),
-    ("human", "보고서:\n{report}\n\n분석 결과:\n{insights}")
-])
-
-def select_essential_visuals(report: str, insights: Dict[str, Any]) -> List[Dict[str, Any]]:
-    logger.info("필수 시각화 선별 시작")
-    
-    # 간단한 테스트 데이터로 대체 (임시)
-    test_visuals = [
-        {
-            "type": "chart",
-            "title": "기본 삼각함수 그래프 비교",
-            "purpose": "삼각함수의 기본 형태와 주기를 시각적으로 비교",
-            "data_source": "sin x, cos x 함수의 그래프",
-            "chart_type": "line",
-            "priority_score": 10,
-            "section": "주요 내용"
-        },
-        {
-            "type": "chart",
-            "title": "단위원과 삼각함수의 관계",
-            "purpose": "삼각함수 값들이 단위원에서 어떻게 도출되는지 설명",
-            "data_source": "단위원에서의 좌표값",
-            "chart_type": "scatter",
-            "priority_score": 9,
-            "section": "핵심 인사이트"
-        }
-    ]
-    
-    logger.info(f"시각화 선별 완료: {len(test_visuals)}개")
-    return test_visuals
-
-# ========== 8. 고품질 시각화 생성 ==========
-def generate_high_quality_visual(requirement: Dict[str, Any]) -> Dict[str, Any]:
-    logger.info(f"시각화 생성 시작: {requirement.get('title', 'Unknown')}")
-    
-    try:
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
-        
-        chart_type = requirement.get('chart_type', 'bar')
-        title = requirement.get('title', '시각화')
-        
-        if 'sin' in title.lower() or '삼각함수' in title:
-            x = np.linspace(-2*np.pi, 2*np.pi, 1000)
-            ax.plot(x, np.sin(x), label='sin(x)', linewidth=2, color='#FF6B6B')
-            ax.plot(x, np.cos(x), label='cos(x)', linewidth=2, color='#4ECDC4')
-            ax.set_ylim(-1.5, 1.5)
-            ax.axhline(y=0, color='k', linestyle='-', alpha=0.3)
-            ax.axvline(x=0, color='k', linestyle='-', alpha=0.3)
-            ax.legend()
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
-        elif chart_type == 'bar':
-            categories = ['카테고리 A', '카테고리 B', '카테고리 C', '카테고리 D']
-            values = [23, 45, 56, 78]
-            ax.bar(categories, values, color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'])
-            ax.set_ylabel('값')
-        elif chart_type == 'line':
-            x = np.arange(2020, 2025)
-            y = [100, 120, 140, 160, 180]
-            ax.plot(x, y, marker='o', linewidth=2, markersize=8, color='#45B7D1')
-            ax.set_xlabel('연도')
-            ax.set_ylabel('값')
-        else:
-            x = np.arange(5)
-            y = np.random.randint(10, 100, 5)
-            ax.bar(x, y, color='#45B7D1')
-        
-        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
-        ax.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig('output.png', dpi=300, bbox_inches='tight', facecolor='white')
-        plt.close()
-        
-        logger.info("matplotlib로 직접 이미지 생성 완료")
-        
-        if os.path.exists("output.png"):
-            file_size = os.path.getsize("output.png")
-            logger.info(f"output.png 파일 크기: {file_size} bytes")
-            
-            unique_filename = f"visual-{uuid.uuid4().hex[:8]}.png"
-            os.rename("output.png", unique_filename)
-            
-            s3_url = upload_to_s3(unique_filename, object_name=unique_filename)
-            
-            if os.path.exists(unique_filename):
-                os.remove(unique_filename)
-            
-            success = not s3_url.startswith("[S3 Upload Error:")
-            
-            visual_result = {
-                "type": requirement.get("type"),
-                "title": requirement.get("title"),
-                "url": s3_url,
-                "purpose": requirement.get("purpose"),
-                "section": requirement.get("section"),
-                "success": success
-            }
-            logger.info(f"시각화 생성 완료: success={success}, url={s3_url}")
-            return visual_result
-        else:
-            logger.error("output.png 파일이 생성되지 않음")
-            return {
-                "type": requirement.get("type"),
-                "title": requirement.get("title"),
-                "url": "[이미지 생성 실패]",
-                "error": "Image generation failed",
-                "success": False
-            }
-            
-    except Exception as e:
-        logger.error(f"시각화 생성 오류: {e}")
-        import traceback
-        logger.error(f"상세 오류: {traceback.format_exc()}")
-        return {
-            "type": requirement.get("type", "unknown"),
-            "title": requirement.get("title", "제목 없음"),
-            "url": f"[오류: {str(e)}]",
-            "error": str(e),
-            "success": False
-        }
-
-def process_essential_visuals(requirements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    logger.info(f"시각화 처리 시작: {len(requirements)}개")
-    results = []
-    for i, req in enumerate(requirements):
-        logger.info(f"시각화 {i+1}/{len(requirements)} 처리 중: {req.get('title', 'Unknown')}")
-        if req.get('priority_score', 0) >= 5:
-            visual = generate_high_quality_visual(req)
-            results.append(visual)
-        else:
-            logger.info(f"우선순위 낮음으로 스킵: {req.get('priority_score', 0)}")
-    
-    logger.info(f"시각화 처리 완료: {len(results)}개")
-    return results
-
-# ========== 9. 최종 문서 구성 ==========
-def create_final_document(report: str, visuals: List[Dict[str, Any]]) -> Dict[str, Any]:
-    logger.info("최종 문서 구성 시작")
-    sections = []
-    report_lines = report.split('\n')
-    current_section = []
-    
-    for line in report_lines:
-        if line.strip().startswith('#'):
-            if current_section:
-                sections.append({
-                    "type": "text",
-                    "content": '\n'.join(current_section).strip()
-                })
-                current_section = []
-            sections.append({
-                "type": "header",
-                "content": line.strip()
-            })
-        else:
-            current_section.append(line)
-    
-    if current_section:
-        sections.append({
-            "type": "text", 
-            "content": '\n'.join(current_section).strip()
-        })
-    
-    successful_visuals = [v for v in visuals if v.get('success', False)]
-    logger.info(f"성공한 시각화: {len(successful_visuals)}개")
-    
-    for i, visual in enumerate(successful_visuals):
-        insert_pos = min((i + 1) * 3, len(sections))
-        sections.insert(insert_pos, {
-            "type": "visual",
-            "data": visual
-        })
-    
-    final_doc = {
-        "format": "comprehensive_report",
-        "sections": sections,
-        "visual_count": len(successful_visuals),
-        "total_sections": len(sections)
-    }
-    
-    logger.info(f"최종 문서 구성 완료: {len(sections)}개 섹션, {len(successful_visuals)}개 시각화")
-    return final_doc
-
-# ========== 10. 노드 클래스 ==========
-class StateNode(Runnable):
-    def __init__(self, func, input_key: str, output_key: str):
-        self.func = func
+# ========== 6. 헬퍼 클래스들 ==========
+class ToolAgent(Runnable):
+    """단순 도구를 LangGraph 노드로 변환"""
+    def __init__(self, tool_func, input_key: str, output_key: str):
+        self.tool_func = tool_func
         self.input_key = input_key
         self.output_key = output_key
     
-    def invoke(self, state: dict, config=None):
-        input_value = state.get(self.input_key)
-        result = self.func(input_value)
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        input_value = state.get(self.input_key, "")
+        result = self.tool_func(input_value)
         return {**state, self.output_key: result}
 
-class MultiInputNode(Runnable):
-    def __init__(self, func, input_keys: List[str], output_key: str):
-        self.func = func
-        self.input_keys = input_keys
+class LangGraphAgentNode(Runnable):
+    """LangChain Runnable을 LangGraph 노드로 변환"""
+    def __init__(self, runnable, input_key: str, output_key: str):
+        self.runnable = runnable
+        self.input_key = input_key
         self.output_key = output_key
     
-    def invoke(self, state: dict, config=None):
-        inputs = [state.get(key) for key in self.input_keys]
-        result = self.func(*inputs)
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        input_value = state.get(self.input_key, "")
+        result = self.runnable.invoke(input_value)
         return {**state, self.output_key: result}
 
-# ========== 11. 그래프 구성 ==========
-builder = StateGraph(GraphState)
+class MergeTool(Runnable):
+    """최종 결과 병합"""
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        report_text = state.get("report_text", "")
+        visual_results = state.get("visual_results", [])
+        
+        # 보고서를 문단으로 분할
+        paragraphs = [p.strip() for p in report_text.split('\n\n') if p.strip()]
+        
+        # 섹션 생성
+        sections = []
+        
+        # 문단 추가
+        for i, paragraph in enumerate(paragraphs):
+            if len(paragraph) > 50:  # 너무 짧은 문단 제외
+                sections.append({
+                    "type": "paragraph",
+                    "content": paragraph
+                })
+        
+        # 시각화 추가
+        sections.extend(visual_results)
+        
+        # 통계 계산
+        total_paragraphs = len([s for s in sections if s["type"] == "paragraph"])
+        total_visuals = len([s for s in sections if s["type"] != "paragraph"])
+        
+        final_output = {
+            "format": "mixed",
+            "sections": sections,
+            "total_paragraphs": total_paragraphs,
+            "total_visuals": total_visuals
+        }
+        
+        return {**state, "final_output": final_output}
 
-builder.add_node("extract_caption", StateNode(extract_youtube_caption, "youtube_url", "raw_caption"))
-builder.add_node("create_report", StateNode(create_comprehensive_report, "raw_caption", "comprehensive_report"))
-builder.add_node("analyze_insights", StateNode(analyze_content_insights, "comprehensive_report", "content_insights"))
-builder.add_node("select_visuals", MultiInputNode(select_essential_visuals, ["comprehensive_report", "content_insights"], "essential_visuals"))
-builder.add_node("generate_visuals", StateNode(process_essential_visuals, "essential_visuals", "essential_visuals"))
-builder.add_node("create_document", MultiInputNode(create_final_document, ["comprehensive_report", "essential_visuals"], "final_document"))
+# ========== 7. 스마트 시각화 시스템 ==========
+CONTEXT_ANALYSIS_PROMPT = """
+당신은 YouTube 보고서의 맥락을 깊이 분석하는 전문가입니다.
 
-builder.set_entry_point("extract_caption")
-builder.add_edge("extract_caption", "create_report")
-builder.add_edge("create_report", "analyze_insights")
-builder.add_edge("analyze_insights", "select_visuals")
-builder.add_edge("select_visuals", "generate_visuals")
-builder.add_edge("generate_visuals", "create_document")
-builder.add_edge("create_document", "__end__")
+다음 보고서를 분석해서 사용자가 영상을 보지 않고도 완전히 이해할 수 있도록 도와주세요.
 
-compiled_graph = builder.compile()
+보고서:
+{report_text}
 
-# ========== 12. 실행 함수 ==========
-@traceable(name="youtube-comprehensive-report")
-def generate_youtube_report(youtube_url: str) -> Dict[str, Any]:
-    logger.info(f"YouTube 보고서 생성 시작: {youtube_url}")
-    result = compiled_graph.invoke({"youtube_url": youtube_url})
-    final_doc = result.get("final_document", {})
-    logger.info("YouTube 보고서 생성 완료")
-    return final_doc
+**분석 단계:**
+1. **전체 주제와 목적** 파악
+2. **핵심 개념들** 추출  
+3. **이해하기 어려운 부분** 식별
+4. **시각화로 도움될 수 있는 부분** 판단
 
-def run_graph(youtube_url: str) -> Dict[str, Any]:
-    logger.info(f"run_graph 호출: {youtube_url}")
-    result = compiled_graph.invoke({"youtube_url": youtube_url})
-    final_output = {"final_output": result.get("final_document", {})}
-    logger.info("run_graph 완료")
-    return final_output
+**응답 형식:**
+{{
+  "main_topic": "전체 주제",
+  "key_concepts": ["개념1", "개념2", "개념3"],
+  "difficult_parts": [
+    {{
+      "content": "이해하기 어려운 내용",
+      "why_difficult": "왜 어려운지",
+      "help_type": "어떤 도움이 필요한지"
+    }}
+  ],
+  "visualization_opportunities": [
+    {{
+      "content": "시각화할 내용", 
+      "purpose": "overview|detail|comparison|process|concept",
+      "why_helpful": "왜 시각화가 도움되는지",
+      "user_benefit": "사용자가 얻을 수 있는 이해"
+    }}
+  ]
+}}
+
+JSON만 출력하세요.
+"""
+
+def analyze_content_context(report_text: str) -> Dict[str, Any]:
+    """보고서의 맥락을 깊이 분석"""
+    try:
+        prompt = CONTEXT_ANALYSIS_PROMPT.format(report_text=report_text)
+        response = llm.invoke(prompt)
+        
+        content = response.content.strip()
+        start_idx = content.find('{')
+        end_idx = content.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            json_part = content[start_idx:end_idx+1]
+            return json.loads(json_part)
+        else:
+            return {"error": "JSON 파싱 실패"}
+            
+    except Exception as e:
+        logger.error(f"컨텍스트 분석 실패: {e}")
+        return {"error": str(e)}
+
+SMART_VISUALIZATION_PROMPT = """
+당신은 최적의 시각화를 자동으로 생성하는 AI입니다.
+
+**상황:**
+- 주제: {main_topic}
+- 핵심 개념: {key_concepts}
+
+**시각화 기회:**
+{visualization_opportunity}
+
+**목적:** {purpose}
+**왜 도움되는지:** {why_helpful}
+**사용자 이익:** {user_benefit}
+
+**당신의 임무:**
+1. 이 내용을 가장 효과적으로 표현할 시각화 방법을 결정
+2. 필요한 데이터나 구조를 추출/생성
+3. 실제 시각화 코드나 설정을 만들기
+
+**사용 가능한 도구들:**
+- **간단한 차트**: 비교, 트렌드, 비율 → Chart.js 
+- **수학/과학**: 함수, 공식, 관계 → Plotly.js + 수학 계산
+- **프로세스/흐름**: 단계, 절차 → Mermaid
+- **구조화된 정보**: 정확한 데이터 → HTML Table
+- **개념 관계**: 분류, 연결 → 마인드맵
+- **창의적 표현**: 위의 것들로 안되면 새로운 방법 제안
+
+**중요**: 
+- 정해진 형식에 얽매이지 말고 가장 효과적인 방법을 선택하세요
+- 내용에서 실제 데이터를 추출하거나 합리적으로 생성하세요  
+- 사용자가 "아, 이래서 시각화가 필요했구나!"라고 느끼도록 하세요
+
+다음 중 하나의 형식으로 응답하세요:
+
+**1. Chart.js 차트:**
+{{
+  "type": "chartjs",
+  "chart_type": "bar|line|pie|radar|scatter",
+  "title": "차트 제목",
+  "config": {{
+    "type": "bar",
+    "data": {{
+      "labels": ["항목1", "항목2", "항목3"],
+      "datasets": [{{
+        "label": "데이터셋 이름",
+        "data": [10, 20, 30],
+        "backgroundColor": ["#FF6384", "#36A2EB", "#FFCE56"]
+      }}]
+    }},
+    "options": {{
+      "responsive": true,
+      "maintainAspectRatio": false
+    }}
+  }},
+  "insight": "이 차트를 통해 얻을 수 있는 인사이트"
+}}
+
+**2. Plotly 수학/과학:**
+{{
+  "type": "plotly", 
+  "chart_type": "function|scatter|heatmap|3d",
+  "title": "그래프 제목",
+  "config": {{
+    "data": [{{
+      "x": [1, 2, 3, 4],
+      "y": [10, 11, 12, 13],
+      "type": "scatter",
+      "mode": "lines+markers"
+    }}],
+    "layout": {{
+      "title": "그래프 제목",
+      "xaxis": {{"title": "X축"}},
+      "yaxis": {{"title": "Y축"}}
+    }}
+  }},
+  "insight": "이 그래프를 통해 얻을 수 있는 인사이트"
+}}
+
+**3. Mermaid 다이어그램:**
+{{
+  "type": "mermaid",
+  "diagram_type": "flowchart|timeline|mindmap",  
+  "title": "다이어그램 제목",
+  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
+  "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
+}}
+
+**4. HTML 테이블:**
+{{
+  "type": "table",
+  "title": "표 제목", 
+  "data": {{
+    "headers": ["항목", "값", "설명"],
+    "rows": [
+      ["항목1", "값1", "설명1"],
+      ["항목2", "값2", "설명2"]
+    ]
+  }},
+  "insight": "이 표를 통해 얻을 수 있는 인사이트"
+}}
+
+**5. 창의적 제안:**
+{{
+  "type": "creative",
+  "method": "제안하는 방법",
+  "description": "어떻게 구현할지",
+  "insight": "왜 이 방법이 최적인지"
+}}
+
+JSON만 출력하세요.
+"""
+
+def generate_smart_visualization(context: Dict[str, Any], opportunity: Dict[str, Any]) -> Dict[str, Any]:
+    """스마트하게 최적의 시각화 생성"""
+    try:
+        prompt = SMART_VISUALIZATION_PROMPT.format(
+            main_topic=context.get('main_topic', ''),
+            key_concepts=', '.join(context.get('key_concepts', [])),
+            visualization_opportunity=opportunity.get('content', ''),
+            purpose=opportunity.get('purpose', ''),
+            why_helpful=opportunity.get('why_helpful', ''),
+            user_benefit=opportunity.get('user_benefit', '')
+        )
+        
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+        
+        start_idx = content.find('{')
+        end_idx = content.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            json_part = content[start_idx:end_idx+1]
+            return json.loads(json_part)
+        else:
+            return {"error": "JSON 파싱 실패"}
+            
+    except Exception as e:
+        logger.error(f"스마트 시각화 생성 실패: {e}")
+        return {"error": str(e)}
+
+class SmartVisualizationPipeline(Runnable):
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        start = time.time()
+        report_text = state.get("report_text", "")
+        
+        # 1단계: 컨텍스트 분석
+        logger.info("🧠 컨텍스트 분석 시작...")
+        context = analyze_content_context(report_text)
+        
+        if "error" in context:
+            logger.error(f"컨텍스트 분석 실패: {context['error']}")
+            return {**state, "visual_results": []}
+        
+        logger.info(f"📝 주제: {context.get('main_topic', 'Unknown')}")
+        logger.info(f"🔑 핵심 개념: {len(context.get('key_concepts', []))}개")
+        logger.info(f"🎯 시각화 기회: {len(context.get('visualization_opportunities', []))}개")
+        
+        # 2단계: 각 시각화 기회에 대해 스마트 생성
+        visual_results = []
+        opportunities = context.get('visualization_opportunities', [])
+        
+        for i, opportunity in enumerate(opportunities):
+            logger.info(f"🎨 시각화 {i+1}/{len(opportunities)} 생성 중...")
+            
+            viz_result = generate_smart_visualization(context, opportunity)
+            
+            if "error" not in viz_result:
+                # 성공한 시각화를 표준 형식으로 변환
+                standardized = self.standardize_visualization(viz_result, opportunity)
+                if standardized:
+                    visual_results.append(standardized)
+                    logger.info(f"✅ 시각화 생성 성공: {viz_result.get('type', 'unknown')}")
+                else:
+                    logger.warning(f"⚠️ 시각화 표준화 실패")
+            else:
+                logger.error(f"❌ 시각화 생성 실패: {viz_result['error']}")
+        
+        logger.info(f"🎯 스마트 시각화 파이프라인 완료: {round(time.time() - start, 2)}초")
+        logger.info(f"📊 생성된 시각화: {len(visual_results)}개")
+        
+        return {**state, "visual_results": visual_results}
+    
+    def standardize_visualization(self, viz_result: Dict[str, Any], opportunity: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """AI가 생성한 시각화를 표준 형식으로 변환"""
+        try:
+            base = {
+                "section": viz_result.get('title', opportunity.get('content', '시각화')[:50]),
+                "success": True,
+                "insight": viz_result.get('insight', ''),
+                "purpose": opportunity.get('purpose', ''),
+                "user_benefit": opportunity.get('user_benefit', '')
+            }
+            
+            viz_type = viz_result.get('type', '')
+            
+            if viz_type == 'chartjs':
+                return {
+                    **base,
+                    "type": "chart",
+                    "library": "chartjs",
+                    "config": viz_result.get('config', {})
+                }
+            
+            elif viz_type == 'plotly':
+                return {
+                    **base, 
+                    "type": "chart",
+                    "library": "plotly",
+                    "config": viz_result.get('config', {})
+                }
+            
+            elif viz_type == 'mermaid':
+                return {
+                    **base,
+                    "type": "diagram", 
+                    "library": "mermaid",
+                    "code": viz_result.get('code', '')
+                }
+            
+            elif viz_type == 'table':
+                return {
+                    **base,
+                    "type": "table",
+                    "library": "html", 
+                    "data": viz_result.get('data', {})
+                }
+            
+            elif viz_type == 'creative':
+                return {
+                    **base,
+                    "type": "creative",
+                    "library": "custom",
+                    "method": viz_result.get('method', ''),
+                    "description": viz_result.get('description', '')
+                }
+            
+            else:
+                return None
+                
+        except Exception as e:
+            logger.error(f"시각화 표준화 오류: {e}")
+            return None
+
+# ========== 8. 그래프 구성 ==========
+smart_visualization_pipeline = SmartVisualizationPipeline()
+
+def build_smart_graph():
+    """스마트 시각화가 적용된 그래프 빌드"""
+    builder = StateGraph(state_schema=GraphState)
+    
+    builder.add_node("caption_node", ToolAgent(extract_youtube_caption_tool, "youtube_url", "caption"))
+    builder.add_node("report_node", LangGraphAgentNode(report_agent_executor_runnable, "caption", "report_text"))
+    builder.add_node("smart_visual_node", smart_visualization_pipeline)
+    builder.add_node("merge_node", MergeTool())
+    
+    builder.set_entry_point("caption_node")
+    builder.add_edge("caption_node", "report_node")
+    builder.add_edge("report_node", "smart_visual_node")
+    builder.add_edge("smart_visual_node", "merge_node")
+    builder.add_edge("merge_node", "__end__")
+    
+    return builder.compile()
+
+# 컴파일된 그래프
+smart_compiled_graph = build_smart_graph()
+
+# ========== 9. 실행 함수 ==========
+@traceable(name="smart-youtube-report")
+def run_smart_graph(youtube_url: str) -> Dict[str, Any]:
+    """스마트 시각화가 적용된 YouTube 보고서 생성"""
+    logger.info("\n🚀 [Smart Graph] 실행 시작")
+    logger.info(f"🎯 입력 URL: {youtube_url}")
+    
+    try:
+        result = smart_compiled_graph.invoke({"youtube_url": youtube_url})
+        logger.info("\n✅ [Smart Graph] 실행 완료")
+        logger.info(f"📦 최종 결과: 문단 {result['final_output']['total_paragraphs']}개, 시각화 {result['final_output']['total_visuals']}개")
+        return result
+    except Exception as e:
+        logger.error(f"\n❌ [Smart Graph] 실행 실패: {e}")
+        return {
+            "youtube_url": youtube_url,
+            "final_output": {
+                "format": "error",
+                "error": str(e),
+                "sections": [],
+                "total_paragraphs": 0,
+                "total_visuals": 0
+            }
+        }
+
+# 기존 호환성을 위한 별칭
+run_graph = run_smart_graph
