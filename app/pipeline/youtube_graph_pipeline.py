@@ -14,7 +14,7 @@ import logging
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # ← name → __name__으로 수정
 
 # ========== 1. 상태 정의 ==========
 class GraphState(TypedDict):
@@ -77,11 +77,11 @@ report_agent_executor_runnable = RunnableLambda(structure_report)
 # ========== 6. 헬퍼 클래스들 ==========
 class ToolAgent(Runnable):
     """단순 도구를 LangGraph 노드로 변환"""
-    def __init__(self, tool_func, input_key: str, output_key: str):
+    def __init__(self, tool_func, input_key: str, output_key: str):  # ← init → __init__으로 수정
         self.tool_func = tool_func
         self.input_key = input_key
         self.output_key = output_key
-    
+
     def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
         input_value = state.get(self.input_key, "")
         result = self.tool_func(input_value)
@@ -89,11 +89,11 @@ class ToolAgent(Runnable):
 
 class LangGraphAgentNode(Runnable):
     """LangChain Runnable을 LangGraph 노드로 변환"""
-    def __init__(self, runnable, input_key: str, output_key: str):
+    def __init__(self, runnable, input_key: str, output_key: str):  # ← init → __init__으로 수정
         self.runnable = runnable
         self.input_key = input_key
         self.output_key = output_key
-    
+
     def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
         input_value = state.get(self.input_key, "")
         result = self.runnable.invoke(input_value)
@@ -104,13 +104,13 @@ class MergeTool(Runnable):
     def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
         report_text = state.get("report_text", "")
         visual_results = state.get("visual_results", [])
-        
+
         # 보고서를 문단으로 분할
         paragraphs = [p.strip() for p in report_text.split('\n\n') if p.strip()]
-        
+
         # 섹션 생성
         sections = []
-        
+
         # 문단 추가
         for i, paragraph in enumerate(paragraphs):
             if len(paragraph) > 50:  # 너무 짧은 문단 제외
@@ -118,21 +118,21 @@ class MergeTool(Runnable):
                     "type": "paragraph",
                     "content": paragraph
                 })
-        
+
         # 시각화 추가
         sections.extend(visual_results)
-        
+
         # 통계 계산
         total_paragraphs = len([s for s in sections if s["type"] == "paragraph"])
         total_visuals = len([s for s in sections if s["type"] != "paragraph"])
-        
+
         final_output = {
             "format": "mixed",
             "sections": sections,
             "total_paragraphs": total_paragraphs,
             "total_visuals": total_visuals
         }
-        
+
         return {**state, "final_output": final_output}
 
 # ========== 7. 스마트 시각화 시스템 ==========
@@ -179,17 +179,17 @@ def analyze_content_context(report_text: str) -> Dict[str, Any]:
     try:
         prompt = CONTEXT_ANALYSIS_PROMPT.format(report_text=report_text)
         response = llm.invoke(prompt)
-        
+
         content = response.content.strip()
         start_idx = content.find('{')
         end_idx = content.rfind('}')
-        
+
         if start_idx != -1 and end_idx != -1:
             json_part = content[start_idx:end_idx+1]
             return json.loads(json_part)
         else:
             return {"error": "JSON 파싱 실패"}
-            
+
     except Exception as e:
         logger.error(f"컨텍스트 분석 실패: {e}")
         return {"error": str(e)}
@@ -218,11 +218,12 @@ SMART_VISUALIZATION_PROMPT = """
 - **수학/과학**: 함수, 공식, 관계 → Plotly.js + 수학 계산
 - **프로세스/흐름**: 단계, 절차 → Mermaid
 - **구조화된 정보**: 정확한 데이터 → HTML Table
-- **개념 관계**: 분류, 연결 → 마인드맵
+- **개념 관계/마인드맵**: 분류, 연결, 구조 → Markmap (강력 추천!)
 - **창의적 표현**: 위의 것들로 안되면 새로운 방법 제안
 
 **중요**: 
 - 정해진 형식에 얽매이지 말고 가장 효과적인 방법을 선택하세요
+- **개념 관계, 분류체계, 학습 구조**에는 Markmap을 우선 고려하세요
 - 내용에서 실제 데이터를 추출하거나 합리적으로 생성하세요  
 - 사용자가 "아, 이래서 시각화가 필요했구나!"라고 느끼도록 하세요
 
@@ -275,13 +276,21 @@ SMART_VISUALIZATION_PROMPT = """
 **3. Mermaid 다이어그램:**
 {{
   "type": "mermaid",
-  "diagram_type": "flowchart|timeline|mindmap",  
+  "diagram_type": "flowchart|timeline",  
   "title": "다이어그램 제목",
   "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
   "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
 }}
 
-**4. HTML 테이블:**
+**4. Markmap 마인드맵:** (개념 관계/구조에 최적!)
+{{
+  "type": "markmap",
+  "title": "마인드맵 제목",
+  "markdown": "# 중심 주제\\n\\n## 큰 분류 1\\n\\n- 세부사항 1\\n- 세부사항 2\\n  - 하위 항목\\n\\n## 큰 분류 2\\n\\n- 세부사항 A\\n- 세부사항 B",
+  "insight": "이 마인드맵을 통해 얻을 수 있는 인사이트"
+}}
+
+**5. HTML 테이블:**
 {{
   "type": "table",
   "title": "표 제목", 
@@ -295,7 +304,7 @@ SMART_VISUALIZATION_PROMPT = """
   "insight": "이 표를 통해 얻을 수 있는 인사이트"
 }}
 
-**5. 창의적 제안:**
+**6. 창의적 제안:**
 {{
   "type": "creative",
   "method": "제안하는 방법",
@@ -411,6 +420,16 @@ class SmartVisualizationPipeline(Runnable):
                     "type": "diagram", 
                     "library": "mermaid",
                     "code": viz_result.get('code', '')
+                }
+            
+            # 🆕 Markmap 케이스 추가
+            elif viz_type == 'markmap':
+                return {
+                    **base,
+                    "type": "mindmap",
+                    "library": "markmap", 
+                    "markdown": viz_result.get('markdown', ''),
+                    "title": viz_result.get('title', '마인드맵')
                 }
             
             elif viz_type == 'table':
