@@ -77,21 +77,36 @@ class YouTubeReporterWorkflow:
         }
 
         # 시각화 데이터 검증 및 정리
-        for section in final_output["sections"]:
+        for i, section in enumerate(final_output["sections"]):
+            if not isinstance(section, dict):
+                logger.warning("잘못된 섹션 형식 감지: %s", section)
+                final_output["sections"][i] = {
+                    "id": f"section_{i + 1}",
+                    "title": f"섹션 {i + 1}",
+                    "type": "text",
+                    "content": str(section),
+                }
+                section = final_output["sections"][i]
+
             if section.get("type") == "visualization":
-                # 시각화 데이터 유효성 검증
                 if not section.get("data"):
-                    logger.warning(f"시각화 섹션 '{section.get('title')}' 데이터 누락")
+                    logger.warning("시각화 섹션 '%s' 데이터 누락", section.get("title"))
                     section["error"] = "시각화 데이터가 없습니다"
                 else:
-                    # 시각화 타입별 추가 검증
-                    viz_type = section.get("visualization_type", {}).get("type")
+                    viz_info = section.get("visualization_type")
+                    if isinstance(viz_info, dict):
+                        viz_type = viz_info.get("type")
+                    else:
+                        if viz_info and not isinstance(viz_info, str):
+                            logger.warning("Unexpected visualization_type format: %s", viz_info)
+                        viz_type = viz_info
+
                     if viz_type == "chart" and not section["data"].get("config"):
                         section["error"] = "차트 설정이 없습니다"
                     elif viz_type == "diagram" and not section["data"].get("code"):
                         section["error"] = "다이어그램 코드가 없습니다"
 
-        logger.info(f"📊 최종 리포트 생성 완료:")
+        logger.info("📊 최종 리포트 생성 완료:")
         logger.info(f"   - 제목: {final_output['title']}")
         logger.info(f"   - 전체 섹션: {final_output['statistics']['total_sections']}개")
         logger.info(f"   - 텍스트: {final_output['statistics']['text_sections']}개")
@@ -115,7 +130,6 @@ class YouTubeReporterWorkflow:
         }
 
         try:
-            # 각 단계별 실행 로깅
             logger.info("📝 1단계: 자막 추출 시작...")
             result = self.graph.invoke(initial_state)
 
