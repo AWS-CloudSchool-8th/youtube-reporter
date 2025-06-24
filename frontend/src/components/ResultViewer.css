@@ -157,6 +157,42 @@
   scroll-margin-top: 20px;
 }
 
+/* 영상 핵심 요약 섹션 */
+.executive-summary-section {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  margin-bottom: 2.5rem;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+}
+
+.executive-summary-content {
+  padding: 2rem;
+  text-align: center;
+}
+
+.summary-badge {
+  display: inline-block;
+  background: #f59e0b;
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-text {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #92400e;
+  font-weight: 500;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
 .text-section {
   background: #f8fafc;
   border-radius: 12px;
@@ -167,6 +203,27 @@
 
 .text-section:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 섹션별 특별 스타일 */
+.overview-section {
+  border-left: 4px solid #3b82f6;
+}
+
+.main_analysis-section {
+  border-left: 4px solid #10b981;
+}
+
+.insights-section {
+  border-left: 4px solid #f59e0b;
+}
+
+.conclusion-section {
+  border-left: 4px solid #8b5cf6;
+}
+
+.appendix-section {
+  border-left: 4px solid #6b7280;
 }
 
 .section-header {
@@ -191,6 +248,32 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.section-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.main_analysis-section .section-badge {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.insights-section .section-badge {
+  background: #fed7aa;
+  color: #c2410c;
+}
+
+.conclusion-section .section-badge {
+  background: #e9d5ff;
+  color: #7c3aed;
 }
 
 .toggle-icon {
@@ -239,11 +322,27 @@
   }
 }
 
-.section-content p {
+.section-content .content-text {
   margin: 0;
   line-height: 1.7;
   color: #334155;
   white-space: pre-wrap;
+  font-size: 1rem;
+}
+
+/* 분석 섹션의 요약/분석 구조 처리 */
+.main_analysis-section .content-text {
+  font-size: 0.95rem;
+}
+
+.insights-section .content-text {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.conclusion-section .content-text {
+  font-weight: 500;
+  color: #374151;
 }
 
 /* 시각화 섹션 */

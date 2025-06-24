@@ -4,7 +4,10 @@ import React from 'react';
 const StatusDisplay = ({ job }) => {
   if (!job) return null;
 
-  const getStepInfo = (message) => {
+  const getStepInfo = (message, status) => {
+    // 완료된 경우 모든 단계를 완료로 표시
+    if (status === 'completed') return { step: 5, icon: '✅', phase: 'complete' };
+    
     // 메시지에서 현재 단계 파악
     if (message.includes('자막')) return { step: 1, icon: '📝', phase: 'caption' };
     if (message.includes('분석') || message.includes('요약')) return { step: 2, icon: '🧠', phase: 'analysis' };
@@ -14,7 +17,7 @@ const StatusDisplay = ({ job }) => {
     return { step: 0, icon: '⏳', phase: 'waiting' };
   };
 
-  const currentStep = getStepInfo(job.message);
+  const currentStep = getStepInfo(job.message, job.status);
 
   const steps = [
     { id: 1, name: '자막 추출', icon: '📝', description: 'YouTube 영상의 자막을 추출합니다' },
@@ -49,22 +52,27 @@ const StatusDisplay = ({ job }) => {
       <div className="status-content">
         {/* 진행 단계 */}
         <div className="process-steps">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className={`process-step ${
-                step.id <= currentStep.step ? 'completed' : ''
-              } ${step.id === currentStep.step ? 'active' : ''}`}
-            >
-              <div className="step-circle">
-                <span className="step-icon">{step.icon}</span>
+          {steps.map((step) => {
+            const isCompleted = job.status === 'completed' ? step.id <= 5 : step.id < currentStep.step;
+            const isActive = job.status === 'completed' ? false : step.id === currentStep.step;
+            
+            return (
+              <div
+                key={step.id}
+                className={`process-step ${
+                  isCompleted ? 'completed' : ''
+                } ${isActive ? 'active' : ''}`}
+              >
+                <div className="step-circle">
+                  <span className="step-icon">{step.icon}</span>
+                </div>
+                <div className="step-info">
+                  <h4>{step.name}</h4>
+                  <p>{step.description}</p>
+                </div>
               </div>
-              <div className="step-info">
-                <h4>{step.name}</h4>
-                <p>{step.description}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* 진행률 바 */}
@@ -84,7 +92,7 @@ const StatusDisplay = ({ job }) => {
 
         {/* 현재 메시지 */}
         <div className="status-message">
-          <p>{job.message}</p>
+          <p>{job.status === 'completed' ? '🎉 분석이 완료되었습니다! 아래에서 결과를 확인하세요.' : job.message}</p>
         </div>
 
         {/* 추가 정보 */}

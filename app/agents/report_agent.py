@@ -89,27 +89,53 @@ class ReportAgent(Runnable):
             return {**state, "report_result": self._create_error_report(error_msg)}
 
     def _structure_summary(self, summary: str) -> List[Dict[str, Any]]:
-        """요약을 논리적 섹션으로 구조화"""
+        """요약을 새로운 보고서 구조에 맞게 섹션화"""
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """주어진 요약을 논리적인 섹션으로 구조화해주세요.
+            ("system", """주어진 보고서를 새로운 구조에 맞게 섹션으로 구조화해주세요.
+
+**새로운 보고서 구조:**
+1. **영상 핵심 요약** - 문서 최상단의 3-4줄 압축 요약
+2. **개요** - 서술형 개요 (150-200자)
+3. **주요 내용 분석** - 3개 이상의 세부 섹션
+4. **핵심 인사이트** - 도출된 시사점
+5. **결론 및 제언** - 종합 및 제안
+6. **부록** - 인용구 및 참고자료
 
 **구조화 원칙:**
-1. 각 섹션은 하나의 주제나 개념을 다룹니다
-2. 섹션 제목은 명확하고 구체적이어야 합니다
-3. 내용의 흐름이 자연스럽게 이어져야 합니다
-4. 너무 짧거나 긴 섹션은 피합니다 (이상적: 100-400자)
-5. 마크다운 헤더(#, ##, ###)를 기준으로 계층 구조를 파악합니다
+- 마크다운 헤더를 기준으로 섹션 구분
+- 각 섹션의 역할과 내용을 정확히 분류
+- 영상 핵심 요약은 별도 식별
+- 주요 내용 분석의 하위 섹션들도 개별 섹션으로 처리
 
 **응답 형식 (JSON):**
 {
   "sections": [
     {
-      "id": "section_1",
-      "title": "섹션 제목",
+      "id": "executive_summary",
+      "title": "영상 핵심 요약",
       "type": "text",
-      "content": "섹션 내용",
-      "level": 1,  // 1: 대제목(#), 2: 중제목(##), 3: 소제목(###)
-      "keywords": ["키워드1", "키워드2"]  // 이 섹션의 핵심 키워드
+      "content": "압축적 요약 내용",
+      "level": 0,
+      "section_type": "executive_summary",
+      "keywords": ["핵심키워드들"]
+    },
+    {
+      "id": "overview",
+      "title": "개요",
+      "type": "text",
+      "content": "서술형 개요 내용",
+      "level": 1,
+      "section_type": "overview",
+      "keywords": ["관련키워드들"]
+    },
+    {
+      "id": "analysis_1",
+      "title": "분석 섹션 제목",
+      "type": "text",
+      "content": "상세 분석 내용",
+      "level": 2,
+      "section_type": "main_analysis",
+      "keywords": ["분석키워드들"]
     }
   ]
 }
@@ -139,19 +165,38 @@ JSON만 출력하세요."""),
             return self._parse_markdown_sections(summary)
 
     def _parse_markdown_sections(self, summary: str) -> List[Dict[str, Any]]:
-        """마크다운 헤더를 기반으로 섹션 파싱 (폴백)"""
+        """마크다운 헤더를 기반으로 새로운 보고서 구조로 섹션 파싱 (폴백)"""
         lines = summary.split('\n')
         sections = []
         current_section = None
         section_counter = 0
+        executive_summary_found = False
 
         for line in lines:
             line = line.strip()
             if not line:
                 continue
 
+            # 영상 핵심 요약 감지 (문서 최상단의 **로 시작하는 부분)
+            if line.startswith('**영상 핵심 요약**') and not executive_summary_found:
+                if current_section and current_section['content'].strip():
+                    sections.append(current_section)
+                
+                section_counter += 1
+                current_section = {
+                    "id": "executive_summary",
+                    "title": "영상 핵심 요약",
+                    "type": "text",
+                    "content": "",
+                    "level": 0,
+                    "section_type": "executive_summary",
+                    "keywords": []
+                }
+                executive_summary_found = True
+                continue
+
             # 헤더 감지
-            if line.startswith('#'):
+            elif line.startswith('#'):
                 # 이전 섹션 저장
                 if current_section and current_section['content'].strip():
                     sections.append(current_section)
@@ -160,13 +205,27 @@ JSON만 출력하세요."""),
                 section_counter += 1
                 level = len(line) - len(line.lstrip('#'))
                 title = line.lstrip('#').strip()
+                
+                # 섹션 타입 결정
+                section_type = "text"
+                if "개요" in title:
+                    section_type = "overview"
+                elif "주요 내용" in title or "분석" in title:
+                    section_type = "main_analysis"
+                elif "인사이트" in title:
+                    section_type = "insights"
+                elif "결론" in title or "제언" in title:
+                    section_type = "conclusion"
+                elif "부록" in title:
+                    section_type = "appendix"
 
                 current_section = {
                     "id": f"section_{section_counter}",
                     "title": title,
                     "type": "text",
                     "content": "",
-                    "level": min(level, 3),  # 최대 레벨 3
+                    "level": min(level, 3),
+                    "section_type": section_type,
                     "keywords": []
                 }
             elif current_section:
@@ -179,14 +238,15 @@ JSON만 출력하세요."""),
         if current_section and current_section['content'].strip():
             sections.append(current_section)
 
-        # 섹션이 없으면 전체를 하나의 섹션으로
+        # 섹션이 없으면 기본 구조 생성
         if not sections:
             sections.append({
-                "id": "section_1",
-                "title": "분석 내용",
+                "id": "overview",
+                "title": "개요",
                 "type": "text",
                 "content": summary,
                 "level": 1,
+                "section_type": "overview",
                 "keywords": []
             })
 

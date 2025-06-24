@@ -24,12 +24,34 @@ class VisualAgent(Runnable):
             model_id=settings.bedrock_model_id,
             model_kwargs=llm_config  # 환경변수 사용!
         )
+        
+        # 시각화 타입별 기본 색상 팔레트 설정
+        self.color_palettes = {
+            "default": ["#4e79a7", "#f28e2c", "#e15759", "#76b7b2", "#59a14f", "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab"],
+            "sequential": ["#d3d3d3", "#a8a8a8", "#7e7e7e", "#545454", "#2a2a2a"],
+            "diverging": ["#d73027", "#fc8d59", "#fee090", "#e0f3f8", "#91bfdb", "#4575b4"],
+            "categorical": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"],
+            "emphasis": ["#c7c7c7", "#c7c7c7", "#c7c7c7", "#ff5722", "#c7c7c7", "#c7c7c7"]
+        }
+        
+        # 시각화 타입별 최적 차트 매핑
+        self.visualization_mapping = {
+            "comparison": ["bar", "radar", "table"],
+            "distribution": ["pie", "doughnut", "bar"],
+            "trend": ["line", "bar"],
+            "correlation": ["scatter", "line"],
+            "hierarchy": ["diagram", "mindmap"],
+            "process": ["flowchart", "diagram"],
+            "timeline": ["timeline", "line"]
+        }
 
         logger.info(f"🎨 VisualAgent 초기화 - 온도: {llm_config['temperature']}, 최대토큰: {llm_config['max_tokens']}")
+        logger.info(f"📊 지원 시각화 타입: {len(self.visualization_mapping)} 종류, 색상 팔레트: {len(self.color_palettes)} 종류")
 
     def invoke(self, state: Dict[str, Any], config=None) -> Dict[str, Any]:
         """스마트 시각화 생성"""
         summary = state.get("summary", "")
+        youtube_url = state.get("youtube_url", "")
 
         if not summary or "[오류]" in summary:
             logger.warning("유효한 요약이 없습니다.")
@@ -47,6 +69,14 @@ class VisualAgent(Runnable):
             # 2단계: 시각화 기회별로 최적의 시각화 생성
             opportunities = context.get('visualization_opportunities', [])
             logger.info(f"🎯 {len(opportunities)}개의 시각화 기회 발견")
+            
+            # 기회가 없는 경우 기본 시각화 생성 고려
+            if not opportunities and summary:
+                logger.info("시각화 기회가 발견되지 않았습니다. 기본 시각화 생성 고려 중...")
+                default_opportunities = self._generate_default_opportunities(summary, context)
+                if default_opportunities:
+                    opportunities = default_opportunities
+                    logger.info(f"💡 {len(opportunities)}개의 기본 시각화 기회 생성")
 
             visual_sections = []
             for i, opportunity in enumerate(opportunities):
@@ -70,6 +100,11 @@ class VisualAgent(Runnable):
                     logger.info(f"✅ 시각화 생성 성공: {visualization.get('type')}")
                 else:
                     logger.warning(f"⚠️ 시각화 {i + 1} 생성 실패")
+
+            # 3단계: 시각화 품질 검사 및 최적화
+            if visual_sections:
+                visual_sections = self._optimize_visualizations(visual_sections, summary)
+                logger.info(f"🔧 시각화 최적화 완료")
 
             logger.info(f"📊 총 {len(visual_sections)}개의 시각화 생성 완료")
             return {**state, "visual_sections": visual_sections}
@@ -295,55 +330,351 @@ JSON만 출력하세요."""),
 
         for i, paragraph in enumerate(paragraphs):
             paragraph_lower = paragraph.lower()
-            score = sum(1 for keyword in keywords if keyword in paragraph_lower)
-
-            # 위치 힌트에 따른 가중치
-            if location_hint == "beginning" and i < total_paragraphs // 3:
-                score += 2
-            elif location_hint == "middle" and total_paragraphs // 3 <= i < 2 * total_paragraphs // 3:
-                score += 2
-            elif location_hint == "end" and i >= 2 * total_paragraphs // 3:
-                score += 2
-
+            
+            # 키워드 매칭 점수 계산
+            keyword_score = sum(1 for keyword in keywords if keyword in paragraph_lower)
+            
+            # 위치 힌트에 따른 가중치 적용
+            position_weight = 1.0
+            if location_hint == 'beginning' and i < total_paragraphs // 3:
+                position_weight = 1.5
+            elif location_hint == 'middle' and total_paragraphs // 3 <= i < 2 * total_paragraphs // 3:
+                position_weight = 1.5
+            elif location_hint == 'end' and i >= 2 * total_paragraphs // 3:
+                position_weight = 1.5
+                
+            # 최종 점수 계산
+            score = keyword_score * position_weight
+            
+            # 최고 점수 갱신
             if score > max_score:
                 max_score = score
                 best_position = i
-
+        
+        # 위치 정보 반환
         return {
             "after_paragraph": best_position,
-            "relevance_score": max_score
+            "score": max_score,
+            "total_paragraphs": total_paragraphs
         }
-
+        
     def _standardize_visualization_data(self, visualization: Dict[str, Any]) -> Dict[str, Any]:
-        """다양한 시각화 형식을 표준화"""
-        viz_type = visualization.get('type')
-
+        """시각화 데이터를 표준 형식으로 변환"""
+        viz_type = visualization.get('type', '')
+        
         if viz_type == 'chart':
+            # Chart.js 차트 데이터 표준화
+            chart_type = visualization.get('chart_type', 'bar')
+            data = visualization.get('data', {})
+            options = visualization.get('options', {})
+            
+            # 색상 팔레트 적용 및 데이터 개선
+            enhanced_data = self._enhance_chart_data(data, chart_type)
+            enhanced_options = self._enhance_chart_options(options, chart_type)
+            
             return {
                 "type": "chart",
-                "library": visualization.get('library', 'chartjs'),
+                "library": "chartjs",
                 "config": {
-                    "type": visualization.get('chart_type', 'bar'),
-                    "data": visualization.get('data', {}),
-                    "options": visualization.get('options', {})
+                    "type": chart_type,
+                    "data": enhanced_data,
+                    "options": enhanced_options
                 }
             }
-
+            
         elif viz_type == 'diagram':
+            # Mermaid 다이어그램 데이터 표준화
+            diagram_type = visualization.get('diagram_type', 'flowchart')
+            code = visualization.get('code', '')
+            
+            # Mermaid 코드 개선
+            enhanced_code = self._enhance_mermaid_code(code, diagram_type)
+            
             return {
                 "type": "diagram",
-                "library": visualization.get('library', 'mermaid'),
-                "diagram_type": visualization.get('diagram_type', 'flowchart'),
-                "code": visualization.get('code', '')
+                "library": "mermaid",
+                "diagram_type": diagram_type,
+                "code": enhanced_code
             }
-
+            
         elif viz_type == 'table':
+            # HTML 테이블 데이터 표준화
+            headers = visualization.get('headers', [])
+            rows = visualization.get('rows', [])
+            styling = visualization.get('styling', {})
+            
+            # 테이블 스타일링 개선
+            enhanced_styling = self._enhance_table_styling(styling)
+            
             return {
                 "type": "table",
-                "headers": visualization.get('headers', []),
-                "rows": visualization.get('rows', []),
-                "styling": visualization.get('styling', {})
+                "headers": headers,
+                "rows": rows,
+                "styling": enhanced_styling
             }
-
+            
         else:
+            # 알 수 없는 타입의 경우 원본 반환
+            logger.warning(f"알 수 없는 시각화 타입: {viz_type}")
             return visualization
+            
+    def _enhance_chart_data(self, data: Dict[str, Any], chart_type: str) -> Dict[str, Any]:
+        """차트 데이터 개선 - 색상 팔레트 적용 등"""
+        if not data:
+            return data
+            
+        # 데이터셋이 없는 경우 기본 구조 생성
+        if 'datasets' not in data:
+            data['datasets'] = []
+            
+        # 차트 타입에 따라 적절한 색상 팔레트 선택
+        palette_key = "default"
+        if chart_type in ['pie', 'doughnut']:
+            palette_key = "categorical"
+        elif chart_type == 'line':
+            palette_key = "sequential"
+        elif chart_type == 'bar' and len(data.get('datasets', [])) > 1:
+            palette_key = "categorical"
+            
+        palette = self.color_palettes.get(palette_key, self.color_palettes["default"])
+        
+        # 각 데이터셋에 색상 적용
+        for i, dataset in enumerate(data.get('datasets', [])):
+            if chart_type in ['pie', 'doughnut']:
+                # 파이/도넛 차트는 각 데이터에 다른 색상 적용
+                if 'backgroundColor' not in dataset:
+                    dataset['backgroundColor'] = [palette[i % len(palette)] for i in range(len(dataset.get('data', [])))]                    
+            else:
+                # 다른 차트는 각 데이터셋에 하나의 색상 적용
+                if 'backgroundColor' not in dataset:
+                    dataset['backgroundColor'] = palette[i % len(palette)]
+                if 'borderColor' not in dataset and chart_type == 'line':
+                    dataset['borderColor'] = palette[i % len(palette)]
+                    dataset['fill'] = False
+                    
+        return data
+        
+    def _enhance_chart_options(self, options: Dict[str, Any], chart_type: str) -> Dict[str, Any]:
+        """차트 옵션 개선 - 가독성 및 사용자 경험 향상"""
+        if not options:
+            options = {}
+            
+        # 기본 옵션 설정
+        if 'responsive' not in options:
+            options['responsive'] = True
+            
+        if 'maintainAspectRatio' not in options:
+            options['maintainAspectRatio'] = False
+            
+        # plugins 설정
+        if 'plugins' not in options:
+            options['plugins'] = {}
+            
+        plugins = options['plugins']
+        
+        # 범례 설정
+        if 'legend' not in plugins:
+            plugins['legend'] = {'position': 'top'}
+            
+        # 툴팁 설정
+        if 'tooltip' not in plugins:
+            plugins['tooltip'] = {'mode': 'index', 'intersect': False}
+            
+        # 차트 타입별 추가 설정
+        if chart_type == 'bar':
+            if 'scales' not in options:
+                options['scales'] = {
+                    'y': {
+                        'beginAtZero': True
+                    }
+                }
+        elif chart_type == 'line':
+            if 'scales' not in options:
+                options['scales'] = {
+                    'y': {
+                        'beginAtZero': True
+                    }
+                }
+            if 'elements' not in options:
+                options['elements'] = {
+                    'line': {
+                        'tension': 0.4  # 스무스한 라인
+                    }
+                }
+                
+        return options
+        
+    def _enhance_mermaid_code(self, code: str, diagram_type: str) -> str:
+        """머메이드 다이어그램 코드 개선"""
+        if not code:
+            return code
+            
+        # 다이어그램 타입이 없는 경우 추가
+        if not code.strip().startswith(diagram_type):
+            code = f"{diagram_type}\n{code}"
+            
+        # 플로우차트 개선
+        if diagram_type == 'flowchart' and 'TD' not in code and 'LR' not in code:
+            code = code.replace('flowchart', 'flowchart TD')
+            
+        # 스타일 설정이 없는 경우 기본 스타일 추가
+        if '%%{' not in code:
+            style_config = "%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#5D8AA8', 'lineColor': '#5D8AA8', 'textColor': '#333' }}}%%\n"
+            code = style_config + code
+            
+        return code
+        
+    def _enhance_table_styling(self, styling: Dict[str, Any]) -> Dict[str, Any]:
+        """테이블 스타일링 개선"""
+        if not styling:
+            styling = {}
+            
+        # 기본 정렬 기능 활성화
+        if 'sortable' not in styling:
+            styling['sortable'] = True
+            
+        # 기본 스트라이프 테이블 설정
+        if 'striped' not in styling:
+            styling['striped'] = True
+            
+        # 기본 테두리 설정
+        if 'bordered' not in styling:
+            styling['bordered'] = True
+            
+        # 기본 하이라이트 설정
+        if 'hover' not in styling:
+            styling['hover'] = True
+            
+        return styling
+        
+    def _generate_default_opportunities(self, summary: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """기본 시각화 기회 생성 - 분석에서 기회가 발견되지 않은 경우"""
+        opportunities = []
+        main_topic = context.get('main_topic', '')
+        key_concepts = context.get('key_concepts', [])
+        content_structure = context.get('content_structure', {})
+        
+        # 1. 주요 개념 구조화 - 마인드맵
+        if key_concepts and len(key_concepts) >= 3:
+            opportunities.append({
+                "content": f"{main_topic}의 주요 개념과 관계",
+                "location_hint": "beginning",
+                "purpose": "overview",
+                "why_necessary": "주요 개념의 관계를 한눈에 파악하기 위해",
+                "user_benefit": "전체 내용의 구조를 쉽게 이해할 수 있습니다",
+                "suggested_type": "diagram",
+                "key_elements": key_concepts
+            })
+        
+        # 2. 프로세스 플로우차트 - 단계적 과정이 있는 경우
+        if content_structure.get('has_process', False):
+            opportunities.append({
+                "content": f"{main_topic}의 프로세스 흐름도",
+                "location_hint": "middle",
+                "purpose": "process",
+                "why_necessary": "단계적 과정을 시각적으로 표현하기 위해",
+                "user_benefit": "복잡한 프로세스를 쉽게 이해할 수 있습니다",
+                "suggested_type": "diagram",
+                "key_elements": ["Step 1", "Step 2", "Step 3", "Step 4"]
+            })
+        
+        # 3. 비교 차트 - 비교 요소가 있는 경우
+        if content_structure.get('has_comparison', False):
+            opportunities.append({
+                "content": f"{main_topic}의 주요 요소 비교",
+                "location_hint": "middle",
+                "purpose": "comparison",
+                "why_necessary": "주요 요소들의 차이와 유사점을 비교하기 위해",
+                "user_benefit": "요소들 간의 차이를 한눈에 파악할 수 있습니다",
+                "suggested_type": "chart",
+                "key_elements": key_concepts[:5] if key_concepts else ["Item 1", "Item 2", "Item 3"]
+            })
+        
+        # 4. 타임라인 - 시간 흐름이 있는 경우
+        if content_structure.get('has_timeline', False):
+            opportunities.append({
+                "content": f"{main_topic}의 시간적 발전",
+                "location_hint": "end",
+                "purpose": "timeline",
+                "why_necessary": "시간에 따른 변화를 시각화하기 위해",
+                "user_benefit": "시간적 흐름을 한눈에 파악할 수 있습니다",
+                "suggested_type": "diagram",
+                "key_elements": ["Event 1", "Event 2", "Event 3", "Event 4"]
+            })
+        
+        # 5. 요약 테이블 - 데이터가 있는 경우
+        if content_structure.get('has_data', False):
+            opportunities.append({
+                "content": f"{main_topic}의 주요 데이터 요약",
+                "location_hint": "end",
+                "purpose": "data",
+                "why_necessary": "중요한 데이터를 구조화하여 제시하기 위해",
+                "user_benefit": "중요한 수치와 통계를 한눈에 파악할 수 있습니다",
+                "suggested_type": "table",
+                "key_elements": ["Category", "Value", "Description"]
+            })
+        
+        # 최대 3개만 선택
+        return opportunities[:3]
+        
+    def _optimize_visualizations(self, visual_sections: List[Dict[str, Any]], summary: str) -> List[Dict[str, Any]]:
+        """시각화 최적화 - 중복 제거, 위치 조정, 품질 개선"""
+        if not visual_sections:
+            return []
+            
+        # 1. 중복 시각화 필터링
+        unique_sections = []
+        titles = set()
+        
+        for section in visual_sections:
+            title = section.get('title', '')
+            if title and title not in titles:
+                titles.add(title)
+                unique_sections.append(section)
+            elif not title:
+                unique_sections.append(section)
+                
+        # 2. 위치 최적화 - 너무 가까운 시각화들 사이에 간격 주기
+        if len(unique_sections) > 1:
+            # 위치순 정렬
+            unique_sections.sort(key=lambda x: x.get('position', {}).get('after_paragraph', 0))
+            
+            # 가까운 시각화들 사이에 간격 주기
+            paragraphs = summary.split('\n\n')
+            total_paragraphs = len(paragraphs)
+            min_gap = max(1, total_paragraphs // (len(unique_sections) * 3))  # 최소 간격
+            
+            for i in range(1, len(unique_sections)):
+                prev_pos = unique_sections[i-1].get('position', {}).get('after_paragraph', 0)
+                curr_pos = unique_sections[i].get('position', {}).get('after_paragraph', 0)
+                
+                if curr_pos - prev_pos < min_gap:
+                    # 간격이 너무 작으면 조정
+                    new_pos = min(prev_pos + min_gap, total_paragraphs - 1)
+                    unique_sections[i]['position']['after_paragraph'] = new_pos
+        
+        # 3. 시각화 타입 밸런스 조정 - 다양한 타입이 있는지 확인
+        chart_count = sum(1 for s in unique_sections if s.get('data', {}).get('type') == 'chart')
+        diagram_count = sum(1 for s in unique_sections if s.get('data', {}).get('type') == 'diagram')
+        table_count = sum(1 for s in unique_sections if s.get('data', {}).get('type') == 'table')
+        
+        # 너무 한 타입에 치우치지 않도록 조정 (예: 차트만 3개 이상이면 일부를 제거)
+        if len(unique_sections) > 3 and chart_count > 2 and diagram_count == 0 and table_count == 0:
+            # 차트만 너무 많은 경우 일부 제거
+            chart_sections = [s for s in unique_sections if s.get('data', {}).get('type') == 'chart']
+            chart_sections.sort(key=lambda x: x.get('position', {}).get('score', 0), reverse=True)
+            
+            # 점수가 낮은 차트 일부 제거
+            sections_to_remove = chart_sections[2:]
+            unique_sections = [s for s in unique_sections if s not in sections_to_remove]
+        
+        # 4. 시각화 수가 너무 많은 경우 점수가 낮은 것들 제거
+        if len(unique_sections) > 5:
+            # 점수순 정렬
+            unique_sections.sort(key=lambda x: x.get('position', {}).get('score', 0), reverse=True)
+            # 상위 5개만 유지
+            unique_sections = unique_sections[:5]
+            # 다시 위치순 정렬
+            unique_sections.sort(key=lambda x: x.get('position', {}).get('after_paragraph', 0))
+        
+        return unique_sections
