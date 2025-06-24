@@ -171,7 +171,7 @@ class LangGraphService:
 
         try:
             # LangGraph 파이프라인 실행
-            result = self.graph.invoke(initial_state)
+            result = await self.graph.invoke(initial_state)
 
             # 실행 시간 계산
             total_time = round(time.time() - start_time, 2)
