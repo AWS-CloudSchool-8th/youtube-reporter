@@ -1,4 +1,6 @@
-# Python
+# YouTube Reporter - Git 무시 파일
+
+# ===== Python =====
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,185 +9,257 @@ __pycache__/
 *.pyd
 **/__pycache__/
 **/*.pyc
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual environment
+# ===== 가상환경 =====
 venv/
 env/
 .venv/
 ENV/
+env.bak/
+venv.bak/
+.conda/
+conda-meta/
 
-# VSCode or PyCharm IDE files
+# ===== IDE 및 에디터 =====
+# VSCode
 .vscode/
+*.code-workspace
+
+# PyCharm
 .idea/
+*.iml
+*.ipr
+*.iws
 
-# OS or editor junk files
-.DS_Store
-Thumbs.db
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
 
-# dotenv 환경변수 파일 (실제 값 포함)
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-
-# .env.example은 제외 (템플릿이므로 푸시해야 함)
-!.env.example
-
-# Uvicorn log files or runtime
-*.log
-
-# Coverage/test output
-htmlcov/
-.tox/
-.nox/
-.coverage
-coverage.xml
-pytest_cache/
-.pytest_cache/
-.cache/
-
-# Mypy
-.mypy_cache/
-.dmypy.json
-
-# Pydantic cache
-__pydantic__/
-
-# Bytecode cache
-.pyre/
-.pytype/
-
-# FastAPI openapi cache (optional)
-openapi.json
-
-# ===== Node.js / React 관련 =====
-
-# Dependencies - 가장 중요!
-**/node_modules/
-node_modules/
-frontend/node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# Package locks - 보안상 제외하는 것이 좋음
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Grunt intermediate storage
-.grunt
-
-# Bower dependency directory
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons
-build/Release
-
-# Dependency directories
-jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# React/Next.js 관련
-frontend/build/
-frontend/dist/
-frontend/.next/
-frontend/out/
-
-# Create React App 관련
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
-tmp/
-temp/
-
-# Editor directories and files
-.history/
+# Vim
 *.swp
 *.swo
 *~
 
-# MacOS
-.DS_Store?
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===== 운영체제 =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
 # Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+$RECYCLE.BIN/
 
-# ===== 추가 개발 도구 =====
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
 
-# Jupyter Notebook
+# ===== 환경변수 및 비밀 정보 =====
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+.env.*
+
+# .env.example은 포함 (템플릿이므로)
+!.env.example
+
+# API 키 및 인증 정보
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ===== 로그 파일 =====
+*.log
+logs/
+log/
+*.out
+
+# ===== 임시 파일 =====
+tmp/
+temp/
+.tmp/
+.temp/
+
+# ===== 테스트 및 커버리지 =====
+.coverage
+.pytest_cache/
+.cache/
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# ===== 타입 체크 =====
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===== Jupyter Notebook =====
 .ipynb_checkpoints
+*.ipynb
 
-# IPython
-profile_default/
-ipython_config.py
-
-# Database
+# ===== 데이터베이스 =====
 *.db
 *.sqlite
 *.sqlite3
 
-# Local environment files
-.env.backup
+# ===== 캐시 =====
+.cache/
+*.cache
 
-# Package files
+# ===== 빌드 아티팩트 =====
+build/
+dist/
 *.tar.gz
 *.zip
 *.rar
 
-# Build artifacts
-build/
-dist/
+# ===== 프론트엔드 (Node.js) =====
+# Dependencies
+frontend/node_modules/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/package-lock.json
+frontend/yarn.lock
+
+# Production builds
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# Runtime data
+frontend/pids
+frontend/*.pid
+frontend/*.seed
+frontend/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+frontend/coverage/
+frontend/*.lcov
+
+# Optional npm cache directory
+frontend/.npm
+
+# Optional eslint cache
+frontend/.eslintcache
+
+# Microbundle cache
+frontend/.rpt2_cache/
+frontend/.rts2_cache_cjs/
+frontend/.rts2_cache_es/
+frontend/.rts2_cache_umd/
+
+# ===== 개발 도구 =====
+# Black
+.black/
+
+# pytest
+.pytest_cache/
+
+# Coverage
+.coverage.*
+
+# Profiling
+*.prof
+
+# ===== 사용자 정의 =====
+# 업로드된 파일
+uploads/
+media/
+static/media/
+
+# 생성된 보고서
+reports/
+output/
+results/
+
+# 백업 파일
+*.bak
+*.backup
+*.old
+
+# 설정 파일 백업
+config.*.bak
+
+# ===== Docker =====
+.dockerignore
+Dockerfile.*
+docker-compose.override.yml
+
+# ===== AWS =====
+.aws/
+
+# ===== Terraform =====
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# ===== 기타 =====
+# 패치 파일
+*.patch
+*.diff
+
+# 압축 파일
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# 컴파일된 파일
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# 문서 빌드
+docs/_build/

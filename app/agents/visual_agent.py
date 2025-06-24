@@ -1,58 +1,58 @@
 # app/agents/visual_agent.py
-import os
 import json
 import boto3
 from typing import Dict, List, Any, Optional
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
+from ..core.config import settings
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class SmartVisualAgent(Runnable):
-    """요약 내용을 분석하여 최적의 시각화를 자동 생성하는 스마트 에이전트"""
+class VisualAgent(Runnable):
+    """스마트 시각화 생성 에이전트"""
 
     def __init__(self):
         self.llm = ChatBedrock(
-            client=boto3.client("bedrock-runtime", region_name=os.getenv("AWS_REGION")),
-            model_id=os.getenv("AWS_BEDROCK_MODEL_ID"),
+            client=boto3.client("bedrock-runtime", region_name=settings.aws_region),
+            model_id=settings.bedrock_model_id,
             model_kwargs={"temperature": 0.7, "max_tokens": 4096}
         )
 
-    def invoke(self, state: dict, config=None) -> dict:
-        """요약을 분석하여 시각화 생성"""
+    def invoke(self, state: Dict[str, Any], config=None) -> Dict[str, Any]:
+        """스마트 시각화 생성"""
         summary = state.get("summary", "")
 
-        if not summary or len(summary) < 100:
+        if not summary or "[오류]" in summary:
             logger.warning("유효한 요약이 없습니다.")
             return {**state, "visual_sections": []}
 
         try:
-            # 1단계: 컨텍스트 분석
-            logger.info("🧠 1단계: 컨텍스트 분석 시작...")
-            context = self._analyze_context(summary)
+            logger.info("🎨 스마트 시각화 분석 시작...")
 
+            # 1단계: 컨텍스트 분석
+            context = self._analyze_context(summary)
             if not context or "error" in context:
                 logger.error(f"컨텍스트 분석 실패: {context}")
                 return {**state, "visual_sections": []}
 
             # 2단계: 시각화 기회별로 최적의 시각화 생성
-            logger.info(f"🎯 2단계: {len(context.get('visualization_opportunities', []))}개의 시각화 기회 발견")
+            opportunities = context.get('visualization_opportunities', [])
+            logger.info(f"🎯 {len(opportunities)}개의 시각화 기회 발견")
+
             visual_sections = []
+            for i, opportunity in enumerate(opportunities):
+                logger.info(f"🎨 시각화 {i + 1}/{len(opportunities)} 생성 중...")
 
-            for i, opportunity in enumerate(context.get('visualization_opportunities', [])):
-                logger.info(f"🎨 시각화 {i + 1} 생성 중...")
                 visualization = self._generate_smart_visualization(context, opportunity)
-
                 if visualization and "error" not in visualization:
-                    # 요약 내 적절한 위치 찾기
+                    # 적절한 위치 찾기
                     position = self._find_best_position(summary, opportunity)
 
                     visual_section = {
                         "position": position,
-                        "type": "visualization",
                         "title": visualization.get('title', opportunity.get('content', '시각화')[:50]),
                         "visualization_type": visualization.get('type'),
                         "data": self._standardize_visualization_data(visualization),
@@ -69,7 +69,8 @@ class SmartVisualAgent(Runnable):
             return {**state, "visual_sections": visual_sections}
 
         except Exception as e:
-            logger.error(f"시각화 생성 중 오류: {str(e)}")
+            error_msg = f"시각화 생성 중 오류: {str(e)}"
+            logger.error(error_msg)
             return {**state, "visual_sections": []}
 
     def _analyze_context(self, summary: str) -> Dict[str, Any]:
@@ -91,28 +92,28 @@ class SmartVisualAgent(Runnable):
 각 시각화는 명확한 목적과 사용자 가치를 가져야 합니다.
 
 **응답 형식 (JSON):**
-{{
+{
   "main_topic": "전체 주제",
   "key_concepts": ["핵심개념1", "핵심개념2", "핵심개념3"],
-  "content_structure": {{
+  "content_structure": {
     "has_process": true/false,
     "has_comparison": true/false,
     "has_data": true/false,
     "has_timeline": true/false,
     "has_hierarchy": true/false
-  }},
+  },
   "visualization_opportunities": [
-    {{
+    {
       "content": "시각화할 구체적 내용",
-      "location_hint": "요약 내 대략적 위치 (처음/중간/끝)",
+      "location_hint": "요약 내 대략적 위치 (beginning/middle/end)",
       "purpose": "overview|detail|comparison|process|data|timeline|structure",
       "why_necessary": "왜 이 시각화가 필수적인지",
       "user_benefit": "독자가 얻을 구체적 이익",
       "suggested_type": "chart|diagram|table|mindmap|timeline|flowchart",
       "key_elements": ["포함해야 할 핵심 요소들"]
-    }}
+    }
   ]
-}}
+}
 
 JSON만 출력하세요."""),
             ("human", "{summary}")
@@ -160,71 +161,64 @@ JSON만 출력하세요."""),
 
 **사용 가능한 시각화 유형:**
 
-1. **차트 (Chart.js)**
+1. **Chart.js 차트**
    - bar: 항목 간 비교, 순위
    - line: 시간에 따른 변화, 추세
    - pie/doughnut: 구성 비율, 점유율
    - radar: 다차원 비교
    - scatter: 상관관계, 분포
 
-2. **다이어그램 (Mermaid)**
+2. **Mermaid 다이어그램**
    - flowchart: 프로세스, 의사결정 흐름
    - timeline: 시간 순서, 역사적 사건
    - mindmap: 개념 구조, 분류 체계
    - gantt: 프로젝트 일정
-   - stateDiagram: 상태 변화
 
-3. **테이블 (HTML)**
+3. **HTML 테이블**
    - 정확한 수치 비교
    - 다양한 속성을 가진 항목들
    - 체크리스트, 기능 비교표
 
-4. **고급 시각화 (D3.js/Custom)**
-   - network: 복잡한 관계망
-   - treemap: 계층적 데이터
-   - sankey: 흐름 분석
-   - heatmap: 2차원 데이터 밀도
-
 **응답 형식 (반드시 다음 중 하나):**
 
-**옵션 1 - 차트:**
-{{
+**옵션 1 - Chart.js 차트:**
+{
   "type": "chart",
   "library": "chartjs",
   "title": "명확한 제목",
   "chart_type": "bar|line|pie|radar|scatter",
-  "data": {{
+  "data": {
     "labels": ["레이블1", "레이블2", ...],
     "datasets": [
-      {{
+      {
         "label": "데이터셋 이름",
         "data": [숫자1, 숫자2, ...],
         "backgroundColor": ["색상1", "색상2", ...]
-      }}
+      }
     ]
-  }},
-  "options": {{
+  },
+  "options": {
     "responsive": true,
-    "plugins": {{
-      "title": {{ "display": true, "text": "차트 제목" }},
-      "legend": {{ "position": "top" }}
-    }}
-  }},
+    "plugins": {
+      "title": { "display": true, "text": "차트 제목" },
+      "legend": { "position": "top" }
+    }
+  },
   "insight": "이 차트가 보여주는 핵심 인사이트"
-}}
+}
 
-**옵션 2 - 다이어그램:**
-{{
+**옵션 2 - Mermaid 다이어그램:**
+{
   "type": "diagram",
   "library": "mermaid",
   "title": "명확한 제목",
   "diagram_type": "flowchart|timeline|mindmap",
   "code": "Mermaid 다이어그램 코드",
   "insight": "이 다이어그램이 설명하는 핵심 내용"
-}}
+}
 
-**옵션 3 - 테이블:**
-{{
+**옵션 3 - HTML 테이블:**
+{
   "type": "table",
   "title": "명확한 제목",
   "headers": ["열1", "열2", "열3"],
@@ -232,27 +226,12 @@ JSON만 출력하세요."""),
     ["데이터1-1", "데이터1-2", "데이터1-3"],
     ["데이터2-1", "데이터2-2", "데이터2-3"]
   ],
-  "styling": {{
+  "styling": {
     "highlight_column": 0,
     "sortable": true
-  }},
+  },
   "insight": "이 표가 보여주는 핵심 정보"
-}}
-
-**옵션 4 - 고급 시각화:**
-{{
-  "type": "advanced",
-  "library": "d3",
-  "visualization_type": "network|treemap|sankey|heatmap",
-  "title": "명확한 제목",
-  "data": {{ 
-    // 시각화 타입에 맞는 데이터 구조
-  }},
-  "config": {{
-    // 시각화 설정
-  }},
-  "insight": "이 시각화가 보여주는 핵심 패턴"
-}}
+}
 
 **중요 지침:**
 - 내용에서 실제 데이터를 추출하세요
@@ -358,15 +337,6 @@ JSON만 출력하세요."""),
                 "headers": visualization.get('headers', []),
                 "rows": visualization.get('rows', []),
                 "styling": visualization.get('styling', {})
-            }
-
-        elif viz_type == 'advanced':
-            return {
-                "type": "advanced",
-                "library": visualization.get('library', 'd3'),
-                "visualization_type": visualization.get('visualization_type'),
-                "data": visualization.get('data', {}),
-                "config": visualization.get('config', {})
             }
 
         else:
