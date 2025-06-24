@@ -77,11 +77,26 @@ class YouTubeReporterWorkflow:
         }
 
         # 시각화 데이터 검증 및 정리
-        for section in final_output["sections"]:
+        for i, section in enumerate(final_output["sections"]):
+            if not isinstance(section, dict):
+                logger.warning(
+                    "잘못된 섹션 형식 감지: %s", section
+                )
+                # 문자열 등 비정상적인 섹션을 텍스트 섹션으로 변환
+                final_output["sections"][i] = {
+                    "id": f"section_{i + 1}",
+                    "title": f"섹션 {i + 1}",
+                    "type": "text",
+                    "content": str(section),
+                }
+                section = final_output["sections"][i]
+
             if section.get("type") == "visualization":
                 # 시각화 데이터 유효성 검증
                 if not section.get("data"):
-                    logger.warning(f"시각화 섹션 '{section.get('title')}' 데이터 누락")
+                    logger.warning(
+                        "시각화 섹션 '%s' 데이터 누락", section.get("title")
+                    )
                     section["error"] = "시각화 데이터가 없습니다"
                 else:
                     # 시각화 타입별 추가 검증
