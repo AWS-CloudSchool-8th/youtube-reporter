@@ -54,8 +54,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:3002",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001"
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -95,8 +97,8 @@ async def startup_event():
     """서버 시작 시 실행"""
     logger.info("=" * 60)
     logger.info("🚀 YouTube Reporter 서버 시작")
-    logger.info(f"📖 API 문서: http://localhost:8000/docs")
-    logger.info(f"🌐 프론트엔드 연결 대상: http://localhost:3000")
+    logger.info(f"📖 API 문서: http://localhost:3001/docs")
+    logger.info(f"🌐 프론트엔드 연결 대상: http://localhost:3002")
     logger.info("=" * 60)
 
     # 환경 변수 확인
@@ -121,7 +123,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=3001,
         reload=True,  # 개발 모드에서 자동 재시작
         log_level="info"
     )

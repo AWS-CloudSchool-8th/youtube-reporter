@@ -34,6 +34,7 @@ const App = () => {
       const response = await fetch(`${API_BASE}/api/v1/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           youtube_url: url
         }),
@@ -73,7 +74,9 @@ const App = () => {
       try {
         console.log(`🔍 상태 확인 ${attempts + 1}/${maxAttempts}:`, jobId);
 
-        const statusResponse = await fetch(`${API_BASE}/api/v1/jobs/${jobId}/status`);
+        const statusResponse = await fetch(`${API_BASE}/api/v1/jobs/${jobId}/status`, {
+          credentials: 'include'
+        });
         if (!statusResponse.ok) {
           throw new Error(`상태 확인 실패: ${statusResponse.status}`);
         }
@@ -119,7 +122,9 @@ const App = () => {
     try {
       console.log('📄 결과 로드 중:', jobId);
 
-      const resultResponse = await fetch(`${API_BASE}/api/v1/jobs/${jobId}/result`);
+      const resultResponse = await fetch(`${API_BASE}/api/v1/jobs/${jobId}/result`, {
+        credentials: 'include'
+      });
 
       if (resultResponse.status === 202) {
         console.log('⏳ 아직 처리 중...');
@@ -147,7 +152,9 @@ const App = () => {
     try {
       console.log('📜 작업 기록 로드 중...');
 
-      const response = await fetch(`${API_BASE}/api/v1/jobs`);
+      const response = await fetch(`${API_BASE}/api/v1/jobs`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         console.log('📋 작업 기록 로드 완료:', data);
@@ -171,7 +178,9 @@ const App = () => {
   // API 상태 확인
   const checkApiHealth = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/v1/`);
+      const response = await fetch(`${API_BASE}/api/v1/`, {
+        credentials: 'include'
+      });
       if (response.ok) {
         const data = await response.json();
         console.log('✅ API 연결 확인:', data);

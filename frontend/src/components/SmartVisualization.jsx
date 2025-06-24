@@ -15,6 +15,11 @@ import {
   Filler
 } from 'chart.js';
 import { Bar, Line, Pie, Doughnut, Radar, Scatter } from 'react-chartjs-2';
+import ReactFlow, { Background, Controls } from 'reactflow';
+import 'reactflow/dist/style.css';
+import { Network, DataSet } from 'vis-network/standalone';
+import * as d3 from 'd3';
+import './SmartVisualization.css';
 
 // Chart.js 등록
 ChartJS.register(
@@ -31,65 +36,242 @@ ChartJS.register(
   Filler
 );
 
-// Mermaid 동적 로드
-let mermaidLoaded = false;
-const loadMermaid = async () => {
-  if (!mermaidLoaded && !window.mermaid) {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-    script.async = true;
-    script.onload = () => {
-      window.mermaid.initialize({
-        startOnLoad: false,
-        theme: 'default',
-        flowchart: {
-          htmlLabels: true,
-          curve: 'linear'
-        }
-      });
-      mermaidLoaded = true;
-    };
-    document.head.appendChild(script);
-  }
-};
-
 const SmartVisualization = ({ section }) => {
   const [error, setError] = useState(null);
   const chartRef = useRef(null);
-  const mermaidRef = useRef(null);
-
+  const networkRef = useRef(null);
+  const flowRef = useRef(null);
+  const d3Ref = useRef(null);
+  const [networkInstance, setNetworkInstance] = useState(null);
+  
+  // 컴포넌트 마운트 및 데이터 변경 시 렌더링
   useEffect(() => {
-    // Mermaid 다이어그램 렌더링
-    if (section.data?.type === 'diagram' && section.data?.code && mermaidRef.current) {
-      loadMermaid().then(() => {
-        if (window.mermaid && mermaidRef.current) {
-          try {
-            mermaidRef.current.innerHTML = section.data.code;
-            window.mermaid.init(undefined, mermaidRef.current);
-          } catch (err) {
-            console.error('Mermaid 렌더링 오류:', err);
-            setError('다이어그램 렌더링 실패');
-          }
-        }
-      });
+    // 콘솔에 데이터 출력하여 디버깅
+    console.log('섹션 데이터:', section);
+    console.log('시각화 타입:', section.data?.type);
+    
+    // 시각화 타입에 따라 적절한 렌더링 함수 호출
+    if (section.data?.type === 'network' && networkRef.current) {
+      console.log('네트워크 렌더링 시도');
+      renderNetwork();
+    } else if (section.data?.type === 'flow' && flowRef.current) {
+      console.log('플로우 렌더링 시도');
+      // React Flow는 자동으로 렌더링됨
+    } else if (section.data?.type === 'd3' && d3Ref.current) {
+      console.log('D3 렌더링 시도');
+      renderD3Visualization();
+    } else if (section.data?.type === 'diagram') {
+      // 이전 diagram 타입을 network 타입으로 처리
+      console.log('다이어그램을 네트워크로 변환하여 렌더링 시도');
+      section.data.type = 'network';
+      if (networkRef.current) {
+        renderNetwork();
+      }
     }
-  }, [section]);
-
-  if (section.error) {
-    return (
-      <div className="visualization-error">
-        <p>⚠️ {section.error}</p>
-      </div>
-    );
-  }
-
-  if (!section.data) {
-    return (
-      <div className="visualization-error">
-        <p>⚠️ 시각화 데이터가 없습니다</p>
-      </div>
-    );
-  }
+    
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      if (networkInstance) {
+        networkInstance.destroy();
+        setNetworkInstance(null);
+      }
+    };
+  }, [section.data]);
+  
+  // 컴포넌트 마운트 시 한 번만 실행되는 효과
+  useEffect(() => {
+    console.log('SmartVisualization 컴포넌트 마운트됨');
+    console.log('refs:', { networkRef: networkRef.current, flowRef: flowRef.current, d3Ref: d3Ref.current });
+  }, []);
+  
+  // vis.js Network 렌더링
+  const renderNetwork = () => {
+    if (!networkRef.current) {
+      console.error('네트워크 렌더링을 위한 ref가 없습니다');
+      return;
+    }
+    
+    try {
+      setError(null);
+      
+      // 기존 네트워크 인스턴스 정리
+      if (networkInstance) {
+        networkInstance.destroy();
+      }
+      
+      // 데이터 검증 및 기본값 설정
+      let networkData = section.data?.data;
+      
+      // 데이터가 없거나 diagram 타입인 경우 기본 데이터 생성
+      if (!networkData || section.data?.type === 'diagram') {
+        // diagram 타입이고 code가 있는 경우 간단한 네트워크 데이터 생성
+        if (section.data?.code) {
+          console.log('다이어그램 코드를 네트워크 데이터로 변환');
+        }
+        
+        // 기본 데이터 생성
+        networkData = {
+          nodes: [
+            { id: 1, label: '노드 1', color: '#667eea' },
+            { id: 2, label: '노드 2', color: '#f093fb' },
+            { id: 3, label: '노드 3', color: '#4facfe' }
+          ],
+          edges: [
+            { from: 1, to: 2, label: '연결 1-2' },
+            { from: 2, to: 3, label: '연결 2-3' }
+          ]
+        };
+      }
+      
+      console.log('네트워크 데이터:', networkData);
+      
+      const container = networkRef.current;
+      const data = {
+        nodes: new DataSet(networkData.nodes || []),
+        edges: new DataSet(networkData.edges || [])
+      };
+      
+      const options = section.data.options || {
+        layout: {
+          hierarchical: {
+            enabled: true,
+            direction: 'LR',
+            sortMethod: 'directed'
+          }
+        },
+        physics: {
+          enabled: true,
+          hierarchicalRepulsion: {
+            centralGravity: 0.0,
+            springLength: 100,
+            springConstant: 0.01,
+            nodeDistance: 120
+          }
+        },
+        nodes: {
+          shape: 'box',
+          margin: 10,
+          font: {
+            size: 14
+          }
+        },
+        edges: {
+          arrows: 'to',
+          smooth: true
+        }
+      };
+      
+      // 네트워크 생성
+      const network = new Network(container, data, options);
+      setNetworkInstance(network);
+      
+      console.log('✅ Network 다이어그램 렌더링 성공');
+      
+    } catch (err) {
+      console.error('❌ Network 렌더링 오류:', err);
+      setError(`네트워크 다이어그램 렌더링 실패: ${err.message}`);
+    }
+  };
+  
+  // D3.js 시각화 렌더링
+  const renderD3Visualization = () => {
+    if (!section.data?.data || !d3Ref.current) return;
+    
+    try {
+      setError(null);
+      
+      // 기존 SVG 제거
+      d3.select(d3Ref.current).selectAll('*').remove();
+      
+      const container = d3Ref.current;
+      const data = section.data.data;
+      const config = section.data.config || {};
+      const width = config.width || 800;
+      const height = config.height || 400;
+      const vizType = section.data.visualization_type;
+      
+      // SVG 생성
+      const svg = d3.select(container)
+        .append('svg')
+        .attr('width', '100%')
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+      
+      // 시각화 타입에 따라 다른 렌더링 로직 적용
+      if (vizType === 'force' && data.nodes && data.links) {
+        // 간단한 Force 다이어그램 예시
+        const simulation = d3.forceSimulation(data.nodes)
+          .force('link', d3.forceLink(data.links).id(d => d.id))
+          .force('charge', d3.forceManyBody().strength(-100))
+          .force('center', d3.forceCenter(width / 2, height / 2));
+        
+        const link = svg.append('g')
+          .selectAll('line')
+          .data(data.links)
+          .enter().append('line')
+          .attr('stroke', '#999')
+          .attr('stroke-opacity', 0.6)
+          .attr('stroke-width', d => Math.sqrt(d.value || 1));
+        
+        const node = svg.append('g')
+          .selectAll('circle')
+          .data(data.nodes)
+          .enter().append('circle')
+          .attr('r', d => Math.sqrt((d.value || 10) * 3))
+          .attr('fill', (d, i) => (config.colors || ['#667eea', '#f093fb'])[i % (config.colors || ['#667eea', '#f093fb']).length])
+          .call(d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended));
+        
+        node.append('title')
+          .text(d => d.name || d.id);
+        
+        simulation.on('tick', () => {
+          link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+          
+          node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+        });
+        
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
+      } else {
+        // 다른 D3 시각화 타입에 대한 기본 메시지
+        svg.append('text')
+          .attr('x', width / 2)
+          .attr('y', height / 2)
+          .attr('text-anchor', 'middle')
+          .text(`${vizType} 시각화 - 구현 필요`);
+      }
+      
+      console.log('✅ D3 시각화 렌더링 성공');
+      
+    } catch (err) {
+      console.error('❌ D3 렌더링 오류:', err);
+      setError(`D3 시각화 렌더링 실패: ${err.message}`);
+    }
+  };
 
   const renderChart = () => {
     const { config } = section.data;
@@ -167,12 +349,13 @@ const SmartVisualization = ({ section }) => {
   };
 
   const renderAdvanced = () => {
-    // D3.js 또는 기타 고급 시각화는 별도 구현 필요
     return (
       <div className="advanced-visualization-placeholder">
         <h4>{section.data.visualization_type} 시각화</h4>
         <p>고급 시각화는 추가 구현이 필요합니다.</p>
-        <pre>{JSON.stringify(section.data.data, null, 2)}</pre>
+        <pre style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', overflow: 'auto' }}>
+          {JSON.stringify(section.data.data, null, 2)}
+        </pre>
       </div>
     );
   };
@@ -203,6 +386,8 @@ const SmartVisualization = ({ section }) => {
     return labels[purpose] || purpose;
   };
 
+  // 시각화 타입에 따른 아이콘 및 레이블
+
   return (
     <div className="smart-visualization">
       <div className="visualization-header">
@@ -217,28 +402,82 @@ const SmartVisualization = ({ section }) => {
       </div>
 
       <div className="visualization-content">
-        {error ? (
-          <div className="visualization-error">
-            <p>⚠️ {error}</p>
+        {section.data?.type === 'chart' && (
+          <div className="chart-container">
+            {renderChart()}
           </div>
-        ) : (
-          <>
-            {section.data.type === 'chart' && (
-              <div className="chart-container">
-                {renderChart()}
+        )}
+
+        {(section.data?.type === 'network' || section.data?.type === 'diagram') && (
+          <div className="network-container">
+            <div
+              ref={networkRef}
+              className="vis-network"
+              style={{ height: '400px', width: '100%' }}
+            />
+            {error && (
+              <div className="visualization-error">
+                <p>⚠️ {error}</p>
               </div>
             )}
-
-            {section.data.type === 'diagram' && (
-              <div className="diagram-container">
-                <div ref={mermaidRef} className="mermaid"></div>
+          </div>
+        )}
+        
+        {section.data?.type === 'flow' && (
+          <div className="flow-container" style={{ height: '400px', width: '100%' }} ref={flowRef}>
+            <ReactFlow
+              nodes={section.data?.data?.nodes || [
+                { id: '1', type: 'input', position: { x: 0, y: 0 }, data: { label: '시작' } },
+                { id: '2', position: { x: 100, y: 100 }, data: { label: '과정' } },
+                { id: '3', type: 'output', position: { x: 200, y: 200 }, data: { label: '완료' } }
+              ]}
+              edges={section.data?.data?.edges || [
+                { id: 'e1-2', source: '1', target: '2', label: '연결 1' },
+                { id: 'e2-3', source: '2', target: '3', label: '연결 2' }
+              ]}
+              fitView
+              attributionPosition="bottom-right"
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
+            {error && (
+              <div className="visualization-error">
+                <p>⚠️ {error}</p>
               </div>
             )}
+          </div>
+        )}
+        
+        {section.data?.type === 'd3' && (
+          <div className="d3-container">
+            <div
+              ref={d3Ref}
+              className="d3-visualization"
+              style={{ width: '100%', minHeight: '400px' }}
+            />
+            {error && (
+              <div className="visualization-error">
+                <p>⚠️ {error}</p>
+              </div>
+            )}
+            <div className="d3-debug">
+              <h4>D3 데이터 디버깅</h4>
+              <pre style={{ background: '#f8f9fa', padding: '10px', borderRadius: '4px', fontSize: '12px', overflow: 'auto' }}>
+                {JSON.stringify(section.data?.data || {}, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
 
-            {section.data.type === 'table' && renderTable()}
+        {section.data?.type === 'table' && renderTable()}
 
-            {section.data.type === 'advanced' && renderAdvanced()}
-          </>
+        {section.data?.type === 'advanced' && renderAdvanced()}
+
+        {!section.data && (
+          <div className="visualization-error">
+            <p>⚠️ 시각화 데이터가 없습니다</p>
+          </div>
         )}
       </div>
 

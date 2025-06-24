@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 
 class ProcessVideoRequest(BaseModel):
     """비디오 처리 요청 모델"""
-    youtube_url: HttpUrl
+    youtube_url: str
     options: Optional[Dict[str, Any]] = {}
 
 

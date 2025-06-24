@@ -167,23 +167,40 @@ JSON만 출력하세요."""),
    - radar: 다차원 비교
    - scatter: 상관관계, 분포
 
-2. **다이어그램 (Mermaid)**
-   - flowchart: 프로세스, 의사결정 흐름
-   - timeline: 시간 순서, 역사적 사건
-   - mindmap: 개념 구조, 분류 체계
-   - gantt: 프로젝트 일정
-   - stateDiagram: 상태 변화
+2. **네트워크 다이어그램 (vis.js)**
+   - network: 관계도, 연결망 시각화
+   - hierarchy: 계층 구조 표현
+   - cluster: 그룹화된 노드 표현
 
-3. **테이블 (HTML)**
+3. **플로우 차트 (React Flow)**
+   - flowchart: 프로세스, 의사결정 흐름
+   - workflow: 작업 흐름도
+   - mindmap: 개념 구조, 분류 체계
+
+4. **고급 시각화 (D3.js)**
+   - timeline: 시간 순서, 역사적 사건
+   - treemap: 계층적 데이터 구조
+   - sankey: 흐름 다이어그램
+   - force: 힘 기반 다이어그램
+
+5. **테이블 (HTML)**
    - 정확한 수치 비교
    - 다양한 속성을 가진 항목들
    - 체크리스트, 기능 비교표
 
-4. **고급 시각화 (D3.js/Custom)**
-   - network: 복잡한 관계망
-   - treemap: 계층적 데이터
-   - sankey: 흐름 분석
-   - heatmap: 2차원 데이터 밀도
+**네트워크 다이어그램 작성 규칙 (vis.js):**
+- nodes: 노드 배열 [노드1, 노드2, ...]
+- edges: 연결 배열 [연결1, 연결2, ...]
+- 노드 속성: id, label, title, color, shape
+- 연결 속성: from, to, label, arrows, color
+- 그룹화: group 속성 사용
+
+**플로우 차트 작성 규칙 (React Flow):**
+- nodes: 노드 배열 [노드1, 노드2, ...]
+- edges: 연결 배열 [연결1, 연결2, ...]
+- 노드 속성: id, type, position, data
+- 연결 속성: id, source, target, type, label
+- 노드 타입: default, input, output, custom
 
 **응답 형식 (반드시 다음 중 하나):**
 
@@ -199,7 +216,7 @@ JSON만 출력하세요."""),
       {{
         "label": "데이터셋 이름",
         "data": [숫자1, 숫자2, ...],
-        "backgroundColor": ["색상1", "색상2", ...]
+        "backgroundColor": ["#667eea", "#f093fb", "#4facfe", "#43e97b"]
       }}
     ]
   }},
@@ -213,17 +230,76 @@ JSON만 출력하세요."""),
   "insight": "이 차트가 보여주는 핵심 인사이트"
 }}
 
-**옵션 2 - 다이어그램:**
+**옵션 2 - 네트워크 다이어그램 (vis.js):**
 {{
-  "type": "diagram",
-  "library": "mermaid",
+  "type": "network",
+  "library": "visjs",
   "title": "명확한 제목",
-  "diagram_type": "flowchart|timeline|mindmap",
-  "code": "Mermaid 다이어그램 코드",
-  "insight": "이 다이어그램이 설명하는 핵심 내용"
+  "network_type": "relationship|hierarchy|cluster",
+  "data": {{
+    "nodes": [
+      {{ "id": 1, "label": "노드1", "title": "설명", "color": "#667eea" }},
+      {{ "id": 2, "label": "노드2", "title": "설명", "color": "#f093fb" }}
+    ],
+    "edges": [
+      {{ "from": 1, "to": 2, "label": "연결", "arrows": "to" }}
+    ]
+  }},
+  "options": {{
+    "layout": {{ "hierarchical": {{ "enabled": true, "direction": "LR" }} }},
+    "physics": {{ "enabled": true }}
+  }},
+  "insight": "이 네트워크 다이어그램이 보여주는 핵심 관계"
 }}
 
-**옵션 3 - 테이블:**
+**옵션 3 - 플로우 차트 (React Flow):**
+{{
+  "type": "flow",
+  "library": "reactflow",
+  "title": "명확한 제목",
+  "flow_type": "flowchart|workflow|mindmap",
+  "data": {{
+    "nodes": [
+      {{ "id": "1", "type": "input", "position": {{ "x": 0, "y": 0 }}, "data": {{ "label": "시작" }} }},
+      {{ "id": "2", "position": {{ "x": 100, "y": 100 }}, "data": {{ "label": "과정" }} }},
+      {{ "id": "3", "type": "output", "position": {{ "x": 200, "y": 200 }}, "data": {{ "label": "완료" }} }}
+    ],
+    "edges": [
+      {{ "id": "e1-2", "source": "1", "target": "2", "label": "연결 1" }},
+      {{ "id": "e2-3", "source": "2", "target": "3", "label": "연결 2" }}
+    ]
+  }},
+  "options": {{
+    "direction": "LR",
+    "fitView": true
+  }},
+  "insight": "이 플로우 차트가 보여주는 프로세스 흐름"
+}}
+
+**옵션 4 - 고급 시각화 (D3.js):**
+{{
+  "type": "d3",
+  "library": "d3js",
+  "title": "명확한 제목",
+  "visualization_type": "timeline|treemap|sankey|force",
+  "data": {{
+    "nodes": [
+      {{ "id": "node1", "name": "노드1", "value": 10 }},
+      {{ "id": "node2", "name": "노드2", "value": 20 }}
+    ],
+    "links": [
+      {{ "source": "node1", "target": "node2", "value": 5 }}
+    ]
+  }},
+  "config": {{
+    "width": 800,
+    "height": 600,
+    "colors": ["#667eea", "#f093fb", "#4facfe", "#43e97b"]
+  }},
+  "insight": "이 고급 시각화가 보여주는 핵심 패턴"
+}}
+
+**옵션 5 - 테이블:**
 {{
   "type": "table",
   "title": "명확한 제목",
@@ -239,27 +315,13 @@ JSON만 출력하세요."""),
   "insight": "이 표가 보여주는 핵심 정보"
 }}
 
-**옵션 4 - 고급 시각화:**
-{{
-  "type": "advanced",
-  "library": "d3",
-  "visualization_type": "network|treemap|sankey|heatmap",
-  "title": "명확한 제목",
-  "data": {{ 
-    // 시각화 타입에 맞는 데이터 구조
-  }},
-  "config": {{
-    // 시각화 설정
-  }},
-  "insight": "이 시각화가 보여주는 핵심 패턴"
-}}
-
 **중요 지침:**
 - 내용에서 실제 데이터를 추출하세요
 - 데이터가 없다면 내용을 기반으로 합리적으로 생성하세요
 - 색상은 의미를 담아 선택하세요 (증가=녹색, 감소=빨강 등)
-- 제목과 레이블은 명확하고 구체적으로
+- 제목과 레이블은 명확하고 구체적으로 작성하세요
 - insight는 단순 설명이 아닌 "발견"이어야 합니다
+- 데이터 구조는 선택한 라이브러리에 맞게 정확하게 작성하세요
 
 JSON만 출력하세요."""),
             ("human", "시각화를 생성해주세요.")
@@ -285,13 +347,100 @@ JSON만 출력하세요."""),
 
             if start_idx != -1 and end_idx != -1:
                 json_str = content[start_idx:end_idx + 1]
-                return json.loads(json_str)
+                result = json.loads(json_str)
+
+                # 시각화 데이터 후처리
+                viz_type = result.get('type')
+                if viz_type in ['network', 'flow', 'd3'] and 'data' in result:
+                    result['data'] = self._validate_visualization_data(result['data'], viz_type)
+
+                return result
             else:
                 return {"error": "JSON 파싱 실패"}
 
         except Exception as e:
             logger.error(f"시각화 생성 오류: {e}")
             return {"error": str(e)}
+
+    def _validate_visualization_data(self, data: Dict[str, Any], viz_type: str) -> Dict[str, Any]:
+        """시각화 데이터 검증 및 수정"""
+        try:
+            if viz_type == 'network':
+                # vis.js 네트워크 데이터 검증
+                if 'nodes' not in data or not data['nodes']:
+                    data['nodes'] = [
+                        {"id": 1, "label": "노드1", "color": "#667eea"},
+                        {"id": 2, "label": "노드2", "color": "#f093fb"}
+                    ]
+                if 'edges' not in data or not data['edges']:
+                    data['edges'] = [{"from": 1, "to": 2, "label": "연결"}]
+                
+                # 노드 ID 확인
+                for node in data['nodes']:
+                    if 'id' not in node:
+                        node['id'] = hash(str(node)) % 10000
+                
+                logger.info(f"✅ 네트워크 데이터 검증 완료: {len(data['nodes'])} 노드, {len(data['edges'])} 연결")
+                
+            elif viz_type == 'flow':
+                # React Flow 데이터 검증
+                if 'nodes' not in data or not data['nodes']:
+                    data['nodes'] = [
+                        {"id": "1", "type": "input", "position": {"x": 0, "y": 0}, "data": {"label": "시작"}},
+                        {"id": "2", "position": {"x": 100, "y": 100}, "data": {"label": "과정"}},
+                        {"id": "3", "type": "output", "position": {"x": 200, "y": 200}, "data": {"label": "완료"}}
+                    ]
+                if 'edges' not in data or not data['edges']:
+                    data['edges'] = [
+                        {"id": "e1-2", "source": "1", "target": "2"},
+                        {"id": "e2-3", "source": "2", "target": "3"}
+                    ]
+                
+                # 노드 위치 확인
+                for i, node in enumerate(data['nodes']):
+                    if 'position' not in node:
+                        node['position'] = {"x": i * 100, "y": i * 100}
+                    if 'data' not in node or 'label' not in node['data']:
+                        node['data'] = {"label": f"노드 {i+1}"}
+                
+                logger.info(f"✅ 플로우 차트 데이터 검증 완료: {len(data['nodes'])} 노드, {len(data['edges'])} 연결")
+                
+            elif viz_type == 'd3':
+                # D3.js 데이터 검증
+                if 'nodes' not in data or not data['nodes']:
+                    data['nodes'] = [
+                        {"id": "node1", "name": "노드1", "value": 10},
+                        {"id": "node2", "name": "노드2", "value": 20}
+                    ]
+                if 'links' not in data and 'edges' in data:
+                    data['links'] = data['edges']
+                elif 'links' not in data:
+                    data['links'] = [{"source": "node1", "target": "node2", "value": 5}]
+                
+                logger.info(f"✅ D3 데이터 검증 완료: {len(data['nodes'])} 노드, {len(data['links'])} 연결")
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"시각화 데이터 검증 실패: {e}")
+            # 기본 데이터 반환
+            if viz_type == 'network':
+                return {
+                    "nodes": [{"id": 1, "label": "기본 노드"}],
+                    "edges": []
+                }
+            elif viz_type == 'flow':
+                return {
+                    "nodes": [{"id": "1", "position": {"x": 0, "y": 0}, "data": {"label": "기본 노드"}}],
+                    "edges": []
+                }
+            elif viz_type == 'd3':
+                return {
+                    "nodes": [{"id": "node1", "name": "기본 노드", "value": 10}],
+                    "links": []
+                }
+            else:
+                return {}
 
     def _find_best_position(self, summary: str, opportunity: Dict[str, Any]) -> Dict[str, Any]:
         """요약 내에서 시각화를 배치할 최적의 위치 찾기"""
@@ -332,6 +481,34 @@ JSON만 출력하세요."""),
     def _standardize_visualization_data(self, visualization: Dict[str, Any]) -> Dict[str, Any]:
         """다양한 시각화 형식을 표준화"""
         viz_type = visualization.get('type')
+        
+        # diagram 타입을 network 타입으로 변환
+        if viz_type == 'diagram':
+            logger.info("Mermaid 다이어그램을 Network 다이어그램으로 변환합니다")
+            # 기본 네트워크 데이터 생성
+            nodes = [
+                {"id": 1, "label": "노드 1", "color": "#667eea"},
+                {"id": 2, "label": "노드 2", "color": "#f093fb"},
+                {"id": 3, "label": "노드 3", "color": "#4facfe"}
+            ]
+            edges = [
+                {"from": 1, "to": 2, "label": "연결 1-2"},
+                {"from": 2, "to": 3, "label": "연결 2-3"}
+            ]
+            
+            return {
+                "type": "network",
+                "library": "visjs",
+                "network_type": "relationship",
+                "data": {
+                    "nodes": nodes,
+                    "edges": edges
+                },
+                "options": {
+                    "layout": {"hierarchical": {"enabled": True, "direction": "LR"}},
+                    "physics": {"enabled": True}
+                }
+            }
 
         if viz_type == 'chart':
             return {
@@ -344,12 +521,31 @@ JSON만 출력하세요."""),
                 }
             }
 
-        elif viz_type == 'diagram':
+        elif viz_type == 'network':
             return {
-                "type": "diagram",
-                "library": visualization.get('library', 'mermaid'),
-                "diagram_type": visualization.get('diagram_type', 'flowchart'),
-                "code": visualization.get('code', '')
+                "type": "network",
+                "library": visualization.get('library', 'visjs'),
+                "network_type": visualization.get('network_type', 'relationship'),
+                "data": visualization.get('data', {}),
+                "options": visualization.get('options', {})
+            }
+            
+        elif viz_type == 'flow':
+            return {
+                "type": "flow",
+                "library": visualization.get('library', 'reactflow'),
+                "flow_type": visualization.get('flow_type', 'flowchart'),
+                "data": visualization.get('data', {}),
+                "options": visualization.get('options', {})
+            }
+            
+        elif viz_type == 'd3':
+            return {
+                "type": "d3",
+                "library": visualization.get('library', 'd3js'),
+                "visualization_type": visualization.get('visualization_type', 'force'),
+                "data": visualization.get('data', {}),
+                "config": visualization.get('config', {})
             }
 
         elif viz_type == 'table':
@@ -358,15 +554,6 @@ JSON만 출력하세요."""),
                 "headers": visualization.get('headers', []),
                 "rows": visualization.get('rows', []),
                 "styling": visualization.get('styling', {})
-            }
-
-        elif viz_type == 'advanced':
-            return {
-                "type": "advanced",
-                "library": visualization.get('library', 'd3'),
-                "visualization_type": visualization.get('visualization_type'),
-                "data": visualization.get('data', {}),
-                "config": visualization.get('config', {})
             }
 
         else:

@@ -1,0 +1,177 @@
+.smart-visualization {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.visualization-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.visualization-header h3 {
+  font-size: 18px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.purpose-badge {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-left: 10px;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.visualization-content {
+  margin: 20px 0;
+  min-height: 200px;
+}
+
+.chart-container {
+  height: 400px;
+  width: 100%;
+}
+
+/* Network 시각화 스타일 */
+.network-container {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.vis-network {
+  width: 100%;
+  height: 100%;
+}
+
+/* Flow 시각화 스타일 */
+.flow-container {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* D3 시각화 스타일 */
+.d3-container {
+  width: 100%;
+  min-height: 400px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.d3-visualization {
+  width: 100%;
+  height: 100%;
+}
+
+.d3-visualization svg {
+  width: 100%;
+  height: 100%;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e7eb;
+}
+
+.data-table th, .data-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.data-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+.data-table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.data-table tr:hover {
+  background-color: #f3f4f6;
+}
+
+.data-table .highlighted {
+  background-color: #dbeafe;
+}
+
+.visualization-insight {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f0f9ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px;
+}
+
+.visualization-insight h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #1e40af;
+}
+
+.visualization-insight p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.visualization-benefit {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f0fdf4;
+  border-left: 4px solid #10b981;
+  border-radius: 4px;
+}
+
+.visualization-benefit h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #047857;
+}
+
+.visualization-benefit p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.visualization-error {
+  padding: 15px;
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.visualization-error p {
+  margin: 0;
+  color: #b91c1c;
+}
+
+/* 목적별 배지 색상 */
+.purpose-overview { background: #dbeafe; color: #1e40af; }
+.purpose-detail { background: #e0e7ff; color: #4338ca; }
+.purpose-comparison { background: #fae8ff; color: #86198f; }
+.purpose-process { background: #d1fae5; color: #065f46; }
+.purpose-data { background: #ffedd5; color: #9a3412; }
+.purpose-timeline { background: #fee2e2; color: #991b1b; }
+.purpose-structure { background: #e5e7eb; color: #1f2937; }
