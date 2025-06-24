@@ -1,6 +1,7 @@
-# app/services/langgraph_service.py
+# app/services/langgraph_service.py - 완전 비동기 버전
 import uuid
 import time
+import asyncio
 from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph
 from ..agents.caption_agent import CaptionAgent
@@ -23,7 +24,7 @@ class GraphState(TypedDict):
 
 
 class LangGraphService:
-    """LangGraph 기반 YouTube 분석 파이프라인 서비스"""
+    """LangGraph 기반 YouTube 분석 파이프라인 서비스 (완전 비동기)"""
 
     def __init__(self):
         logger.info("🔗 LangGraph 파이프라인 초기화 중...")
@@ -43,7 +44,7 @@ class LangGraphService:
         """LangGraph 워크플로우 구성"""
         builder = StateGraph(state_schema=GraphState)
 
-        # 노드 추가
+        # 노드 추가 (비동기 래퍼 사용)
         builder.add_node("caption_extraction", self._caption_node)
         builder.add_node("summary_generation", self._summary_node)
         builder.add_node("visualization_creation", self._visual_node)
@@ -58,13 +59,14 @@ class LangGraphService:
 
         return builder.compile()
 
-    def _caption_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """자막 추출 노드"""
+    async def _caption_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """자막 추출 노드 (비동기)"""
         start_time = time.time()
         logger.info("📝 1단계: 자막 추출 시작")
 
         try:
-            result = self.caption_agent.invoke(state)
+            # 동기 에이전트를 비동기로 실행
+            result = await asyncio.to_thread(self.caption_agent.invoke, state)
             execution_time = round(time.time() - start_time, 2)
 
             caption = result.get("caption", "")
@@ -79,13 +81,14 @@ class LangGraphService:
             logger.error(f"❌ 자막 추출 중 예외 발생: {e}")
             return {**state, "caption": f"[오류] 자막 추출 중 예외 발생: {str(e)}"}
 
-    def _summary_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """요약 생성 노드"""
+    async def _summary_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """요약 생성 노드 (비동기)"""
         start_time = time.time()
         logger.info("🧠 2단계: 포괄적 요약 생성 시작")
 
         try:
-            result = self.summary_agent.invoke(state)
+            # 동기 에이전트를 비동기로 실행
+            result = await asyncio.to_thread(self.summary_agent.invoke, state)
             execution_time = round(time.time() - start_time, 2)
 
             summary = result.get("summary", "")
@@ -100,13 +103,14 @@ class LangGraphService:
             logger.error(f"❌ 요약 생성 중 예외 발생: {e}")
             return {**state, "summary": f"[오류] 요약 생성 중 예외 발생: {str(e)}"}
 
-    def _visual_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """시각화 생성 노드"""
+    async def _visual_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """시각화 생성 노드 (비동기)"""
         start_time = time.time()
         logger.info("🎨 3단계: 스마트 시각화 생성 시작")
 
         try:
-            result = self.visual_agent.invoke(state)
+            # 동기 에이전트를 비동기로 실행
+            result = await asyncio.to_thread(self.visual_agent.invoke, state)
             execution_time = round(time.time() - start_time, 2)
 
             visual_sections = result.get("visual_sections", [])
@@ -118,13 +122,14 @@ class LangGraphService:
             logger.error(f"❌ 시각화 생성 중 예외 발생: {e}")
             return {**state, "visual_sections": []}
 
-    def _report_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """리포트 통합 노드"""
+    async def _report_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """리포트 통합 노드 (비동기)"""
         start_time = time.time()
         logger.info("📋 4단계: 최종 리포트 생성 시작")
 
         try:
-            result = self.report_agent.invoke(state)
+            # 동기 에이전트를 비동기로 실행
+            result = await asyncio.to_thread(self.report_agent.invoke, state)
             execution_time = round(time.time() - start_time, 2)
 
             report_result = result.get("report_result", {})
@@ -146,7 +151,7 @@ class LangGraphService:
             return {**state, "report_result": {"success": False, "error": str(e)}}
 
     async def analyze_youtube_video(self, youtube_url: str, job_id: str = None) -> Dict[str, Any]:
-        """YouTube 영상 분석 실행"""
+        """YouTube 영상 분석 실행 (완전 비동기)"""
         start_time = time.time()
 
         # job_id 생성
@@ -170,8 +175,14 @@ class LangGraphService:
         }
 
         try:
-            # LangGraph 파이프라인 실행
-            result = await self.graph.invoke(initial_state)
+            # LangGraph 파이프라인 실행 (비동기)
+            # 만약 graph.invoke가 동기라면 asyncio.to_thread 사용
+            try:
+                # 먼저 직접 호출 시도
+                result = await self.graph.ainvoke(initial_state)
+            except AttributeError:
+                # ainvoke가 없다면 동기 invoke를 비동기로 실행
+                result = await asyncio.to_thread(self.graph.invoke, initial_state)
 
             # 실행 시간 계산
             total_time = round(time.time() - start_time, 2)
@@ -238,6 +249,7 @@ class LangGraphService:
         return {
             "service": "LangGraph YouTube Analyzer",
             "version": "2.0.0",
+            "mode": "async",  # 비동기 모드 표시
             "agents": {
                 "caption_agent": "CaptionAgent",
                 "summary_agent": "SummaryAgent",
@@ -254,6 +266,7 @@ class LangGraphService:
                 "포괄적 요약 생성",
                 "스마트 시각화 생성",
                 "컨텍스트 기반 분석",
-                "다양한 시각화 타입 지원"
+                "다양한 시각화 타입 지원",
+                "완전 비동기 처리"
             ]
         }

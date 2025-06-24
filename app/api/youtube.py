@@ -1,6 +1,7 @@
-# app/api/youtube.py - Exception Handler 수정된 버전
+# app/api/youtube.py - 완전 비동기 버전
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from typing import List
+import asyncio
 from ..models.request import ProcessVideoRequest
 from ..models.response import (
     ProcessVideoResponse, JobStatusResponse, ReportResult,
@@ -22,12 +23,14 @@ async def health_check():
         "service": "YouTube Reporter",
         "status": "running",
         "version": "2.0.0",
+        "mode": "async",  # 비동기 모드 표시
         "description": "AI 기반 YouTube 영상 분석 및 스마트 시각화 도구",
         "features": [
             "포괄적 요약 생성",
             "스마트 시각화",
             "컨텍스트 기반 분석",
-            "다양한 차트 및 다이어그램 지원"
+            "다양한 차트 및 다이어그램 지원",
+            "완전 비동기 처리"
         ],
         "endpoints": {
             "process": "POST /api/v1/process - 영상 처리 시작",
@@ -42,10 +45,9 @@ async def health_check():
 @router.post("/process", response_model=ProcessVideoResponse)
 async def process_video(
         request: ProcessVideoRequest,
-        background_tasks: BackgroundTasks,
         youtube_service: YouTubeService = Depends(get_youtube_service)
 ):
-    """YouTube 영상 처리 시작"""
+    """YouTube 영상 처리 시작 (완전 비동기)"""
     try:
         # URL 검증
         url_str = str(request.youtube_url)
@@ -54,11 +56,9 @@ async def process_video(
         # 작업 생성
         job_id = youtube_service.create_job(url_str)
 
-        # 백그라운드에서 처리
-        background_tasks.add_task(
-            youtube_service.process_video,
-            job_id,
-            url_str
+        # 백그라운드에서 비동기 처리 시작
+        asyncio.create_task(
+            youtube_service.process_video(job_id, url_str)
         )
 
         logger.info(f"🚀 영상 처리 작업 시작: {job_id}")
@@ -143,8 +143,8 @@ async def list_jobs(
 ):
     """모든 작업 목록"""
     try:
-        # 오래된 작업 정리
-        youtube_service.cleanup_old_jobs()
+        # 오래된 작업 정리 (비동기)
+        await youtube_service.cleanup_old_jobs()
         jobs = youtube_service.list_jobs(limit=limit)
 
         return jobs
@@ -235,6 +235,7 @@ async def get_system_info():
                 "version": settings.app_version,
                 "debug": settings.debug,
                 "log_level": settings.log_level,
+                "mode": "async"  # 비동기 모드 표시
             },
             "configuration": {
                 "aws_region": settings.aws_region,
@@ -283,8 +284,3 @@ async def test_pipeline():
             "test_status": "failed",
             "error": str(e)
         }
-
-# ========================================
-# Exception Handler들을 제거했습니다!
-# (APIRouter에서는 사용할 수 없음)
-# ========================================

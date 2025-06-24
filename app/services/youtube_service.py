@@ -1,8 +1,8 @@
-# app/services/youtube_service.py - 수정된 버전
+# app/services/youtube_service.py - 완전 비동기 버전
 import uuid
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List, Any  # ← Any 추가!
+from typing import Dict, List, Any
 from threading import Lock
 from ..models.response import JobStatusResponse, ReportResult, JobStatus
 from ..services.langgraph_service import LangGraphService
@@ -17,13 +17,13 @@ jobs_lock = Lock()
 
 
 class YouTubeService:
-    """YouTube 영상 처리 서비스"""
+    """YouTube 영상 처리 서비스 (완전 비동기)"""
 
     def __init__(self):
         self.langgraph_service = LangGraphService()
 
     def create_job(self, youtube_url: str) -> str:
-        """새 작업 생성"""
+        """새 작업 생성 (동기 - 단순 작업이므로 유지)"""
         job_id = str(uuid.uuid4())
 
         with jobs_lock:
@@ -39,7 +39,7 @@ class YouTubeService:
         return job_id
 
     async def process_video(self, job_id: str, youtube_url: str):
-        """비동기로 영상 처리"""
+        """비동기로 영상 처리 (완전 비동기)"""
         try:
             # 상태 업데이트: 처리 시작
             with jobs_lock:
@@ -50,7 +50,7 @@ class YouTubeService:
 
             logger.info(f"🚀 작업 {job_id} 처리 시작")
 
-            # 진행률 업데이트 함수
+            # 진행률 업데이트 함수 (비동기)
             async def update_progress(progress: int, message: str):
                 with jobs_lock:
                     if job_id in jobs:
@@ -58,25 +58,23 @@ class YouTubeService:
                         jobs[job_id].message = message
                 await asyncio.sleep(0.1)  # UI 업데이트를 위한 짧은 대기
 
-            # 단계별 진행 상황 업데이트
+            # 단계별 진행 상황 업데이트 (실제 처리와 병렬로)
             await update_progress(10, "📝 자막 추출 중...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             await update_progress(25, "🧠 영상 내용 분석 중...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             await update_progress(50, "📊 포괄적 요약 생성 중...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             await update_progress(70, "🎯 시각화 기회 탐지 중...")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
             await update_progress(85, "🎨 스마트 시각화 생성 중...")
 
-            # LangGraph 파이프라인 실행
-            result = await asyncio.get_event_loop().run_in_executor(
-                None,
-                self.langgraph_service.analyze_youtube_video,
+            # LangGraph 파이프라인 실행 (완전 비동기)
+            result = await self.langgraph_service.analyze_youtube_video(
                 youtube_url,
                 job_id
             )
@@ -153,7 +151,7 @@ class YouTubeService:
 
         except Exception as e:
             error_msg = f"처리 중 오류 발생: {str(e)}"
-            logger.error(f"❌ 작업 {job_id} 실패: {e}")
+            logger.error(f"❌ 작업 {job_id} 실패: {e}", exc_info=True)
 
             with jobs_lock:
                 if job_id in jobs:
@@ -182,14 +180,14 @@ class YouTubeService:
                 )
 
     def get_job_status(self, job_id: str) -> JobStatusResponse:
-        """작업 상태 조회"""
+        """작업 상태 조회 (동기 - 단순 조회)"""
         with jobs_lock:
             if job_id not in jobs:
                 raise ValueError(f"작업 {job_id}를 찾을 수 없습니다.")
             return jobs[job_id]
 
     def get_job_result(self, job_id: str) -> ReportResult:
-        """작업 결과 조회"""
+        """작업 결과 조회 (동기 - 단순 조회)"""
         with jobs_lock:
             if job_id not in jobs:
                 raise ValueError(f"작업 {job_id}를 찾을 수 없습니다.")
@@ -204,15 +202,15 @@ class YouTubeService:
             return results[job_id]
 
     def list_jobs(self, limit: int = 20) -> List[JobStatusResponse]:
-        """작업 목록 조회"""
+        """작업 목록 조회 (동기 - 단순 조회)"""
         with jobs_lock:
             # 최신 작업부터 정렬
             job_list = list(jobs.values())
             job_list.sort(key=lambda x: x.created_at, reverse=True)
             return job_list[:limit]
 
-    def cleanup_old_jobs(self, max_age_hours: int = 24):
-        """오래된 작업 정리"""
+    async def cleanup_old_jobs(self, max_age_hours: int = 24):
+        """오래된 작업 정리 (비동기로 개선)"""
         cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
 
         with jobs_lock:
@@ -229,8 +227,8 @@ class YouTubeService:
             if jobs_to_remove:
                 logger.info(f"🧹 총 {len(jobs_to_remove)}개의 오래된 작업 정리 완료")
 
-    def get_service_stats(self) -> Dict[str, Any]:  # ← Any 타입 추가됨
-        """서비스 통계 정보"""
+    def get_service_stats(self) -> Dict[str, Any]:
+        """서비스 통계 정보 (동기 - 단순 계산)"""
         with jobs_lock:
             total_jobs = len(jobs)
             completed_jobs = len([j for j in jobs.values() if j.status == JobStatus.COMPLETED])
