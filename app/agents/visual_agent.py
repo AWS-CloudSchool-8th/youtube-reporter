@@ -137,6 +137,62 @@ JSON만 출력하세요."""),
             return {"error": str(e)}
 
     def _generate_smart_visualization(self, context: Dict[str, Any], opportunity: Dict[str, Any]) -> Dict[str, Any]:
+        # 시각화 타입 선택 로직 추가
+        suggested_type = opportunity.get('suggested_type', '').lower()
+        purpose = opportunity.get('purpose', '').lower()
+        
+        # 시각화 타입 선택
+        viz_type_hint = None
+        
+        # 제안된 타입에 따라 시각화 타입 선택
+        if 'chart' in suggested_type or 'graph' in suggested_type:
+            viz_type_hint = 'chart'
+        elif 'flow' in suggested_type or 'process' in suggested_type:
+            viz_type_hint = 'flow'
+        elif 'network' in suggested_type or 'relation' in suggested_type:
+            viz_type_hint = 'network'
+        elif 'timeline' in suggested_type or 'time' in suggested_type:
+            viz_type_hint = 'd3'
+        elif 'distribution' in suggested_type or 'scatter' in suggested_type or 'histogram' in suggested_type:
+            viz_type_hint = 'd3'
+        elif 'comparison' in suggested_type or 'compare' in suggested_type:
+            viz_type_hint = 'chart_bar'
+        elif 'trend' in suggested_type or 'trend' in suggested_type:
+            viz_type_hint = 'chart_line'
+        elif 'correlation' in suggested_type:
+            viz_type_hint = 'd3_scatter'
+        elif 'composition' in suggested_type or 'pie' in suggested_type:
+            viz_type_hint = 'chart_pie'
+        elif 'table' in suggested_type:
+            viz_type_hint = 'table'
+        
+        # 목적에 따라 시각화 타입 선택
+        if not viz_type_hint:
+            if purpose == 'comparison':
+                viz_type_hint = 'chart_bar'
+            elif purpose == 'data':
+                viz_type_hint = 'chart'
+            elif purpose == 'process':
+                viz_type_hint = 'flow'
+            elif purpose in ['structure', 'relationship']:
+                viz_type_hint = 'network'
+            elif purpose == 'timeline':
+                viz_type_hint = 'd3'
+            elif 'distribution' in opportunity.get('content', '').lower() or 'scatter' in opportunity.get('content', '').lower():
+                viz_type_hint = 'd3_scatter'
+            elif 'trend' in opportunity.get('content', '').lower() or 'change over time' in opportunity.get('content', '').lower():
+                viz_type_hint = 'chart_line'
+            elif 'correlation' in opportunity.get('content', '').lower() or 'relationship between' in opportunity.get('content', '').lower():
+                viz_type_hint = 'd3_scatter'
+            elif 'composition' in opportunity.get('content', '').lower() or 'proportion' in opportunity.get('content', '').lower() or 'percentage' in opportunity.get('content', '').lower():
+                viz_type_hint = 'chart_pie'
+            elif 'flow' in opportunity.get('content', '').lower() or 'process' in opportunity.get('content', '').lower():
+                viz_type_hint = 'flow'
+        
+        # 시각화 타입 로그 출력
+        if viz_type_hint:
+            logger.info(f"제안된 시각화 타입: {viz_type_hint} (제안된 타입: {suggested_type}, 목적: {purpose})")
+        
         """주어진 기회에 대해 최적의 시각화 생성"""
         prompt = ChatPromptTemplate.from_messages([
             ("system", """당신은 주어진 내용을 가장 효과적으로 시각화하는 전문가입니다.
@@ -182,6 +238,8 @@ JSON만 출력하세요."""),
    - treemap: 계층적 데이터 구조
    - sankey: 흐름 다이어그램
    - force: 힘 기반 다이어그램
+   - scatter: 분포 데이터, 상관관계
+   - histogram: 빈도 분포, 분포도
 
 5. **테이블 (HTML)**
    - 정확한 수치 비교
@@ -281,7 +339,7 @@ JSON만 출력하세요."""),
   "type": "d3",
   "library": "d3js",
   "title": "명확한 제목",
-  "visualization_type": "timeline|treemap|sankey|force",
+  "visualization_type": "timeline|treemap|sankey|force|scatter|histogram",
   "data": {{
     "nodes": [
       {{ "id": "node1", "name": "노드1", "value": 10 }},
@@ -337,6 +395,28 @@ JSON만 출력하세요."""),
                 content=opportunity.get('content', ''),
                 key_elements=', '.join(opportunity.get('key_elements', []))
             )
+            
+            # 시각화 타입 힌트가 있는 경우 프롬프트에 추가
+            if viz_type_hint:
+                # 프롬프트에 시각화 타입 힌트 추가
+                hint_type = viz_type_hint
+                hint_desc = ""
+                
+                if viz_type_hint == 'chart_bar':
+                    hint_type = 'chart'
+                    hint_desc = "\n\n이 데이터는 비교를 위한 것이므로 막대 차트(bar chart)를 사용하세요. chart_type을 'bar'로 설정하세요."
+                elif viz_type_hint == 'chart_line':
+                    hint_type = 'chart'
+                    hint_desc = "\n\n이 데이터는 추세나 시간에 따른 변화를 보여주는 것이므로 선 그래프(line chart)를 사용하세요. chart_type을 'line'으로 설정하세요."
+                elif viz_type_hint == 'chart_pie':
+                    hint_type = 'chart'
+                    hint_desc = "\n\n이 데이터는 구성이나 비율을 보여주는 것이므로 파이 차트(pie chart)를 사용하세요. chart_type을 'pie'로 설정하세요."
+                elif viz_type_hint == 'd3_scatter':
+                    hint_type = 'd3'
+                    hint_desc = "\n\n이 데이터는 분포나 상관관계를 보여주는 것이므로 D3.js를 사용한 산점도(scatter plot)를 사용하세요. visualization_type을 'scatter'로 설정하세요."
+                
+                hint_message = f"이 내용은 {hint_type} 타입의 시각화가 가장 적합합니다. 이 타입을 사용하여 시각화를 생성해주세요.{hint_desc}"
+                formatted_prompt.append(("human", hint_message))
 
             response = self.llm.invoke(formatted_prompt)
             content = response.content.strip()
