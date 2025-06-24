@@ -1,59 +1,121 @@
+// frontend/src/components/StatusDisplay.jsx
 import React from 'react';
 
 const StatusDisplay = ({ job }) => {
   if (!job) return null;
 
-  const getStepInfo = (status, progress) => {
-    // 실제 백엔드 단계와 동기화
-    if (status === 'queued') return { text: '대기 중...', icon: '⏳', step: 0 };
-    if (status === 'processing') {
-      if (progress <= 25) return { text: '자막 추출 중...', icon: '📝', step: 1 };
-      if (progress <= 50) return { text: 'AI 요약 생성 중...', icon: '🤖', step: 2 };
-      if (progress <= 75) return { text: '시각화 데이터 생성 중...', icon: '📊', step: 3 };
-      return { text: '최종 결과 생성 중...', icon: '🎯', step: 4 };
-    }
-    if (status === 'completed') return { text: '완료!', icon: '✅', step: 5 };
-    if (status === 'failed') return { text: '실패', icon: '❌', step: 0 };
-    return { text: '알 수 없음', icon: '❓', step: 0 };
+  const getStepInfo = (message) => {
+    // 메시지에서 현재 단계 파악
+    if (message.includes('자막')) return { step: 1, icon: '📝', phase: 'caption' };
+    if (message.includes('분석') || message.includes('요약')) return { step: 2, icon: '🧠', phase: 'analysis' };
+    if (message.includes('시각화')) return { step: 3, icon: '🎨', phase: 'visualization' };
+    if (message.includes('리포트')) return { step: 4, icon: '📊', phase: 'report' };
+    if (message.includes('완료')) return { step: 5, icon: '✅', phase: 'complete' };
+    return { step: 0, icon: '⏳', phase: 'waiting' };
   };
 
-  const currentStep = getStepInfo(job.status, job.progress || 0);
+  const currentStep = getStepInfo(job.message);
+
+  const steps = [
+    { id: 1, name: '자막 추출', icon: '📝', description: 'YouTube 영상의 자막을 추출합니다' },
+    { id: 2, name: '내용 분석', icon: '🧠', description: '영상 내용을 깊이 있게 분석합니다' },
+    { id: 3, name: '시각화 생성', icon: '🎨', description: '최적의 시각화를 자동 생성합니다' },
+    { id: 4, name: '리포트 작성', icon: '📊', description: '종합적인 리포트를 생성합니다' },
+    { id: 5, name: '완료', icon: '✅', description: '분석이 완료되었습니다' }
+  ];
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'queued': return '#fbbf24';
+      case 'processing': return '#3b82f6';
+      case 'completed': return '#10b981';
+      case 'failed': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
 
   return (
     <div className="status-display">
-      <h3>📊 처리 상태</h3>
-      
-      <div className="status-card">
-        <div className="status-info">
-          <span className={`status-badge ${job.status}`}>
-            {currentStep.icon} {currentStep.text}
-          </span>
+      <div className="status-header">
+        <h3>🔄 처리 상태</h3>
+        <span
+          className={`status-badge ${job.status}`}
+          style={{ backgroundColor: getStatusColor(job.status) }}
+        >
+          {job.status.toUpperCase()}
+        </span>
+      </div>
+
+      <div className="status-content">
+        {/* 진행 단계 */}
+        <div className="process-steps">
+          {steps.map((step) => (
+            <div
+              key={step.id}
+              className={`process-step ${
+                step.id <= currentStep.step ? 'completed' : ''
+              } ${step.id === currentStep.step ? 'active' : ''}`}
+            >
+              <div className="step-circle">
+                <span className="step-icon">{step.icon}</span>
+              </div>
+              <div className="step-info">
+                <h4>{step.name}</h4>
+                <p>{step.description}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
+        {/* 진행률 바 */}
         <div className="progress-container">
           <div className="progress-bar">
             <div
               className="progress-fill"
-              style={{ width: `${job.progress || 0}%` }}
-            />
+              style={{
+                width: `${job.progress || 0}%`,
+                backgroundColor: getStatusColor(job.status)
+              }}
+            >
+              <span className="progress-text">{job.progress || 0}%</span>
+            </div>
           </div>
-          <span className="progress-text">{job.progress || 0}%</span>
         </div>
 
-        <div className="job-details">
-          <div className="job-id">
-            <strong>작업 ID:</strong> {job.job_id}
-          </div>
+        {/* 현재 메시지 */}
+        <div className="status-message">
+          <p>{job.message}</p>
+        </div>
+
+        {/* 추가 정보 */}
+        <div className="status-details">
+          {job.job_id && job.job_id !== 'starting...' && (
+            <div className="detail-item">
+              <span className="detail-label">작업 ID:</span>
+              <span className="detail-value">{job.job_id}</span>
+            </div>
+          )}
           {job.created_at && (
-            <div className="job-time">
-              <strong>시작:</strong> {new Date(job.created_at).toLocaleTimeString()}
+            <div className="detail-item">
+              <span className="detail-label">시작 시간:</span>
+              <span className="detail-value">
+                {new Date(job.created_at).toLocaleTimeString('ko-KR')}
+              </span>
+            </div>
+          )}
+          {job.status === 'processing' && (
+            <div className="detail-item">
+              <span className="detail-label">예상 시간:</span>
+              <span className="detail-value">1-3분</span>
             </div>
           )}
         </div>
 
+        {/* 에러 메시지 */}
         {job.error && (
-          <div className="error-details">
-            <strong>오류:</strong> {job.error}
+          <div className="error-message">
+            <h4>❌ 오류 발생</h4>
+            <p>{job.error}</p>
           </div>
         )}
       </div>

@@ -1,21 +1,59 @@
-# YouTube Reporter - 의존성 충돌 해결
-# 핵심 LangChain & LangGraph (최신 호환 버전)
-langchain>=0.2.0
-langgraph>=0.1.0
-langchain-aws>=0.1.15
-langchain-core>=0.2.2
+# YouTube Reporter - 통합 버전 의존성
 
-# AWS & LLM API
-boto3
-requests
-python-dotenv
+# 핵심 LangChain & LangGraph (호환 버전)
+langchain>=0.2.0,<0.3.0
+langgraph>=0.1.0,<0.2.0
+langchain-aws>=0.1.15
+langchain-core>=0.2.2,<0.3.0
+langchain-community>=0.2.0
+
+# LangSmith (추적 및 모니터링)
+langsmith>=0.1.0
+
+# AWS SDK
+boto3>=1.28.0
+botocore>=1.31.0
 
 # 웹 프레임워크
-fastapi
-uvicorn[standard]
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+python-multipart>=0.0.6
 
-# 데이터 모델
-pydantic>=2.0
+# HTTP 요청
+requests>=2.31.0
+httpx>=0.24.0
+
+# 환경 변수
+python-dotenv>=1.0.0
+
+# 데이터 모델 및 검증
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 
 # 타입 지원
-typing-extensions
+typing-extensions>=4.7.0
+
+# 로깅 및 유틸리티
+colorlog>=6.7.0
+rich>=13.0.0
+
+# 비동기 지원
+aiofiles>=23.0.0
+asyncio>=3.4.3
+
+# JSON 처리
+ujson>=5.8.0
+
+# 날짜/시간
+python-dateutil>=2.8.2
+
+# 테스트 (선택사항)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# 개발 도구 (선택사항)
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+mypy>=1.4.0

@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - 컴포넌트 분리 버전
+// frontend/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import VideoInput from './components/VideoInput';
 import StatusDisplay from './components/StatusDisplay';
@@ -11,10 +11,10 @@ const App = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   // 영상 처리 시작
-  const handleProcessVideo = async (url, summaryLevel = 'detailed') => {
+  const handleProcessVideo = async (url) => {
     try {
       setError(null);
       setResult(null);
@@ -34,9 +34,8 @@ const App = () => {
       const response = await fetch(`${API_BASE}/api/v1/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          youtube_url: url,
-          summary_level: summaryLevel
+        body: JSON.stringify({
+          youtube_url: url
         }),
       });
 
@@ -52,7 +51,7 @@ const App = () => {
         job_id: data.job_id,
         status: 'queued',
         progress: 5,
-        message: '✅ 분석이 시작되었습니다! 자막을 추출하고 있습니다...',
+        message: data.message,
         created_at: new Date().toISOString()
       });
 
@@ -67,7 +66,7 @@ const App = () => {
 
   // 작업 상태 폴링
   const pollJobStatus = async (jobId) => {
-    const maxAttempts = 60; // 3분 대기
+    const maxAttempts = 120; // 6분 대기 (3초 간격)
     let attempts = 0;
 
     const poll = async () => {
@@ -96,7 +95,7 @@ const App = () => {
             attempts++;
             setTimeout(poll, 3000);
           } else {
-            setError('처리 시간이 너무 오래 걸립니다.');
+            setError('처리 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
           }
         }
 
@@ -179,6 +178,7 @@ const App = () => {
       }
     } catch (error) {
       console.warn('⚠️ API 연결 확인 실패:', error);
+      setError('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
     }
   };
 
@@ -193,9 +193,9 @@ const App = () => {
     <div className="app">
       <header className="header">
         <h1>🎬 YouTube Reporter</h1>
-        <p>AI 기반 YouTube 영상 분석 및 시각화 도구</p>
+        <p>AI 기반 YouTube 영상 분석 및 스마트 시각화 도구</p>
         <div className="header-subtitle">
-          LangGraph 에이전트 • MVC 아키텍처 • 실시간 분석
+          컨텍스트 기반 분석 • 자동 시각화 생성 • 포괄적 리포트
         </div>
       </header>
 
@@ -233,13 +233,11 @@ const App = () => {
         )}
 
         {/* 작업 기록 */}
-        {jobHistory.length > 0 && (
+        {jobHistory.length > 0 && !currentJob && !result && (
           <div className="job-history">
-            <h3>📜 작업 기록</h3>
+            <h3>📜 최근 작업 기록</h3>
             <div className="job-list">
               {jobHistory
-                .slice()
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                 .slice(0, 5)
                 .map((job) => (
                   <div key={job.job_id} className="job-item">
@@ -252,7 +250,7 @@ const App = () => {
                         {' '}{job.status}
                       </span>
                       <small className="job-time">
-                        {new Date(job.created_at).toLocaleString()}
+                        {new Date(job.created_at).toLocaleString('ko-KR')}
                       </small>
                     </div>
 
@@ -300,16 +298,24 @@ const App = () => {
               <div className="help-step">
                 <span className="step-number">2</span>
                 <div className="step-content">
-                  <h4>AI 분석 시작</h4>
-                  <p>LangGraph 에이전트가 자막을 추출하고 내용을 분석합니다</p>
+                  <h4>AI가 자동 분석</h4>
+                  <p>영상 내용을 완전히 이해할 수 있는 상세한 요약 생성</p>
                 </div>
               </div>
 
               <div className="help-step">
                 <span className="step-number">3</span>
                 <div className="step-content">
-                  <h4>시각화 결과 확인</h4>
-                  <p>차트, 마인드맵, 구조화된 텍스트로 결과를 확인하세요</p>
+                  <h4>스마트 시각화</h4>
+                  <p>내용에 맞는 최적의 차트, 다이어그램, 표를 자동 생성</p>
+                </div>
+              </div>
+
+              <div className="help-step">
+                <span className="step-number">4</span>
+                <div className="step-content">
+                  <h4>포괄적 리포트</h4>
+                  <p>텍스트와 시각화가 완벽하게 통합된 리포트 확인</p>
                 </div>
               </div>
             </div>
@@ -318,13 +324,15 @@ const App = () => {
       </main>
 
       <footer className="footer">
-        <p>YouTube Reporter v1.0.0 - MVC + LangGraph Architecture</p>
+        <p>YouTube Reporter v2.0.0 - Smart Visualization Edition</p>
         <div className="footer-links">
           <a href="/docs" target="_blank" rel="noopener noreferrer">
             📖 API 문서
           </a>
           <span>•</span>
           <span>🧠 Powered by LangGraph & Claude AI</span>
+          <span>•</span>
+          <span>📊 Smart Context-based Visualization</span>
         </div>
       </footer>
     </div>

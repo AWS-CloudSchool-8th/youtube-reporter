@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 
 const VideoInput = ({ onProcessVideo, isProcessing }) => {
   const [url, setUrl] = useState('');
-  const [summaryLevel, setSummaryLevel] = useState('detailed');
   const [error, setError] = useState('');
 
   const isValidYouTubeUrl = (url) => {
@@ -25,7 +24,7 @@ const VideoInput = ({ onProcessVideo, isProcessing }) => {
     }
 
     setError('');
-    onProcessVideo(url, summaryLevel);
+    onProcessVideo(url);
   };
 
   return (
@@ -40,20 +39,6 @@ const VideoInput = ({ onProcessVideo, isProcessing }) => {
             disabled={isProcessing}
             className="url-input"
           />
-          <div className="summary-level-selector">
-            <label htmlFor="summaryLevel">요약 레벨:</label>
-            <select 
-              id="summaryLevel"
-              value={summaryLevel} 
-              onChange={(e) => setSummaryLevel(e.target.value)}
-              disabled={isProcessing}
-              className="summary-select"
-            >
-              <option value="simple">간단 - 핵심만</option>
-              <option value="detailed">상세 - 기본</option>
-              <option value="expert">전문가 - 심화</option>
-            </select>
-          </div>
           <button
             type="submit"
             disabled={isProcessing || !url.trim()}
@@ -65,12 +50,23 @@ const VideoInput = ({ onProcessVideo, isProcessing }) => {
                 분석 중...
               </>
             ) : (
-              '🔍 분석 시작'
+              <>
+                🎯 스마트 분석 시작
+              </>
             )}
           </button>
         </div>
 
         {error && <div className="error-message">❌ {error}</div>}
+
+        <div className="input-info">
+          <p>🤖 AI가 영상을 분석하여 다음을 자동으로 생성합니다:</p>
+          <ul>
+            <li>📝 영상을 보지 않고도 이해할 수 있는 상세한 요약</li>
+            <li>📊 내용에 맞는 최적의 시각화 (차트, 다이어그램, 표 등)</li>
+            <li>💡 핵심 인사이트와 실행 가능한 조언</li>
+          </ul>
+        </div>
       </form>
     </div>
   );

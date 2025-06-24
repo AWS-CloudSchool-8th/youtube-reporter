@@ -1,4 +1,4 @@
-/* frontend/src/App.css - 완전한 스타일 */
+/* frontend/src/App.css - 통합 버전 */
 
 * {
   margin: 0;
@@ -92,12 +92,6 @@ body {
   transform: translateY(-1px);
 }
 
-.url-input:disabled {
-  background: #f8fafc;
-  color: #64748b;
-  cursor: not-allowed;
-}
-
 .process-btn {
   padding: 1rem 2rem;
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -126,32 +120,242 @@ body {
   transform: none;
 }
 
-.loading-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error-message {
-  color: #dc2626;
-  background: #fef2f2;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
-  font-weight: 500;
+.input-info {
+  background: #f0f4f8;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
   margin-top: 1rem;
 }
 
+.input-info p {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.input-info ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.input-info li {
+  padding: 0.25rem 0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-info li::before {
+  content: "→";
+  color: #6366f1;
+  font-weight: bold;
+}
+
+/* ===== 상태 표시 ===== */
+.status-display {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.status-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.3rem;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.process-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.process-step {
+  flex: 1;
+  min-width: 150px;
+  text-align: center;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.process-step.completed {
+  opacity: 1;
+}
+
+.process-step.active {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.step-circle {
+  width: 60px;
+  height: 60px;
+  background: #e2e8f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.process-step.completed .step-circle {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.process-step.active .step-circle {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
+
+.step-icon {
+  font-size: 1.5rem;
+}
+
+.step-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.step-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.progress-container {
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-text {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.status-message {
+  text-align: center;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.status-message p {
+  margin: 0;
+  color: #334155;
+  font-weight: 500;
+}
+
+.status-details {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.detail-item {
+  text-align: center;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
 /* ===== 에러 섹션 ===== */
-.error-section {
+.error-section,
+.error-message {
   background: rgba(239, 68, 68, 0.1);
   border: 2px solid #fecaca;
   border-radius: 16px;
@@ -164,7 +368,8 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.error-content p {
+.error-content p,
+.error-message p {
   color: #991b1b;
   margin-bottom: 1rem;
 }
@@ -179,542 +384,19 @@ body {
   font-weight: 500;
 }
 
-.error-dismiss:hover {
-  background: #b91c1c;
-}
-
-/* ===== 상태 표시 ===== */
-.status-display {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  margin-bottom: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.status-display h3 {
-  margin-bottom: 1.5rem;
-  color: #1e293b;
-  font-size: 1.3rem;
-}
-
-.status-card {
-  background: #f8fafc;
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.status-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.status-badge.queued {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: white;
-}
-
-.status-badge.processing {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  animation: pulse 2s infinite;
-}
-
-.status-badge.completed {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-}
-
-.status-badge.failed {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.02);
-  }
-}
-
-.status-message {
-  color: #475569;
-  font-weight: 500;
-  flex: 1;
-}
-
-.step-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.step-icon {
-  font-size: 1.2rem;
-}
-
-.step-text {
-  color: #475569;
-  font-weight: 500;
-  flex: 1;
-}
-
-.step-number {
-  background: #e2e8f0;
-  color: #64748b;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.progress-steps {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.progress-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  position: relative;
-}
-
-.progress-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 16px;
-  left: 60%;
-  right: -40%;
-  height: 2px;
-  background: #e2e8f0;
-  z-index: 1;
-}
-
-.progress-step.completed:not(:last-child)::after {
-  background: #10b981;
-}
-
-.step-circle {
-  width: 32px;
-  height: 32px;
+/* ===== 로딩 스피너 ===== */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  background: #e2e8f0;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.875rem;
-  position: relative;
-  z-index: 2;
-  transition: all 0.3s ease;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
 }
 
-.progress-step.completed .step-circle {
-  background: #10b981;
-  color: white;
-}
-
-.progress-step.active .step-circle {
-  background: #3b82f6;
-  color: white;
-  animation: pulse 2s infinite;
-}
-
-.step-label {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
-  text-align: center;
-}
-
-.progress-step.completed .step-label {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.progress-step.active .step-label {
-  color: #3b82f6;
-  font-weight: 600;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #6366f1, #4f46e5);
-  transition: width 0.5s ease;
-  border-radius: 10px;
-}
-
-.progress-text {
-  font-weight: 600;
-  color: #6366f1;
-  text-align: center;
-  margin-top: 0.5rem;
-}
-
-.job-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.job-id, .job-time {
-  font-family: 'Monaco', 'Menlo', monospace;
-}
-
-.error-details {
-  background: #fef2f2;
-  color: #dc2626;
-  padding: 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #fecaca;
-  margin-top: 1rem;
-  font-size: 0.875rem;
-}
-
-/* ===== 결과 뷰어 ===== */
-.result-viewer {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  margin-bottom: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.result-title {
-  color: #1e293b;
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.result-meta {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.created-time {
-  background: #f1f5f9;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.sections {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.section {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-/* 헤딩 섹션 */
-.heading-section {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
-  padding: 2rem;
-  text-align: center;
-}
-
-.heading-content h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.heading-description {
-  margin: 0;
-  opacity: 0.9;
-  font-size: 1.1rem;
-}
-
-/* 단락 섹션 */
-.paragraph-section {
-  background: #f8fafc;
-  padding: 2rem;
-  border-left: 4px solid #6366f1;
-}
-
-.paragraph-title {
-  color: #1e293b;
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.paragraph-content p {
-  line-height: 1.7;
-  color: #475569;
-  margin-bottom: 1rem;
-}
-
-.paragraph-content p:last-child {
-  margin-bottom: 0;
-}
-
-/* 차트 섹션 */
-.chart-section {
-  background: white;
-  padding: 1.5rem;
-}
-
-.chart-container {
-  position: relative;
-  height: 400px;
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.chart-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  background: #fef2f2;
-  border: 2px dashed #fca5a5;
-  border-radius: 8px;
-  color: #dc2626;
-  font-weight: 500;
-  text-align: center;
-  gap: 1rem;
-}
-
-.chart-error details {
-  max-width: 100%;
-}
-
-.chart-error summary {
-  cursor: pointer;
-  color: #991b1b;
-  font-weight: 600;
-}
-
-.chart-error pre {
-  background: #f8fafc;
-  padding: 1rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  max-height: 200px;
-  overflow: auto;
-  text-align: left;
-}
-
-/* 마인드맵 섹션 */
-.mindmap-section {
-  background: white;
-  padding: 1.5rem;
-}
-
-.mindmap-container {
-  width: 100%;
-}
-
-.mindmap-title {
-  text-align: center;
-  margin: 0 0 1.5rem 0;
-  color: #333;
-  font-size: 1.2rem;
-}
-
-.mindmap-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 2rem;
-  border-radius: 12px;
-  min-height: 300px;
-  position: relative;
-}
-
-.center-node {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem 2rem;
-  border-radius: 25px;
-  font-weight: bold;
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  text-align: center;
-  min-width: 120px;
-}
-
-.branches {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 800px;
-}
-
-.branch {
-  background: white;
-  padding: 1rem;
-  border-radius: 12px;
-  border: 2px solid #667eea;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.branch:hover {
-  transform: translateY(-2px);
-}
-
-.branch-label {
-  background: #667eea;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-.children {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.child-node {
-  background: linear-gradient(135deg, #ec4899 0%, #f093fb 100%);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 15px;
-  font-size: 0.85rem;
-  text-align: center;
-  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.2);
-  transition: transform 0.2s ease;
-}
-
-.child-node:hover {
-  transform: scale(1.02);
-}
-
-.mindmap-error {
-  background: #fef2f2;
-  color: #dc2626;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
-  text-align: center;
-}
-
-/* 알 수 없는 섹션 */
-.unknown-section {
-  background: #fff3cd;
-  border: 2px dashed #ffc107;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-.unknown-section h4 {
-  color: #856404;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-}
-
-.unknown-section p {
-  color: #856404;
-  margin-bottom: 1rem;
-}
-
-.debug-info {
-  margin-top: 1rem;
-}
-
-.debug-info summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: #856404;
-  margin-bottom: 0.5rem;
-}
-
-.debug-info pre {
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 4px;
-  overflow: auto;
-  font-size: 0.75rem;
-  max-height: 200px;
-}
-
-.no-sections {
-  text-align: center;
-  color: #64748b;
-  padding: 2rem;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ===== 작업 기록 ===== */
@@ -766,7 +448,6 @@ body {
 .job-time {
   color: #64748b;
   font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .job-message {
@@ -832,8 +513,8 @@ body {
 }
 
 .help-content {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
 }
 
@@ -871,6 +552,7 @@ body {
   color: #64748b;
   margin: 0;
   line-height: 1.5;
+  font-size: 0.875rem;
 }
 
 /* ===== 푸터 ===== */
@@ -927,62 +609,21 @@ body {
     font-size: 1rem;
   }
 
-  .header-subtitle {
-    font-size: 0.8rem;
+  .process-steps {
+    flex-direction: column;
   }
 
-  .branches {
+  .help-content {
     grid-template-columns: 1fr;
   }
 
-  .chart-container {
-    height: 300px;
-  }
-
-  .result-header {
+  .status-details {
     flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .help-step {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    gap: 1rem;
   }
 
   .footer-links {
     flex-direction: column;
     gap: 0.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 2rem 1rem;
-  }
-
-  .header h1 {
-    font-size: 1.8rem;
-  }
-
-  .video-input-section,
-  .status-display,
-  .result-viewer,
-  .job-history,
-  .help-section {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .mindmap-content {
-    padding: 1rem;
-  }
-
-  .branches {
-    gap: 1rem;
-  }
-
-  .branch {
-    padding: 0.75rem;
   }
 }

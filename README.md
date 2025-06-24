@@ -1,332 +1,242 @@
-# 🎬 YouTube Reporter
+# 🎬 YouTube Reporter v2.0 - Smart Visualization Edition
 
-AI 기반 YouTube 영상 분석 및 시각화 도구 - **LangGraph 에이전트 + 고급 시각화**
+AI 기반 YouTube 영상 분석 및 스마트 시각화 도구입니다. 영상을 보지 않고도 완전히 이해할 수 있는 포괄적 요약과 내용에 최적화된 시각화를 자동으로 생성합니다.
+
+## ✨ 주요 특징
+
+### 🧠 포괄적 요약 생성
+- **완전한 이해**: 영상을 보지 않아도 모든 내용을 이해할 수 있는 상세 요약
+- **구조화된 내용**: 논리적 흐름으로 체계적으로 정리
+- **맥락 제공**: 배경 정보와 전제 조건까지 포함
+
+### 🎨 스마트 시각화 시스템
+- **컨텍스트 분석**: AI가 내용을 깊이 분석하여 시각화 기회 자동 탐지
+- **최적 시각화 선택**: 내용에 따라 가장 효과적인 시각화 타입 자동 결정
+- **다양한 형식 지원**:
+  - 📊 차트 (막대, 선, 파이, 레이더, 산점도)
+  - 🔄 다이어그램 (플로우차트, 타임라인, 마인드맵)
+  - 📋 테이블 (비교표, 데이터 테이블)
+  - 🎯 고급 시각화 (네트워크, 히트맵 등)
+
+### 🚀 향상된 사용자 경험
+- **실시간 진행 상황**: 각 처리 단계별 상세 피드백
+- **통합 리포트**: 텍스트와 시각화가 완벽하게 결합된 리포트
+- **반응형 디자인**: 모든 디바이스에서 최적화된 경험
 
 ## 🏗️ 아키텍처
 
 ```
-📱 React Frontend → 🌐 FastAPI Backend → 🤖 LangGraph Agents → 📊 구조화된 JSON → 🎨 고급 시각화
-```
-
-### 🔥 주요 특징
-
-- **3단계 LangGraph 워크플로우**: 자막 추출 → AI 요약 → 시각화 데이터 생성
-- **실시간 처리**: 비동기 작업 및 단계별 진행률 표시
-- **고급 시각화**: 그라데이션, 애니메이션, 인터랙티브 차트
-- **필수 시각화**: 내용에 맞는 최소 1개 이상의 시각화 보장
-- **즉시 피드백**: 분석 시작 즉시 알림 및 상태 업데이트
-
-## 📊 데이터 흐름
-
-1. **자막 추출**: VidCap API → YouTube 자막 텍스트
-2. **AI 요약**: Claude AI → 영상 핵심 내용 요약
-3. **시각화 생성**: Claude AI → 내용 기반 맞춤형 시각화 데이터
-4. **고급 렌더링**: React + Recharts + 커스텀 컴포넌트
-
-## 📁 프로젝트 구조
-
-```
-youtube-reporter/
-├── main.py                     # 🚀 통합 실행 파일 (FastAPI)
-├── requirements.txt
-├── .env.example
+YouTube Reporter v2.0
+├── Backend (FastAPI + LangGraph)
+│   ├── Caption Agent: 자막 추출
+│   ├── Summary Agent: 포괄적 요약 생성
+│   ├── Visual Agent: 스마트 시각화 생성
+│   └── Report Agent: 최종 리포트 조합
 │
-├── app/                        # LangGraph 에이전트
-│   └── agents/                 # 🤖 3단계 워크플로우
-│       ├── caption_agent.py    # 자막 추출
-│       ├── summary_agent.py    # AI 요약 (NEW)
-│       ├── report_agent.py     # 맞춤형 시각화 생성
-│       └── graph_workflow.py   # LangGraph 워크플로우
-│
-└── frontend/                   # React 프론트엔드
-    ├── src/
-    │   ├── App.jsx              # 메인 앱 + 즉시 알림
-    │   └── components/
-    │       ├── VideoInput.jsx   # YouTube URL 입력
-    │       ├── StatusDisplay.jsx # 실시간 진행률
-    │       ├── ResultViewer.jsx  # 결과 표시
-    │       └── AdvancedVisualization.jsx # 🎨 고급 시각화
-    └── package.json
+└── Frontend (React)
+    ├── VideoInput: URL 입력
+    ├── StatusDisplay: 실시간 상태
+    ├── SmartVisualization: 다양한 시각화 렌더링
+    └── ResultViewer: 통합 리포트 표시
 ```
 
-## 🚀 빠른 시작
+## 📦 설치 방법
 
-### 1. 환경 설정
-
+### 1. 프로젝트 클론
 ```bash
-# 프로젝트 클론
 git clone <repository-url>
 cd youtube-reporter
-
-# Python 가상환경
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate    # Windows
-
-# 백엔드 의존성 설치
-pip install -r requirements.txt
-
-# 프론트엔드 설치
-cd frontend
-npm install
-cd ..
 ```
 
 ### 2. 환경 변수 설정
-
 ```bash
 cp .env.example .env
 ```
 
 `.env` 파일 편집:
-
-```bash
-# 필수 설정 - VidCap API (YouTube 자막 추출)
+```env
+# 필수 설정
 VIDCAP_API_KEY=your_vidcap_api_key_here
-
-# 필수 설정 - AWS Bedrock (Claude AI)
 AWS_REGION=us-west-2
 AWS_BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 
-# AWS 인증 (AWS CLI 또는 환경변수)
-# AWS_ACCESS_KEY_ID=your_access_key
-# AWS_SECRET_ACCESS_KEY=your_secret_key
+# AWS 인증 (AWS CLI 설정이 없는 경우)
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
 
-### 3. 실행
-
+### 3. 백엔드 설정
 ```bash
-# 백엔드 서버 (터미널 1)
-python main.py
+# Python 가상환경 생성
+python -m venv venv
 
-# 프론트엔드 서버 (터미널 2)
+# 가상환경 활성화
+# Linux/Mac:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+```
+
+### 4. 프론트엔드 설정
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+## 🚀 실행 방법
+
+### 방법 1: 개별 실행
+
+**터미널 1 - 백엔드 서버:**
+```bash
+python main.py
+```
+
+**터미널 2 - 프론트엔드 서버:**
+```bash
 cd frontend
 npm start
 ```
 
-- 🌐 웹 인터페이스: http://localhost:3000
-- 📖 API 문서: http://localhost:8000/docs
-
-## 🎨 고급 시각화 기능
-
-### 지원하는 시각화 타입
-
-1. **📊 기본 데이터 차트**
-   - 막대 차트 (Bar Chart) - 비교 데이터
-   - 선 차트 (Line Chart) - 트렌드, 시간 변화
-   - 파이 차트 (Pie Chart) - 비율, 구성 요소
-
-2. **🧠 인터랙티브 마인드맵 (NEW)**
-   - **D3.js Force-directed Graph**: 물리 시뮬레이션 기반
-   - **실시간 편집**: 클릭→편집, 더블클릭→추가, 우클릭→삭제
-   - **드래그 & 줌**: 자유로운 노드 조작
-   - **동적 연결**: 부모-자식 관계 시각화
-
-3. **🎨 고급 ApexCharts (NEW)**
-   - **3D 산점도**: 3차원 데이터 시각화
-   - **실시간 라인**: 애니메이션과 실시간 업데이트
-   - **혼합 차트**: 막대+선 차트, 다중 Y축
-   - **히트맵**: 데이터 밀도와 패턴 표현
-   - **레이더 차트**: 다차원 데이터 비교
-   - **트리맵**: 계층적 데이터 구조
-
-4. **🔄 프로세스 시각화**
-   - 프로세스 플로우 - 단계별 과정
-   - 타임라인 - 시간순 이벤트
-
-5. **📋 구조화 시각화**
-   - 비교 테이블 - 제품/서비스 비교
-   - 게이지 차트 - 진행률, 성과 지표
-
-### 시각화 특징
-
-- **🎨 아름다운 디자인**: 그라데이션, 그림자, 둥근 모서리
-- **✨ 부드러운 애니메이션**: 페이드인, 스케일, 호버 효과
-- **📱 반응형**: 모바일/태블릿 최적화
-- **🎯 맞춤형 생성**: 영상 내용에 따른 적절한 시각화 선택
-- **⚡ 성능 최적화**: Lazy Loading, 메모리 관리, 대용량 데이터 처리
-- **🤖 AI 기반 추천**: 데이터 타입 분석 후 최적 시각화 자동 선택
-- **🛡️ 에러 처리**: Error Boundary와 폴백 시스템
-- **🎮 인터랙티브**: 드래그, 줌, 실시간 편집 지원
-
-## 🤖 개선된 LangGraph 워크플로우
-
-```mermaid
-graph LR
-    A[YouTube URL] --> B[Caption Agent]
-    B --> C[Summary Agent]
-    C --> D[Report Agent]
-    D --> E[JSON Output]
-    E --> F[Advanced Visualization]
-
-    B --> G[자막 추출<br/>📝 20%]
-    C --> H[AI 요약<br/>🧠 50%]
-    D --> I[맞춤형 시각화<br/>📊 80%]
-    F --> J[고급 렌더링<br/>🎉 100%]
+### 방법 2: 동시 실행 (추천)
+```bash
+# 백엔드와 프론트엔드를 동시에 실행하는 스크립트 작성
+# run.sh (Linux/Mac) 또는 run.bat (Windows)
 ```
 
-### 3단계 처리 과정
+## 📱 사용 방법
 
-1. **Caption Agent**: VidCap API로 자막 추출
-2. **Summary Agent**: Claude AI로 핵심 내용 요약 (NEW)
-3. **Report Agent**: 요약 기반 맞춤형 시각화 데이터 생성
+1. **웹 브라우저 접속**: http://localhost:3000
+2. **YouTube URL 입력**: 분석할 영상의 URL 입력
+3. **분석 시작**: "🎯 스마트 분석 시작" 버튼 클릭
+4. **진행 상황 확인**: 실시간으로 처리 단계 확인
+   - 📝 자막 추출
+   - 🧠 내용 분석
+   - 🎨 시각화 생성
+   - 📊 리포트 작성
+5. **결과 확인**: 포괄적 요약과 스마트 시각화가 포함된 리포트 확인
 
-### 실시간 피드백
+## 🔧 API 엔드포인트
 
-- **🚀 즉시 시작 알림**: "분석을 시작합니다..."
-- **📝 20%**: 자막을 추출하고 있습니다...
-- **🧠 50%**: 영상 내용을 요약하고 있습니다...
-- **📊 80%**: 시각화 자료를 생성하고 있습니다...
-- **🎉 100%**: 분석이 완료되었습니다!
+| 메서드 | 엔드포인트 | 설명 |
+|--------|------------|------|
+| `GET` | `/` | API 문서로 리다이렉트 |
+| `GET` | `/health` | 서비스 상태 확인 |
+| `GET` | `/api/v1/` | API 정보 |
+| `POST` | `/api/v1/process` | 영상 처리 시작 |
+| `GET` | `/api/v1/jobs/{job_id}/status` | 작업 상태 조회 |
+| `GET` | `/api/v1/jobs/{job_id}/result` | 작업 결과 조회 |
+| `GET` | `/api/v1/jobs` | 작업 목록 조회 |
 
-## 📊 시각화 생성 전략
+**API 문서**: http://localhost:8000/docs
 
-### 우선순위 시스템
+## 📊 시각화 예제
 
-1. **1순위**: 실제 수치 데이터 → 차트 (막대/선/파이)
-2. **2순위**: 과정/단계 → 프로세스 플로우
-3. **3순위**: 시간순 내용 → 타임라인
-4. **4순위**: 비교 내용 → 비교 테이블
-5. **5순위**: 개념 정리 → 마인드맵 (항상 가능)
-
-### 필수 시각화 보장
-
-- **최소 1개 보장**: 어떤 내용이든 최소 1개 시각화 생성
-- **내용 기반**: 영상에서 언급된 실제 데이터 우선 사용
-- **Fallback**: 데이터 부족 시 마인드맵으로 개념 구조화
-
-## 🔧 사용법
-
-1. **YouTube URL 입력**: 분석할 영상 URL 입력
-2. **즉시 피드백**: "🚀 분석을 시작합니다..." 알림
-3. **실시간 진행률**: 단계별 진행 상황 확인
-4. **고급 시각화**: 아름다운 차트와 애니메이션으로 결과 확인
-
-## 🎨 시각화 라이브러리
-
-### 프론트엔드 스택
-
-- **Recharts**: 반응형 차트 (막대, 선, 파이)
-- **D3.js**: 인터랙티브 마인드맵, Force-directed Graph
-- **ApexCharts**: 고급 차트 (3D, 실시간, 혼합, 히트맵, 레이더)
-- **Plotly.js**: 3D 시각화, 과학적 차트
-- **Framer Motion**: 부드러운 애니메이션
-- **React Spring**: 스프링 기반 애니메이션
-- **React.lazy**: 성능 최적화를 위한 코드 분할
-- **커스텀 CSS**: 그라데이션, 호버 효과, 반응형 디자인
-
-### 색상 팔레트
-
-```css
-/* 아름다운 그라데이션 색상 */
-linear-gradient(135deg, #667eea 0%, #764ba2 100%)
-linear-gradient(135deg, #f093fb 0%, #f5576c 100%)
-linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)
-linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)
+### 차트 (Chart.js)
+```javascript
+{
+  type: "chart",
+  library: "chartjs",
+  config: {
+    type: "bar",
+    data: {
+      labels: ["항목1", "항목2", "항목3"],
+      datasets: [{
+        label: "데이터",
+        data: [10, 20, 30]
+      }]
+    }
+  }
+}
 ```
 
-## 🔍 API 엔드포인트
+### 다이어그램 (Mermaid)
+```javascript
+{
+  type: "diagram",
+  library: "mermaid",
+  code: "graph TD\n  A[시작] --> B[처리]\n  B --> C[완료]"
+}
+```
 
-| 메서드 | 엔드포인트                     | 설명                    |
-| ------ | ------------------------------ | ----------------------- |
-| `POST` | `/api/v1/process`              | 영상 처리 시작          |
-| `GET`  | `/api/v1/jobs/{job_id}/status` | 실시간 작업 상태 조회   |
-| `GET`  | `/api/v1/jobs/{job_id}/result` | 시각화 결과 조회 (JSON) |
-| `GET`  | `/api/v1/jobs`                 | 모든 작업 목록          |
-| `GET`  | `/api/v1/`                     | API 상태 확인           |
-| `GET`  | `/docs`                        | API 문서                |
+### 테이블
+```javascript
+{
+  type: "table",
+  headers: ["항목", "값", "설명"],
+  rows: [
+    ["항목1", "10", "설명1"],
+    ["항목2", "20", "설명2"]
+  ]
+}
+```
 
-## 💻 기술 스택
+## 🛠️ 기술 스택
 
-### 백엔드
-
-- **FastAPI**: 고성능 웹 API
+### Backend
+- **FastAPI**: 고성능 웹 프레임워크
 - **LangGraph**: AI 에이전트 워크플로우
-- **LangChain**: LLM 추상화
-- **AWS Bedrock**: Claude AI
+- **LangChain**: LLM 추상화 레이어
+- **Claude AI (AWS Bedrock)**: 텍스트 분석 및 생성
 - **VidCap API**: YouTube 자막 추출
 
-### 프론트엔드
+### Frontend
+- **React 18**: 최신 React 기능 활용
+- **Chart.js**: 다양한 차트 시각화
+- **Mermaid**: 다이어그램 생성
+- **CSS3**: 모던한 스타일링
 
-- **React 18**: 최신 React (Suspense, lazy loading)
-- **D3.js v7**: 인터랙티브 마인드맵, 물리 시뮬레이션
-- **ApexCharts v4**: 고급 차트 라이브러리
-- **Recharts**: 반응형 기본 차트
-- **Plotly.js**: 3D 및 과학적 시각화
-- **Framer Motion**: 부드러운 애니메이션
-- **CSS Grid/Flexbox**: 반응형 레이아웃
-- **Error Boundaries**: 안정적인 에러 처리
+## 🔍 문제 해결
 
-## 🔧 문제 해결
+### 1. 자막 추출 실패
+- YouTube 영상에 자막이 있는지 확인
+- VidCap API 키가 올바른지 확인
+- 한국어 자막이 있는 영상 권장
 
-### 의존성 설치 오류
-
+### 2. AWS Bedrock 오류
 ```bash
-# React 18 호환 라이브러리만 사용
-cd frontend
-npm install --legacy-peer-deps
-```
-
-### 환경 변수 확인
-
-```bash
-python -c "import os; print('VIDCAP_API_KEY:', bool(os.getenv('VIDCAP_API_KEY')))"
-```
-
-### AWS 설정 확인
-
-```bash
+# AWS 자격 증명 확인
 aws configure list
+
+# Bedrock 모델 확인
 aws bedrock list-foundation-models --region us-west-2
 ```
 
-## 📈 최근 업데이트
+### 3. 프론트엔드 연결 실패
+- 백엔드 서버가 실행 중인지 확인
+- CORS 설정 확인
+- 포트 충돌 확인 (8000, 3000)
 
-### v2.0.0 - 🚀 마인드맵 & 고급 시각화 대폭 업그레이드
+## 📈 성능 최적화
 
-#### 🧠 D3.js 기반 인터랙티브 마인드맵
-- **Force-directed Graph**: 물리 시뮬레이션 기반 자연스러운 레이아웃
-- **실시간 편집**: 클릭→편집, 더블클릭→추가, 우클릭→삭제
-- **드래그 & 줌**: 자유로운 탐색과 조작
-- **동적 연결**: 노드 간 실시간 링크 생성
+- **자막 전처리**: 긴 자막은 중요 부분만 추출
+- **비동기 처리**: 백그라운드 작업으로 응답 속도 향상
+- **캐싱**: 작업 결과 메모리 캐싱
+- **컴포넌트 최적화**: React 컴포넌트 lazy loading
 
-#### 🎨 ApexCharts & Plotly 고급 시각화
-- **3D 차트**: 3D 산점도, 표면 차트, 홀로그램 스타일
-- **실시간 차트**: 애니메이션과 실시간 데이터 업데이트
-- **혼합 차트**: 막대+선 차트, 다중 Y축 지원
-- **히트맵 & 레이더**: 복잡한 데이터 패턴 시각화
-- **트리맵**: 계층적 데이터 표현
+## 🤝 기여 방법
 
-#### ⚡ 성능 최적화 & AI 기반 자동화
-- **Lazy Loading**: 고급 컴포넌트 필요시에만 로드
-- **Performance Mode**: 대용량 데이터 자동 감지 및 최적화
-- **AI 시각화 추천**: 데이터 타입에 따른 최적 차트 자동 선택
-- **Error Boundary**: 시각화 실패시 폴백 시스템
-- **Memory Management**: 불필요한 렌더링 방지
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-#### 🎯 향상된 사용자 경험
-- **마인드맵 편집기**: VisualizationEditor에서 마인드맵 노드 직접 편집
-- **테마 시스템**: 다크모드, 프로페셔널, 네이처 테마
-- **반응형 디자인**: 모든 디바이스에서 완벽한 시각화
-- **실시간 피드백**: 로딩 상태와 에러 처리 개선
+## 📄 라이선스
 
-### v1.2.0 - 고급 시각화 및 UX 개선
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
-- ✨ 고급 시각화: 그라데이션, 애니메이션, 호버 효과
-- 🚀 즉시 피드백: 분석 시작 알림 및 실시간 진행률
-- 🎯 필수 시각화: 내용에 맞는 최소 1개 시각화 보장
-- 🤖 3단계 워크플로우: 자막 → 요약 → 시각화
-- 📱 반응형 디자인: 모바일/태블릿 최적화
+## 🙏 감사의 말
 
-### v1.1.0 - 구조 단순화
+- Anthropic Claude AI
+- LangChain & LangGraph 커뮤니티
+- Chart.js, Mermaid.js 개발자들
+- 모든 오픈소스 기여자들
 
-- 🔧 단일 main.py 실행 파일
-- 📊 동적 시각화 생성
-- 🛠️ 의존성 충돌 해결
+---
 
-## 🔐 보안 고려사항
-
-- API 키는 환경 변수로 관리
-- CORS 설정으로 도메인 제한
-- 입력 검증: YouTube URL 형식 검증
-- 에러 처리: 민감한 정보 노출 방지
+**Made with ❤️ by YouTube Reporter Team**
