@@ -1,0 +1,366 @@
+/* frontend/src/components/VideoInput.css - 추가 스타일 */
+
+/* URL 입력 컨테이너 */
+.url-input-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.url-input.valid {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.url-input.invalid {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.url-input.validating {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* URL 상태 표시 */
+.url-status {
+  position: absolute;
+  right: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  z-index: 2;
+}
+
+.url-status.valid {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.url-status.invalid {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.url-status.validating {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-icon {
+  font-size: 0.875rem;
+}
+
+.status-text {
+  white-space: nowrap;
+}
+
+/* 입력 도구 */
+.input-tools {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 0.25rem;
+  z-index: 3;
+}
+
+.tool-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(100, 116, 139, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.tool-btn:hover {
+  background: rgba(100, 116, 139, 0.2);
+  transform: scale(1.05);
+}
+
+.clear-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.paste-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+/* 처리 버튼 준비 상태 */
+.process-btn.ready {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.process-btn.ready:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* 최근 URL 섹션 */
+.recent-urls {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.recent-urls h4 {
+  margin: 0 0 0.75rem 0;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.url-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recent-url-btn {
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #475569;
+  transition: all 0.2s ease;
+}
+
+.recent-url-btn:hover {
+  background: #f1f5f9;
+  border-color: #6366f1;
+  transform: translateX(2px);
+}
+
+/* URL 형식 설명 */
+.url-formats {
+  margin-top: 1rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.url-formats summary {
+  padding: 0.75rem 1rem;
+  background: #e0f2fe;
+  cursor: pointer;
+  font-weight: 500;
+  color: #0c4a6e;
+  user-select: none;
+}
+
+.url-formats summary:hover {
+  background: #bae6fd;
+}
+
+.format-examples {
+  padding: 1rem;
+}
+
+.format-examples p {
+  margin: 0.25rem 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #047857;
+}
+
+/* 시스템 상태 표시 */
+.system-status {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* 에러 액션 버튼들 */
+.error-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.error-retry {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.error-retry:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+/* StatusDisplay 개선 */
+.status-display .cancel-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.status-display .cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.1);
+}
+
+/* ResultViewer 개선 */
+.result-viewer .new-analysis-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+}
+
+.result-viewer .new-analysis-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 로딩 애니메이션 개선 */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+.process-step.active .step-circle {
+  animation: pulse-glow 2s infinite;
+}
+
+/* 반응형 개선 */
+@media (max-width: 768px) {
+  .url-input-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .url-status {
+    position: static;
+    transform: none;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  .input-tools {
+    position: static;
+    transform: none;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+
+  .recent-urls {
+    margin-top: 1.5rem;
+  }
+
+  .url-list {
+    max-height: 150px;
+    overflow-y: auto;
+  }
+}
+
+/* 다크 모드 지원 (선택적) */
+@media (prefers-color-scheme: dark) {
+  .recent-urls {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .recent-urls h4 {
+    color: #e2e8f0;
+  }
+
+  .recent-url-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+
+  .recent-url-btn:hover {
+    background: #475569;
+    border-color: #6366f1;
+  }
+
+  .url-formats {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .url-formats summary {
+    background: #334155;
+    color: #e2e8f0;
+  }
+
+  .format-examples p {
+    color: #10b981;
+  }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  .tool-btn,
+  .recent-url-btn,
+  .process-btn,
+  .error-retry {
+    transform: none !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .process-step.active .step-circle {
+    animation: none;
+  }
+
+  @keyframes pulse-glow {
+    to {
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+  }
+}

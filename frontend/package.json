@@ -4,24 +4,32 @@
   "description": "YouTube Reporter 프론트엔드 - 스마트 시각화 에디션",
   "private": true,
   "dependencies": {
-    "axios": "^1.5.0",
+    "axios": "^1.6.0",
     "chart.js": "^4.4.0",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
-    "web-vitals": "^3.4.0"
+    "web-vitals": "^3.5.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev": "react-scripts start",
+    "preview": "serve -s build",
+    "analyze": "npm run build && npx bundle-analyzer build/static/js/*.js"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules": {
+      "no-console": "warn",
+      "no-unused-vars": "warn",
+      "react-hooks/exhaustive-deps": "warn"
+    }
   },
   "browserslist": {
     "production": [
@@ -37,6 +45,30 @@
   },
   "proxy": "http://localhost:8000",
   "devDependencies": {
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "homepage": ".",
+  "keywords": [
+    "youtube",
+    "ai",
+    "analysis",
+    "visualization",
+    "react",
+    "langraph",
+    "claude"
+  ],
+  "author": "YouTube Reporter Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-repo/youtube-reporter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-repo/youtube-reporter/issues"
   }
 }
