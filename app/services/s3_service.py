@@ -1,154 +1,96 @@
 import boto3
-import json
-import hashlib
-from datetime import datetime
-from typing import Dict, Any, Optional
-from fastapi import HTTPException
+import os
 from app.core.config import settings
 
 class S3Service:
     def __init__(self):
-        self.s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
-        self.bucket_name = settings.S3_BUCKET_NAME
-
-    def generate_report_id(self, content: str) -> str:
-        """보고서 내용 기반 고유 ID 생성"""
-        return hashlib.md5(content.encode('utf-8')).hexdigest()[:12]
-
-    def sanitize_filename(self, filename: str) -> str:
-        """파일명에서 특수문자 제거"""
-        import re
-        return re.sub(r'[^\w\-_\.]', '_', filename)
-
-    async def upload_report(self, report_content: str, job_id: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """보고서를 S3에 업로드"""
+        # 명시적으로 자격 증명 설정
+        self.s3_client = boto3.client(
+            's3', 
+            region_name=settings.AWS_REGION,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        
+        # AWS_S3_BUCKET을 우선 사용하고, 없으면 S3_BUCKET_NAME 사용
+        self.bucket_name = settings.AWS_S3_BUCKET or settings.S3_BUCKET_NAME
+        
+        # 초기화 시 버킷 정보 출력
+        print(f"🪣 S3 서비스 초기화: 버킷={self.bucket_name}, 리전={settings.AWS_REGION}")
+    
+    def upload_file(self, file_path, object_name=None, content_type=None, acl="public-read"):
+        """파일을 S3에 업로드"""
         try:
-            report_id = self.generate_report_id(report_content)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # 객체 이름이 지정되지 않은 경우 파일 이름 사용
+            if object_name is None:
+                object_name = os.path.basename(file_path)
             
-            # JSON 형태로 보고서 저장
-            report_data = {
-                "job_id": job_id,
-                "report_id": report_id,
-                "content": report_content,
-                "metadata": metadata or {},
-                "created_at": datetime.now().isoformat(),
-                "word_count": len(report_content.split()),
-                "character_count": len(report_content)
-            }
+            # 파일 존재 확인
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"파일을 찾을 수 없음: {file_path}")
             
-            # S3 키 생성
-            s3_key = f"reports/{timestamp}_{job_id}_{report_id}.json"
+            # 파일 크기 확인
+            file_size = os.path.getsize(file_path)
             
-            # S3에 업로드
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=s3_key,
-                Body=json.dumps(report_data, ensure_ascii=False, indent=2),
-                ContentType='application/json',
-                Metadata={
-                    'job-id': job_id,
-                    'report-id': report_id,
-                    'created-at': timestamp,
-                    'content-type': 'analysis-report'
-                }
-            )
+            # 업로드 옵션 설정
+            extra_args = {"ACL": acl}
+            if content_type:
+                extra_args["ContentType"] = content_type
             
-            # 텍스트 파일도 별도 저장
-            text_s3_key = f"reports/text/{timestamp}_{job_id}_{report_id}.txt"
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=text_s3_key,
-                Body=report_content.encode('utf-8'),
-                ContentType='text/plain; charset=utf-8'
-            )
+            # 파일 업로드
+            print(f"📤 S3 업로드 시작: {file_path} → {object_name} (크기: {file_size} 바이트)")
             
-            return {
-                "success": True,
-                "report_id": report_id,
-                "s3_key": s3_key,
-                "text_s3_key": text_s3_key,
-                "bucket": self.bucket_name,
-                "url": f"s3://{self.bucket_name}/{s3_key}",
-                "size": len(json.dumps(report_data, ensure_ascii=False))
-            }
+            with open(file_path, 'rb') as file_data:
+                self.s3_client.upload_fileobj(
+                    file_data,
+                    self.bucket_name,
+                    object_name,
+                    ExtraArgs=extra_args
+                )
+            
+            # 업로드 성공 시 URL 반환
+            url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{object_name}"
+            print(f"✅ S3 업로드 성공: {url}")
+            return url
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 업로드 실패: {str(e)}")
-
-    async def get_report(self, report_id: str) -> Dict[str, Any]:
-        """S3에서 보고서 조회"""
-        try:
-            # S3에서 보고서 검색
-            response = self.s3_client.list_objects_v2(
-                Bucket=self.bucket_name,
-                Prefix=f"reports/",
-                MaxKeys=1000
-            )
-            
-            for obj in response.get('Contents', []):
-                if report_id in obj['Key'] and obj['Key'].endswith('.json'):
-                    # 보고서 다운로드
-                    file_response = self.s3_client.get_object(Bucket=self.bucket_name, Key=obj['Key'])
-                    content = file_response['Body'].read().decode('utf-8')
-                    return {
-                        "success": True,
-                        "data": json.loads(content),
-                        "s3_key": obj['Key'],
-                        "last_modified": obj['LastModified'].isoformat()
-                    }
-            
-            raise HTTPException(status_code=404, detail=f"보고서 ID {report_id}를 찾을 수 없습니다")
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 조회 실패: {str(e)}")
-
-    async def list_reports(self, limit: int = 20) -> Dict[str, Any]:
-        """S3에 저장된 보고서 목록 조회"""
+            error_msg = f"❌ S3 업로드 실패: {str(e)}"
+            print(error_msg)
+            return f"[S3 upload failed: {str(e)}]"
+    
+    def list_objects(self, prefix="", max_keys=100):
+        """S3 버킷 내 객체 목록 조회"""
         try:
             response = self.s3_client.list_objects_v2(
                 Bucket=self.bucket_name,
-                Prefix="reports/",
-                MaxKeys=limit
+                Prefix=prefix,
+                MaxKeys=max_keys
             )
             
-            reports = []
-            for obj in response.get('Contents', []):
-                if obj['Key'].endswith('.json'):
-                    try:
-                        head_response = self.s3_client.head_object(Bucket=self.bucket_name, Key=obj['Key'])
-                        metadata = head_response.get('Metadata', {})
-                        
-                        reports.append({
-                            "s3_key": obj['Key'],
-                            "size": obj['Size'],
-                            "last_modified": obj['LastModified'].isoformat(),
-                            "job_id": metadata.get('job-id', 'unknown'),
-                            "report_id": metadata.get('report-id', 'unknown'),
-                            "created_at": metadata.get('created-at', 'unknown')
-                        })
-                    except Exception as e:
-                        print(f"메타데이터 조회 실패: {e}")
-                        continue
-            
-            return {
-                "total_reports": len(reports),
-                "reports": sorted(reports, key=lambda x: x["last_modified"], reverse=True),
-                "bucket": self.bucket_name,
-                "timestamp": datetime.now().isoformat()
-            }
+            if 'Contents' in response:
+                return response['Contents']
+            return []
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 보고서 목록 조회 실패: {str(e)}")
+            print(f"❌ S3 객체 목록 조회 실패: {str(e)}")
+            return []
 
-    async def delete_report(self, s3_key: str) -> bool:
-        """S3에서 보고서 삭제"""
+    def get_file_content(self, object_name: str) -> str:
+        """S3에서 파일 내용을 문자열로 읽어오기"""
         try:
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_key)
-            return True
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=object_name
+            )
+            
+            # 파일 내용을 UTF-8로 디코딩
+            content = response['Body'].read().decode('utf-8')
+            print(f"✅ S3 파일 내용 읽기 성공: {object_name}")
+            return content
+            
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"보고서 삭제 실패: {str(e)}")
+            print(f"❌ S3 파일 내용 읽기 실패: {object_name} - {str(e)}")
+            return None
 
-s3_service = S3Service() 
+# 싱글톤 인스턴스
+s3_service = S3Service()

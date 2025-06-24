@@ -11,6 +11,7 @@ from app.services.state_manager import state_manager
 from app.services.langgraph_service import langgraph_service
 from app.services.user_s3_service import user_s3_service
 from app.models.auth import SignInRequest
+from app.services.s3_service import s3_service
 
 router = APIRouter(prefix="/user", tags=["user-analysis"])
 
@@ -198,6 +199,60 @@ async def download_report(
         "download_url": download_url,
         "expires_in": 3600
     }
+
+@router.get("/reports/{report_id}/metadata")
+async def get_report_metadata(
+    report_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """보고서 메타데이터 조회 (YouTube 정보 포함)"""
+    user_id = current_user["user_id"]
+    
+    # 보고서 조회 및 권한 확인
+    report = db.query(UserReport).filter(
+        UserReport.id == report_id,
+        UserReport.user_id == user_id
+    ).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    try:
+        # 메타데이터 파일 조회
+        metadata_key = f"metadata/{report.job_id}_metadata.json"
+        metadata_content = s3_service.get_file_content(metadata_key)
+        
+        if metadata_content:
+            import json
+            metadata = json.loads(metadata_content)
+            return metadata
+        else:
+            # 메타데이터가 없으면 기본 정보만 반환
+            return {
+                "youtube_url": "",
+                "user_id": user_id,
+                "job_id": str(report.job_id),
+                "timestamp": report.created_at.isoformat(),
+                "youtube_title": "",
+                "youtube_channel": "",
+                "youtube_duration": "",
+                "youtube_thumbnail": ""
+            }
+            
+    except Exception as e:
+        print(f"메타데이터 조회 실패: {e}")
+        # 기본 정보만 반환
+        return {
+            "youtube_url": "",
+            "user_id": user_id,
+            "job_id": str(report.job_id),
+            "timestamp": report.created_at.isoformat(),
+            "youtube_title": "",
+            "youtube_channel": "",
+            "youtube_duration": "",
+            "youtube_thumbnail": ""
+        }
 
 @router.delete("/jobs/{job_id}")
 async def delete_job(

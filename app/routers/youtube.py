@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from app.models.youtube import (
     YouTubeSearchRequest,
     YouTubeSearchResponse,
@@ -6,6 +6,7 @@ from app.models.youtube import (
     YouTubeAnalysisResponse
 )
 from app.services.youtube_service import youtube_service
+from app.core.auth import get_current_user
 
 router = APIRouter(
     prefix="/youtube",
@@ -36,7 +37,8 @@ class YouTubeAnalysisRequestBody(BaseModel):
 @router.post("/analysis")
 async def analyze_youtube_with_fsm(
     request: YouTubeAnalysisRequestBody,
-    raw_request: Request
+    raw_request: Request,
+    current_user: dict = Depends(get_current_user)
 ):
     """LangGraph FSM을 사용한 YouTube 분석"""
     from app.services.analysis_service import analysis_service
@@ -49,8 +51,11 @@ async def analyze_youtube_with_fsm(
     print(f"DEBUG: Raw body: {body}")
     
     try:
-        # FSM 분석 실행  
-        result = await analysis_service.analyze_youtube_with_fsm(request.youtube_url)
+        # user_id를 명시적으로 전달
+        result = await analysis_service.analyze_youtube_with_fsm(
+            request.youtube_url,
+            user_id=current_user["user_id"]
+        )
         return result
         
     except Exception as e:

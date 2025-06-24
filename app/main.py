@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import analysis, audio, document, youtube, report, auth, user_analysis
+from app.routers import analysis, audio, document, youtube, report, auth, user_analysis, s3
 from app.core.database import engine
 from app.models.database_models import Base
 
@@ -32,6 +32,7 @@ app.include_router(audio.router)
 app.include_router(document.router)
 app.include_router(youtube.router)
 app.include_router(report.router)
+app.include_router(s3.router)  # S3 라우터 추가
 
 @app.get("/")
 async def root():
@@ -65,6 +66,7 @@ async def root():
             "audio_generation": "/audio/generate",
             "audio_streaming": "/audio/stream/{audio_id}",
             "s3_reports": "/reports/list",
+            "s3_list": "/s3/list",
             "health": "/health"
         }
-    } 
+    }
