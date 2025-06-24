@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
-from ..core.config import settings
+from ..core.config import settings  # settings import 추가
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -15,11 +15,17 @@ class VisualAgent(Runnable):
     """스마트 시각화 생성 에이전트"""
 
     def __init__(self):
+        # 환경변수에서 LLM 설정 가져오기 (시각화는 더 창의적이므로 온도 약간 높임)
+        llm_config = settings.get_llm_config().copy()
+        llm_config["temperature"] = min(llm_config["temperature"] + 0.2, 1.0)  # 시각화는 더 창의적으로
+
         self.llm = ChatBedrock(
             client=boto3.client("bedrock-runtime", region_name=settings.aws_region),
             model_id=settings.bedrock_model_id,
-            model_kwargs={"temperature": 0.7, "max_tokens": 4096}
+            model_kwargs=llm_config  # 환경변수 사용!
         )
+
+        logger.info(f"🎨 VisualAgent 초기화 - 온도: {llm_config['temperature']}, 최대토큰: {llm_config['max_tokens']}")
 
     def invoke(self, state: Dict[str, Any], config=None) -> Dict[str, Any]:
         """스마트 시각화 생성"""

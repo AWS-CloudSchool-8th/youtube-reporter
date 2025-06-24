@@ -1,4 +1,4 @@
-# YouTube Reporter v2.0 - 리팩토링된 의존성
+# YouTube Reporter v2.0 - 수정된 의존성
 
 # ===== 핵심 LangChain & LangGraph =====
 langchain>=0.2.0,<0.3.0
@@ -44,6 +44,15 @@ python-dateutil>=2.8.2
 colorlog>=6.8.0
 rich>=13.7.0
 
+# ===== 데이터 검증 =====
+email-validator>=2.1.0
+phonenumbers>=8.13.0
+
+# ===== 보안 =====
+cryptography>=41.0.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+
 # ===== 개발 도구 (선택사항) =====
 # 코드 포맷팅
 black>=23.11.0
@@ -52,12 +61,18 @@ isort>=5.12.0
 # 코드 검사
 flake8>=6.1.0
 mypy>=1.7.0
+bandit>=1.7.5  # 보안 검사
 
-# 테스트
+# 타입 스텁
+types-requests>=2.31.0
+types-python-dateutil>=2.8.0
+
+# ===== 테스트 =====
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.1.0
-httpx>=0.25.0  # 테스트용 HTTP 클라이언트
+pytest-mock>=3.12.0
+factory-boy>=3.3.0  # 테스트 데이터 생성
 
 # ===== 선택적 의존성 =====
 # OpenAI (DALL-E 등)
@@ -73,6 +88,7 @@ numpy>=1.24.0
 # 그래프 및 시각화
 matplotlib>=3.8.0
 seaborn>=0.13.0
+plotly>=5.17.0
 
 # 웹 스크래핑 (선택적)
 beautifulsoup4>=4.12.0
@@ -80,13 +96,25 @@ lxml>=4.9.0
 
 # 캐싱 (선택적)
 redis>=5.0.0
+cachetools>=5.3.0
 
 # 데이터베이스 (선택적)
 sqlalchemy>=2.0.0
 alembic>=1.13.0
-
-# 보안
-cryptography>=41.0.0
+asyncpg>=0.29.0  # PostgreSQL 비동기 드라이버
+aiomysql>=0.2.0  # MySQL 비동기 드라이버
 
 # 모니터링
 prometheus-client>=0.19.0
+sentry-sdk[fastapi]>=1.38.0
+
+# 작업 큐 (선택적)
+celery>=5.3.0
+kombu>=5.3.0
+
+# 배포 및 운영
+gunicorn>=21.2.0
+supervisor>=4.2.0
+
+# 환경 관리
+python-decouple>=3.8.0

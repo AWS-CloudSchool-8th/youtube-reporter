@@ -4,7 +4,7 @@ from typing import Dict, Any
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
-from ..core.config import settings
+from ..core.config import settings  # settings import 추가
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -14,11 +14,16 @@ class SummaryAgent(Runnable):
     """YouTube 영상 포괄적 요약 생성 에이전트"""
 
     def __init__(self):
+        # 환경변수에서 LLM 설정 가져오기
+        llm_config = settings.get_llm_config()
+
         self.llm = ChatBedrock(
             client=boto3.client("bedrock-runtime", region_name=settings.aws_region),
             model_id=settings.bedrock_model_id,
-            model_kwargs={"temperature": 0.3, "max_tokens": 4096}
+            model_kwargs=llm_config  # 환경변수 사용!
         )
+
+        logger.info(f"🧠 SummaryAgent 초기화 - 온도: {llm_config['temperature']}, 최대토큰: {llm_config['max_tokens']}")
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", self._get_system_prompt()),

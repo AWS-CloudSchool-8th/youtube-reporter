@@ -1,4 +1,4 @@
-# app/api/youtube.py
+# app/api/youtube.py - Exception Handler 수정된 버전
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from typing import List
 from ..models.request import ProcessVideoRequest
@@ -233,12 +233,13 @@ async def get_system_info():
             "application": {
                 "name": settings.app_name,
                 "version": settings.app_version,
-                "debug_mode": settings.debug,
+                "debug": settings.debug,
                 "log_level": settings.log_level,
             },
             "configuration": {
                 "aws_region": settings.aws_region,
                 "bedrock_model": settings.bedrock_model_id,
+                "llm_config": settings.get_llm_config(),
                 "features_enabled": {
                     "vidcap_api": bool(settings.vidcap_api_key),
                     "aws_bedrock": bool(settings.aws_region and settings.bedrock_model_id),
@@ -246,6 +247,11 @@ async def get_system_info():
                     "openai_integration": bool(settings.openai_api_key),
                     "langchain_tracing": settings.langchain_tracing_v2
                 }
+            },
+            "limits": {
+                "max_concurrent_jobs": settings.max_concurrent_jobs,
+                "job_timeout": settings.job_timeout,
+                "cleanup_interval_hours": settings.cleanup_interval_hours
             },
             "timestamp": datetime.now().isoformat()
         }
@@ -278,33 +284,7 @@ async def test_pipeline():
             "error": str(e)
         }
 
-
-# 에러 핸들러 (전역 에러 처리)
-@router.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    """HTTP 예외 처리"""
-    logger.warning(f"HTTP 예외 발생: {exc.status_code} - {exc.detail}")
-    return ErrorResponse(
-        detail=exc.detail,
-        error_code=str(exc.status_code)
-    )
-
-
-@router.exception_handler(ValueError)
-async def value_error_handler(request, exc):
-    """값 오류 처리"""
-    logger.warning(f"값 오류: {str(exc)}")
-    return ErrorResponse(
-        detail=str(exc),
-        error_code="400"
-    )
-
-
-@router.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    """일반 예외 처리"""
-    logger.error(f"❌ 예상치 못한 오류: {exc}", exc_info=True)
-    return ErrorResponse(
-        detail="내부 서버 오류가 발생했습니다.",
-        error_code="500"
-    )
+# ========================================
+# Exception Handler들을 제거했습니다!
+# (APIRouter에서는 사용할 수 없음)
+# ========================================

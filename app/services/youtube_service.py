@@ -1,8 +1,8 @@
-# app/services/youtube_service.py
+# app/services/youtube_service.py - 수정된 버전
 import uuid
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Any  # ← Any 추가!
 from threading import Lock
 from ..models.response import JobStatusResponse, ReportResult, JobStatus
 from ..services.langgraph_service import LangGraphService
@@ -229,7 +229,7 @@ class YouTubeService:
             if jobs_to_remove:
                 logger.info(f"🧹 총 {len(jobs_to_remove)}개의 오래된 작업 정리 완료")
 
-    def get_service_stats(self) -> Dict[str, Any]:
+    def get_service_stats(self) -> Dict[str, Any]:  # ← Any 타입 추가됨
         """서비스 통계 정보"""
         with jobs_lock:
             total_jobs = len(jobs)

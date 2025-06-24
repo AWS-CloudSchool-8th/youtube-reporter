@@ -1,4 +1,4 @@
-# app/models/request.py
+# app/models/request.py - Pydantic v2 호환 버전
 from pydantic import BaseModel, HttpUrl, validator
 from typing import Optional, Dict, Any
 
@@ -16,8 +16,9 @@ class ProcessVideoRequest(BaseModel):
             raise ValueError('올바른 YouTube URL이 아닙니다.')
         return v
 
-    class Config:
-        schema_extra = {
+    # Pydantic v2에서는 Config 클래스 대신 model_config 사용
+    model_config = {
+        "json_schema_extra": {  # schema_extra → json_schema_extra
             "example": {
                 "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "options": {
@@ -26,3 +27,4 @@ class ProcessVideoRequest(BaseModel):
                 }
             }
         }
+    }
