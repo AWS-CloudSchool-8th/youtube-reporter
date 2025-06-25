@@ -51,7 +51,7 @@ def extract_youtube_caption_tool(youtube_url: str) -> str:
 llm = ChatBedrock(
     client=boto3.client("bedrock-runtime", region_name=AWS_REGION),
     model_id=BEDROCK_MODEL_ID,
-    model_kwargs={"temperature": 0.0, "max_tokens": 4096}
+    model_kwargs={"temperature": 0.0, "max_tokens": 8000}
 )
 
 # ========== 5. 개선된 보고서 생성 프롬프트 ==========
@@ -181,15 +181,17 @@ IMPROVED_CONTEXT_AND_TAGGING_PROMPT = """
 
 ## 작업 단계
 1. **전체 주제와 흐름 파악**
-2. **시각화가 도움될 부분 식별** (비교, 과정, 개념, 데이터 등)
+2. **시각화가 도움될 부분 식별** (비교, 과정, 개념, 데이터, 구조, 흐름 등)
 3. **각 부분에 [VIZ_1], [VIZ_2], [VIZ_3] 형태로 태그 삽입**
 4. **태그별로 시각화와 직접 관련된 완전한 문단 추출**
 
 ## 중요 지침
+- **{report_text}의 모든 내용을 100% 그대로 포함**
 - **related_content**에는 시각화와 직접 관련된 **완전한 문단**을 포함하세요
 - 문장이 중간에 끊기지 않도록 **완성된 문장들**로 구성
 - 시각화 주제와 **정확히 일치하는 내용**만 선택
 - 최소 100자 이상의 의미 있는 텍스트 블록 제공
+- **절대 요약하거나 생략하지 마세요. 원본의 모든 문장을 새 보고서에 포함하세요.**
 
 ## 출력 형식
 ```json
@@ -246,6 +248,7 @@ class ImprovedContextAndTaggingAgent(Runnable):
                     logger.info(f"태그 {req.get('tag_id')}: 관련 텍스트 {len(related_content)}자 추출")
                 
                 return {
+                  
                     **state,
                     "tagged_report": result.get("tagged_report", report_text),
                     "visualization_requests": result.get("visualization_requests", [])
@@ -266,9 +269,7 @@ TARGETED_VISUALIZATION_PROMPT = """
 - **태그 ID**: {tag_id}
 - **목적**: {purpose}
 - **내용**: {content_description}
-- **주변 맥락**: {position_context}
-- **데이터 소스**: {data_source}
-- **필요한 이유**: {why_helpful}
+
 
 ## 전체 자막 (추가 참고용)
 {caption_context}
@@ -395,9 +396,6 @@ class TargetedVisualizationAgent(Runnable):
                     tag_id=req.get('tag_id', ''),
                     purpose=req.get('purpose', ''),
                     content_description=req.get('content_description', ''),
-                    position_context=req.get('position_context', ''),
-                    data_source=req.get('data_source', ''),
-                    why_helpful=req.get('why_helpful', ''),
                     caption_context=caption_context[:1000]  # 길이 제한
                 )
                 
