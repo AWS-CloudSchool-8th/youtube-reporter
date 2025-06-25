@@ -265,20 +265,25 @@ class ImprovedContextAndTaggingAgent(Runnable):
 TARGETED_VISUALIZATION_PROMPT = """
 당신은 특정 태그와 맥락 정보를 바탕으로 정확한 시각화를 생성하는 전문가입니다.
 
+
 ## 시각화 요청 정보
 - **태그 ID**: {tag_id}
 - **목적**: {purpose}
 - **내용**: {content_description}
 
+## 원본 텍스트(이 정보만 사용하세요): {related_content}
+
 
 ## 전체 자막 (추가 참고용)
 {caption_context}
 
+
 ## 지침
 1. 제공된 맥락과 데이터를 정확히 활용
 2. 태그가 삽입될 위치에서 독자 이해를 최대화
-3. 보고서에 언급된 실제 정보만 사용
+3. 위 원본 텍스트와 전체 자막에서 명시된 정보만 사용. **원본 텍스트, 전체 자막에 없는 임의의 데이터를 넣지 말 것**
 4. 요청된 목적에 정확히 부합하는 시각화 생성
+
 
 ## 사용 가능한 시각화 타입
 - **chartjs**: 데이터 비교, 트렌드, 비율
@@ -315,7 +320,7 @@ TARGETED_VISUALIZATION_PROMPT = """
 **2. Plotly 수학/과학:**
 {{
   "type": "plotly", 
-  "chart_type": "function|scatter|heatmap|3d",
+  "chart_type": "function|scatter|heatmap|3d|line charts|pie charts|bubble charts|histograms",
   "title": "그래프 제목",
   "config": {{
     "data": [{{
@@ -336,7 +341,7 @@ TARGETED_VISUALIZATION_PROMPT = """
 **3. Mermaid 다이어그램:**
 {{
   "type": "mermaid",
-  "diagram_type": "flowchart|timeline",  
+  "diagram_type": "flowchart|timeline|concept",  
   "title": "다이어그램 제목",
   "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
   "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
@@ -372,6 +377,15 @@ TARGETED_VISUALIZATION_PROMPT = """
   "insight": "왜 이 방법이 최적인지"
 }}
 
+## 🔍 실제 작업 과정
+
+1. **원본 텍스트 분석**: 구체적 수치, 항목, 관계 추출
+2. **데이터 유형 판단**: 수치형/구조형/개념형 구분
+3. **적절한 타입 선택**: 위 가이드에 따라 선택
+4. **원본 기반 생성**: 추출된 정보만으로 시각화 구성
+5. **data_source 추가**: 원본에서 인용한 구체적 부분 명시
+
+
 JSON만 출력하세요.
 """
 
@@ -396,6 +410,7 @@ class TargetedVisualizationAgent(Runnable):
                     tag_id=req.get('tag_id', ''),
                     purpose=req.get('purpose', ''),
                     content_description=req.get('content_description', ''),
+                    related_content=req.get('related_content', ''),
                     caption_context=caption_context[:1000]  # 길이 제한
                 )
                 
