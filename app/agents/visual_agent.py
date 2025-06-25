@@ -136,7 +136,6 @@ JSON만 출력하세요.
 **1. Chart.js 차트:**
 {{
   "type": "chartjs",
-  "chart_type": "bar|line|pie|radar|scatter",
   "title": "차트 제목",
   "config": {{
     "type": "bar",
@@ -152,17 +151,53 @@ JSON만 출력하세요.
       "responsive": true,
       "maintainAspectRatio": false
     }}
-  }},
-  "insight": "이 차트를 통해 얻을 수 있는 인사이트"
+  }}
 }}
 
-**2. Mermaid 다이어그램:**
+**2. Plotly 차트:**
+{{
+  "type": "plotly",
+  "title": "차트 제목",
+  "config": {{
+    "data": [{{
+      "x": ["A", "B", "C"],
+      "y": [1, 3, 2],
+      "type": "scatter",
+      "mode": "lines+markers"
+    }}],
+    "layout": {{
+      "title": "차트 제목",
+      "xaxis": {{"title": "X축"}},
+      "yaxis": {{"title": "Y축"}}
+    }}
+  }}
+}}
+
+**3. Mermaid 다이어그램:**
 {{
   "type": "mermaid",
-  "diagram_type": "flowchart|timeline",  
   "title": "다이어그램 제목",
-  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
-  "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
+  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]"
+}}
+
+**4. Markmap 마인드맵:**
+{{
+  "type": "markmap",
+  "title": "마인드맵 제목",
+  "markdown": "# 중심 주제\\n## 주요 분야 1\\n- 세부사항 1\\n- 세부사항 2\\n## 주요 분야 2\\n- 세부사항 3"
+}}
+
+**5. 테이블:**
+{{
+  "type": "table",
+  "title": "테이블 제목",
+  "data": {{
+    "headers": ["항목", "값", "설명"],
+    "rows": [
+      ["항목1", "값1", "설명1"],
+      ["항목2", "값2", "설명2"]
+    ]
+  }}
 }}
 
 JSON만 출력하세요.
@@ -177,6 +212,9 @@ JSON만 출력하세요.
                 if start_idx != -1 and end_idx != -1:
                     json_part = content[start_idx:end_idx+1]
                     viz_result = json.loads(json_part)
+                    
+                    # 원본 텍스트 추가
+                    viz_result['original_text'] = req.get('related_content', '')
                     
                     generated_visualizations.append({
                         "tag_id": req.get('tag_id'),
