@@ -66,10 +66,23 @@ const ResultViewer = ({ result }) => {
   const renderSection = (section, index) => {
     const sectionId = section.id || `section-${index}`;
     const isExpanded = expandedSections.has(sectionId) || section.level === 1;
+    const sectionType = section.section_type || 'text';
 
     if (section.type === 'text') {
+      // 영상 핵심 요약은 특별히 처리
+      if (sectionType === 'executive_summary') {
+        return (
+          <div key={sectionId} id={sectionId} className="report-section executive-summary-section">
+            <div className="executive-summary-content">
+              <div className="summary-badge">📋 핵심 요약</div>
+              <div className="summary-text">{section.content}</div>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div key={sectionId} id={sectionId} className="report-section text-section">
+        <div key={sectionId} id={sectionId} className={`report-section text-section ${sectionType}-section`}>
           <div
             className={`section-header level-${section.level || 2}`}
             onClick={() => toggleSection(sectionId)}
@@ -77,6 +90,9 @@ const ResultViewer = ({ result }) => {
             <h3>
               <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
               {section.title}
+              {sectionType === 'main_analysis' && <span className="section-badge">분석</span>}
+              {sectionType === 'insights' && <span className="section-badge">인사이트</span>}
+              {sectionType === 'conclusion' && <span className="section-badge">결론</span>}
             </h3>
             {section.keywords && section.keywords.length > 0 && (
               <div className="keywords">
@@ -88,7 +104,7 @@ const ResultViewer = ({ result }) => {
           </div>
           {isExpanded && (
             <div className="section-content">
-              <p>{section.content}</p>
+              <div className="content-text">{section.content}</div>
             </div>
           )}
         </div>
@@ -160,7 +176,9 @@ const ResultViewer = ({ result }) => {
           <aside className="table-of-contents">
             <h3>📑 목차</h3>
             <nav>
-              {textSections.map((section, index) => (
+              {textSections
+                .filter(section => section.section_type !== 'executive_summary') // 핵심 요약은 목차에서 제외
+                .map((section, index) => (
                 <button
                   key={section.id || index}
                   className={`toc-item ${activeSection === (section.id || `section-${index}`) ? 'active' : ''}`}
@@ -176,7 +194,19 @@ const ResultViewer = ({ result }) => {
         {/* 메인 콘텐츠 */}
         <div className="main-content">
           {result.sections && result.sections.length > 0 ? (
-            result.sections.map((section, index) => renderSection(section, index))
+            <>
+              {/* 영상 핵심 요약을 맨 위에 표시 */}
+              {result.sections
+                .filter(section => section.section_type === 'executive_summary')
+                .map((section, index) => renderSection(section, index))
+              }
+              
+              {/* 나머지 섹션들 */}
+              {result.sections
+                .filter(section => section.section_type !== 'executive_summary')
+                .map((section, index) => renderSection(section, index))
+              }
+            </>
           ) : (
             <div className="no-content">
               <p>표시할 내용이 없습니다.</p>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-YouTube Reporter - 메인 실행 파일
+YouTube Reporter - 메인 애플리케이션
 포괄적 요약과 스마트 시각화를 제공하는 YouTube 영상 분석 도구
 """
 import os
@@ -13,16 +13,12 @@ import asyncio
 try:
     from dotenv import load_dotenv
 
-    env_path = Path(__file__).parent / '.env'
+    env_path = Path(__file__).parent.parent / '.env'
     if env_path.exists():
         load_dotenv(env_path)
-        print(f"Loaded .env file: {env_path}")
-        print(f"VIDCAP_API_KEY: {'SET' if os.getenv('VIDCAP_API_KEY') else 'NOT SET'}")
-        print(f"AWS_BEDROCK_MODEL_ID: {'SET' if os.getenv('AWS_BEDROCK_MODEL_ID') else 'NOT SET'}")
-    else:
-        print(f"Warning: .env file not found at {env_path}")
+        print(f"✅ .env 파일 로드됨: {env_path}")
 except ImportError:
-    print("Warning: python-dotenv not installed")
+    print("⚠️ python-dotenv가 설치되지 않음")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,9 +26,9 @@ from fastapi.responses import RedirectResponse
 import uvicorn
 
 # API 라우터 import
-from app.api import youtube_router
-from app.core.config import settings, validate_settings
-from app.utils.logger import get_logger
+from .api import youtube_router
+from .core.config import settings, validate_settings
+from .utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,9 +41,9 @@ except ValueError as e:
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="YouTube Reporter",
+    title=settings.app_name,
     description="AI 기반 YouTube 영상 분석 및 스마트 시각화 도구",
-    version="2.0.0",
+    version=settings.app_version,
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -55,14 +51,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002"
-    ],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,8 +73,8 @@ async def health_check():
     """헬스 체크 엔드포인트"""
     return {
         "status": "healthy",
-        "service": "YouTube Reporter",
-        "version": "2.0.0",
+        "service": settings.app_name,
+        "version": settings.app_version,
         "timestamp": datetime.now().isoformat(),
         "features": {
             "comprehensive_summary": True,
@@ -100,22 +89,22 @@ async def health_check():
 async def startup_event():
     """서버 시작 시 실행"""
     logger.info("=" * 60)
-    logger.info("🚀 YouTube Reporter 서버 시작")
-    logger.info(f"📖 API 문서: http://localhost:8000/docs")
+    logger.info(f"🚀 {settings.app_name} 서버 시작")
+    logger.info(f"📖 API 문서: http://localhost:{settings.port}/docs")
     logger.info(f"🌐 프론트엔드 연결 대상: http://localhost:3000")
     logger.info("=" * 60)
 
     # 환경 변수 확인
     logger.info("환경 변수 설정 상태:")
-    logger.info(f"  - VIDCAP_API_KEY: {'✅' if os.getenv('VIDCAP_API_KEY') else '❌'}")
-    logger.info(f"  - AWS_REGION: {os.getenv('AWS_REGION', '❌')}")
-    logger.info(f"  - AWS_BEDROCK_MODEL_ID: {os.getenv('AWS_BEDROCK_MODEL_ID', '❌')}")
+    logger.info(f"  - VIDCAP_API_KEY: {'✅' if settings.vidcap_api_key else '❌'}")
+    logger.info(f"  - AWS_REGION: {settings.aws_region}")
+    logger.info(f"  - BEDROCK_MODEL_ID: {settings.bedrock_model_id}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """서버 종료 시 실행"""
-    logger.info("🛑 YouTube Reporter 서버 종료")
+    logger.info(f"🛑 {settings.app_name} 서버 종료")
 
 
 if __name__ == "__main__":
@@ -123,15 +112,11 @@ if __name__ == "__main__":
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    try:
-        # Uvicorn 서버 실행
-        uvicorn.run(
-            "main:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=True,
-            log_level="info"
-        )
-    except KeyboardInterrupt:
-        print("\n서버를 종료합니다...")
-        sys.exit(0)
+    # Uvicorn 서버 실행
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+        log_level="info"
+    )

@@ -1,7 +1,13 @@
-# app/controllers/youtube_controller.py
+# app/api/youtube.py - 완전 비동기 버전
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
-from ..models.request_models import ProcessVideoRequest
-from ..models.response_models import ProcessVideoResponse, JobStatus, ReportResult
+from typing import List
+import asyncio
+import os
+import sys
+import platform
+from datetime import datetime
+from ..models.request import ProcessVideoRequest
+from ..models.response import ProcessVideoResponse, JobStatus, ReportResult
 from ..services.youtube_service import YouTubeService
 from ..utils.logger import get_logger
 
@@ -20,6 +26,12 @@ def get_youtube_service() -> YouTubeService:
     return _youtube_service
 
 
+def validate_youtube_url(url: str):
+    """YouTube URL 유효성 검증"""
+    if not ('youtube.com' in url or 'youtu.be' in url):
+        raise HTTPException(status_code=400, detail="유효한 YouTube URL이 아닙니다.")
+
+
 @router.get("/")
 async def health_check():
     """API 상태 확인"""
@@ -27,11 +39,14 @@ async def health_check():
         "service": "YouTube Reporter",
         "status": "running",
         "version": "2.0.0",
+        "mode": "async",
+        "description": "AI 기반 YouTube 영상 분석 및 스마트 시각화 도구",
         "features": [
-            "자동 요약 생성",
+            "포괄적 요약 생성",
             "스마트 시각화",
             "컨텍스트 기반 분석",
-            "다양한 차트 및 다이어그램 지원"
+            "다양한 차트 및 다이어그램 지원",
+            "완전 비동기 처리"
         ]
     }
 
@@ -39,27 +54,17 @@ async def health_check():
 @router.post("/process", response_model=ProcessVideoResponse)
 async def process_video(
         request: ProcessVideoRequest,
-        background_tasks: BackgroundTasks,
         youtube_service: YouTubeService = Depends(get_youtube_service)
 ):
     """YouTube 영상 처리 시작"""
     try:
-        # URL 검증
         url_str = str(request.youtube_url)
-        if not ('youtube.com' in url_str or 'youtu.be' in url_str):
-            raise HTTPException(
-                status_code=400,
-                detail="유효한 YouTube URL이 아닙니다."
-            )
+        validate_youtube_url(url_str)
 
-        # 작업 생성
         job_id = youtube_service.create_job(url_str)
 
-        # 백그라운드에서 처리
-        background_tasks.add_task(
-            youtube_service.process_video,
-            job_id,
-            url_str
+        asyncio.create_task(
+            youtube_service.process_video(job_id, url_str)
         )
 
         logger.info(f"영상 처리 작업 시작: {job_id}")
@@ -67,7 +72,7 @@ async def process_video(
         return ProcessVideoResponse(
             job_id=job_id,
             status="queued",
-            message="🚀 분석이 시작되었습니다. 영상을 분석하고 스마트 시각화를 생성하는 중입니다..."
+            message="🚀 분석이 시작되었습니다. AI가 영상을 분석하고 스마트 시각화를 생성하는 중입니다..."
         )
 
     except HTTPException:
@@ -99,7 +104,6 @@ async def get_job_result(
 ):
     """작업 결과 조회"""
     try:
-        # 상태 먼저 확인
         job_status = youtube_service.get_job_status(job_id)
 
         if job_status.status == "processing":
@@ -120,7 +124,6 @@ async def get_job_result(
 
         result = youtube_service.get_job_result(job_id)
 
-        # 결과 통계 로깅
         logger.info(f"작업 {job_id} 결과 반환:")
         logger.info(f"  - 제목: {result.title}")
         logger.info(f"  - 전체 섹션: {result.statistics.get('total_sections', 0)}개")
@@ -138,22 +141,66 @@ async def get_job_result(
 
 
 @router.get("/jobs")
-async def list_jobs(youtube_service: YouTubeService = Depends(get_youtube_service)):
+async def list_jobs(
+        limit: int = 20,
+        youtube_service: YouTubeService = Depends(get_youtube_service)
+):
     """모든 작업 목록"""
     try:
-        # 오래된 작업 정리
         youtube_service.cleanup_old_jobs()
         jobs = youtube_service.list_jobs()
-
-        # 최신 작업부터 정렬
         jobs.sort(key=lambda x: x.created_at, reverse=True)
 
         return {
-            "jobs": jobs[:20],  # 최근 20개만 반환
+            "jobs": jobs[:limit],
             "total": len(jobs)
         }
     except Exception as e:
         logger.error(f"작업 목록 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/validate-url")
+async def validate_youtube_url_endpoint(url: str):
+    """YouTube URL 유효성 검증 엔드포인트"""
+    try:
+        is_valid = 'youtube.com' in url or 'youtu.be' in url
+        return {
+            "url": url,
+            "is_valid": is_valid,
+            "message": "유효한 YouTube URL입니다." if is_valid else "유효하지 않은 YouTube URL입니다."
+        }
+    except Exception as e:
+        logger.error(f"URL 검증 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/system-info")
+async def get_system_info():
+    """시스템 정보 조회"""
+    try:
+        return {
+            "system": {
+                "python_version": sys.version,
+                "platform": platform.platform(),
+                "architecture": platform.architecture(),
+            },
+            "application": {
+                "name": "YouTube Reporter",
+                "version": "2.0.0",
+                "mode": "async"
+            },
+            "configuration": {
+                "features_enabled": {
+                    "vidcap_api": bool(os.getenv("VIDCAP_API_KEY")),
+                    "aws_bedrock": bool(os.getenv("AWS_BEDROCK_MODEL_ID")),
+                    "langchain_tracing": bool(os.getenv("LANGCHAIN_TRACING_V2"))
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"시스템 정보 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -162,16 +209,10 @@ async def delete_job(
         job_id: str,
         youtube_service: YouTubeService = Depends(get_youtube_service)
 ):
-    """작업 삭제 (선택적)"""
+    """작업 삭제"""
     try:
-        # 작업 존재 확인
         youtube_service.get_job_status(job_id)
-
-        # TODO: 작업 삭제 로직 구현
-        # 현재는 메모리에서만 관리하므로 cleanup_old_jobs에 의존
-
         return {"message": f"작업 {job_id} 삭제 예약됨"}
-
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

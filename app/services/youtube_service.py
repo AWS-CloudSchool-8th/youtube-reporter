@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime
 from typing import Dict
 from threading import Lock
-from ..agents.graph_workflow import YouTubeReporterWorkflow
-from ..models.response_models import JobStatus, ReportResult
+from ..models.response import JobStatus, ReportResult
+from ..services.langgraph_service import LangGraphService
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,7 +20,7 @@ class YouTubeService:
     """YouTube 영상 처리 서비스"""
 
     def __init__(self):
-        self.workflow = YouTubeReporterWorkflow()
+        self.langgraph_service = LangGraphService()
 
     def create_job(self, youtube_url: str) -> str:
         """새 작업 생성"""
@@ -72,7 +72,7 @@ class YouTubeService:
 
             # LangGraph 워크플로우 실행
             result = await asyncio.get_event_loop().run_in_executor(
-                None, self.workflow.process, youtube_url
+                None, self.langgraph_service.process_video, youtube_url
             )
 
             await update_progress(95, "📊 최종 리포트 생성 중...")

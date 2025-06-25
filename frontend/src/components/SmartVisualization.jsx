@@ -199,7 +199,85 @@ const SmartVisualization = ({ section }) => {
         .attr('preserveAspectRatio', 'xMidYMid meet');
       
       // 시각화 타입에 따라 다른 렌더링 로직 적용
-      if (vizType === 'force' && data.nodes && data.links) {
+      if (vizType === 'timeline' && data.events) {
+        // Timeline 시각화
+        const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        
+        const g = svg.append('g')
+          .attr('transform', `translate(${margin.left},${margin.top})`);
+        
+        // 시간 스케일
+        const xScale = d3.scaleLinear()
+          .domain(d3.extent(data.events, d => d.year))
+          .range([0, innerWidth]);
+        
+        // 임팩트 스케일
+        const yScale = d3.scaleLinear()
+          .domain([0, d3.max(data.events, d => d.impact)])
+          .range([innerHeight, 0]);
+        
+        // 축 추가
+        g.append('g')
+          .attr('transform', `translate(0,${innerHeight})`)
+          .call(d3.axisBottom(xScale).tickFormat(d3.format('d')));
+        
+        g.append('g')
+          .call(d3.axisLeft(yScale));
+        
+        // 타임라인 선
+        const line = d3.line()
+          .x(d => xScale(d.year))
+          .y(d => yScale(d.impact))
+          .curve(d3.curveMonotoneX);
+        
+        g.append('path')
+          .datum(data.events)
+          .attr('fill', 'none')
+          .attr('stroke', '#667eea')
+          .attr('stroke-width', 2)
+          .attr('d', line);
+        
+        // 이벤트 점들
+        g.selectAll('.event-dot')
+          .data(data.events)
+          .enter().append('circle')
+          .attr('class', 'event-dot')
+          .attr('cx', d => xScale(d.year))
+          .attr('cy', d => yScale(d.impact))
+          .attr('r', 6)
+          .attr('fill', '#f093fb')
+          .attr('stroke', '#fff')
+          .attr('stroke-width', 2);
+        
+        // 이벤트 레이블
+        g.selectAll('.event-label')
+          .data(data.events)
+          .enter().append('text')
+          .attr('class', 'event-label')
+          .attr('x', d => xScale(d.year))
+          .attr('y', d => yScale(d.impact) - 10)
+          .attr('text-anchor', 'middle')
+          .attr('font-size', '12px')
+          .attr('fill', '#333')
+          .text(d => d.name);
+        
+        // 축 레이블
+        g.append('text')
+          .attr('transform', 'rotate(-90)')
+          .attr('y', 0 - margin.left)
+          .attr('x', 0 - (innerHeight / 2))
+          .attr('dy', '1em')
+          .style('text-anchor', 'middle')
+          .text('Impact Level');
+        
+        g.append('text')
+          .attr('transform', `translate(${innerWidth / 2}, ${innerHeight + margin.bottom})`)
+          .style('text-anchor', 'middle')
+          .text('Year');
+        
+      } else if (vizType === 'force' && data.nodes && data.links) {
         // 간단한 Force 다이어그램 예시
         const simulation = d3.forceSimulation(data.nodes)
           .force('link', d3.forceLink(data.links).id(d => d.id))
@@ -256,6 +334,41 @@ const SmartVisualization = ({ section }) => {
           d.fx = null;
           d.fy = null;
         }
+      } else if (vizType === 'treemap' && data.nodes) {
+        // Treemap 시각화
+        const root = d3.hierarchy({ children: data.nodes })
+          .sum(d => d.value || 1)
+          .sort((a, b) => b.value - a.value);
+        
+        d3.treemap()
+          .size([width, height])
+          .padding(2)(root);
+        
+        const leaf = svg.selectAll('g')
+          .data(root.leaves())
+          .enter().append('g')
+          .attr('transform', d => `translate(${d.x0},${d.y0})`);
+        
+        leaf.append('rect')
+          .attr('width', d => d.x1 - d.x0)
+          .attr('height', d => d.y1 - d.y0)
+          .attr('fill', (d, i) => (config.colors || ['#667eea', '#f093fb', '#4facfe'])[i % 3]);
+        
+        leaf.append('text')
+          .attr('x', 4)
+          .attr('y', 14)
+          .text(d => d.data.name || d.data.id)
+          .attr('font-size', '12px')
+          .attr('fill', 'white');
+        
+      } else if (vizType === 'sankey' && data.nodes && data.links) {
+        // Sankey 다이어그램 (간단한 버전)
+        svg.append('text')
+          .attr('x', width / 2)
+          .attr('y', height / 2)
+          .attr('text-anchor', 'middle')
+          .text('Sankey 다이어그램 - 고급 구현 필요');
+        
       } else {
         // 다른 D3 시각화 타입에 대한 기본 메시지
         svg.append('text')
@@ -385,8 +498,6 @@ const SmartVisualization = ({ section }) => {
     };
     return labels[purpose] || purpose;
   };
-
-  // 시각화 타입에 따른 아이콘 및 레이블
 
   return (
     <div className="smart-visualization">

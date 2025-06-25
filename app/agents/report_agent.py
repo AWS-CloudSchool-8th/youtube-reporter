@@ -1,5 +1,6 @@
 # app/agents/report_agent.py
 import os
+import json
 import boto3
 from typing import Dict, List, Any
 from langchain_aws import ChatBedrock
