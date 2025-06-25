@@ -1,58 +1,21 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Any
-import os
-import matplotlib.pyplot as plt
-import json
+from fastapi import APIRouter, HTTPException
 import time
+import json
 import logging
 
-from app.pipeline.youtube_graph_pipeline import run_graph
+from ..models.request import RunRequest
+from ..models.response import RunResponse
+from ..services.langgraph_service import LangGraphService
 
-# 로깅 설정 강화
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('youtube_reporter.log')
-    ]
-)
 logger = logging.getLogger(__name__)
+router = APIRouter()
 
-app = FastAPI()
-
-# CORS 설정 추가 (프론트엔드 연결을 위해 필수)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 개발용, 실제 배포시에는 특정 도메인만 허용
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 정적 파일 서빙 (프론트엔드)
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
-
-@app.get("/")
-async def read_index():
-    return FileResponse('frontend/index.html')
-
-class RunRequest(BaseModel):
-    youtube_url: str
-
-class RunResponse(BaseModel):
-    final_output: Any
-
-@app.post("/run", response_model=RunResponse)
+@router.post("/run", response_model=RunResponse)
 def run_pipeline(request: RunRequest):
     start_time = time.time()
     
     try:
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"🚀 YouTube 보고서 생성 시작")
         print(f"{'='*60}")
         print(f"📺 URL: {request.youtube_url}")
@@ -62,7 +25,7 @@ def run_pipeline(request: RunRequest):
         logger.info(f"YouTube 보고서 생성 시작 - URL: {request.youtube_url}")
         
         # 1단계: 자막 추출
-        print(f"\n🎬 1단계: 자막 추출 중...")
+        print(f"\\n🎬 1단계: 자막 추출 중...")
         
         # 2단계: 보고서 생성  
         print(f"📝 2단계: 보고서 구조화 중...")
@@ -77,11 +40,12 @@ def run_pipeline(request: RunRequest):
         print(f"🔧 5단계: 최종 보고서 조립 중...")
         
         # 실제 파이프라인 실행
-        result = run_graph(youtube_url=request.youtube_url)
+        service = LangGraphService()
+        result = service.run_graph(youtube_url=request.youtube_url)
         
         elapsed_time = time.time() - start_time
         
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"✅ 보고서 생성 완료!")
         print(f"{'='*60}")
         
@@ -107,7 +71,7 @@ def run_pipeline(request: RunRequest):
         
         # 시각화 상세 분석
         visual_sections = [s for s in sections if s.get('type') == 'visualization']
-        print(f"\n🎨 시각화 상세:")
+        print(f"\\n🎨 시각화 상세:")
         if visual_sections:
             for i, vs in enumerate(visual_sections, 1):
                 tag_id = vs.get('tag_id', 'N/A')
@@ -136,7 +100,7 @@ def run_pipeline(request: RunRequest):
     except Exception as e:
         elapsed_time = time.time() - start_time
         
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"❌ 오류 발생!")
         print(f"{'='*60}")
         print(f"⚠️ 오류 내용: {str(e)}")
@@ -150,23 +114,7 @@ def run_pipeline(request: RunRequest):
         
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/debug")
-def debug_info():
-    """디버그 정보 확인용 엔드포인트"""
-    import sys
-    return {
-        "python_version": sys.version,
-        "environment_variables": {
-            "VIDCAP_API_KEY": "설정됨" if os.getenv("VIDCAP_API_KEY") else "없음",
-            "AWS_REGION": os.getenv("AWS_REGION", "없음"),
-            "S3_BUCKET_NAME": "설정됨" if os.getenv("S3_BUCKET_NAME") else "없음",
-            "BEDROCK_MODEL_ID": os.getenv("BEDROCK_MODEL_ID", "없음")
-        },
-        "current_directory": os.getcwd(),
-        "font_info": plt.rcParams.get('font.family', 'Unknown')
-    }
-
-@app.post("/test-simple")
+@router.post("/test-simple")
 def test_simple():
     """간단한 테스트용 엔드포인트"""
     print("🧪 테스트 엔드포인트 호출됨")
@@ -224,31 +172,3 @@ def test_simple():
             }
         }
     }
-
-@app.post("/test-youtube")
-def test_youtube_pipeline():
-    """YouTube 파이프라인 간단 테스트"""
-    test_url = "https://www.youtube.com/watch?v=LXJhA3VWXFA"
-    
-    print(f"🧪 YouTube 파이프라인 테스트 시작: {test_url}")
-    
-    try:
-        # 자막 추출만 테스트
-        from app.pipeline.youtube_graph_pipeline import extract_youtube_caption_tool
-        
-        print("📥 자막 추출 테스트 중...")
-        caption = extract_youtube_caption_tool(test_url)
-        
-        if caption.startswith("[자막 추출 실패"):
-            print(f"❌ 자막 추출 실패: {caption}")
-            return {"error": "자막 추출 실패", "details": caption}
-        
-        print(f"✅ 자막 추출 성공: {len(caption)}자")
-        return {
-            "status": "success",
-            "caption_length": len(caption),
-            "caption_preview": caption[:200] + "..." if len(caption) > 200 else caption
-        }
-    except Exception as e:
-        print(f"❌ 테스트 실패: {e}")
-        return {"error": str(e)}

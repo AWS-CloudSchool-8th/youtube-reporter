@@ -11,30 +11,28 @@ YouTube 영상을 보지 않고도 완전히 이해할 수 있는 포괄적 보�
 
 ## 🚀 실행 방법
 
-### 방법 1: 배치 파일 실행 (가장 쉬움)
+### 1. 환경변수 설정
 ```bash
+# .env.example을 복사하여 .env 파일 생성
+copy .env.example .env
+
+# .env 파일을 열어서 실제 API 키들로 수정
+```
+
+### 2. 실행
+```bash
+# 방법 1: 배치 파일 (가장 쉬움)
 start.bat
-```
 
-### 방법 2: 수동 실행
-```bash
-# 1. 패키지 설치
-pip install -r requirements.txt
-
-# 2. 서버 시작
-python run.py
-```
-
-### 방법 3: 개발 모드
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 방법 2: 직접 실행
+python main.py
 ```
 
 ## 📱 사용법
 
-1. 서버 시작 후 브라우저에서 `http://localhost:8000` 접속
+1. 서버 시작 후 브라우저에서 `http://localhost:8001` 접속
 2. YouTube URL 입력 (한국어 자막이 있는 영상 권장)
-3. "보고서 생성" 버튼 클릭
+3. "AI 보고서 생성하기" 버튼 클릭
 4. 1-2분 후 완성된 보고서 확인
 
 ## 📋 필요한 환경변수 (.env 파일)
