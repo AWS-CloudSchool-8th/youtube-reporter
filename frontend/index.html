@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/9.4.3/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.15.3/dist/index.js"></script>
     
     <style>
         * {
@@ -123,33 +124,34 @@
             padding: 40px;
         }
 
-        .section {
+        /* 텍스트 섹션 */
+        .text-section {
             margin-bottom: 30px;
-            padding: 20px;
+            padding: 25px;
             background: #f8f9fa;
-            border-radius: 10px;
+            border-radius: 15px;
             border-left: 5px solid #667eea;
+            line-height: 1.8;
         }
 
-        .section h2 {
+        .text-section h2 {
             color: #333;
             margin-bottom: 15px;
             font-size: 1.5em;
         }
 
-        .section h3 {
+        .text-section h3 {
             color: #555;
             margin: 20px 0 10px 0;
             font-size: 1.2em;
         }
 
-        .section p {
-            line-height: 1.6;
+        .text-section p {
             color: #666;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
-        /* 새로운 시각화 스타일 */
+        /* 시각화 섹션 - 깔끔하게 */
         .visual-section {
             margin-bottom: 30px;
             padding: 25px;
@@ -161,31 +163,58 @@
 
         .visual-section h3 {
             color: #333;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-size: 1.3em;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .insight-box {
-            background: #e8f4f8;
+        .tag-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: normal;
+        }
+
+        /* 원본 텍스트 박스 */
+        .original-text-box {
+            background: #f7f9fc;
             padding: 15px;
             border-radius: 10px;
             margin-top: 15px;
-            border-left: 4px solid #17a2b8;
+            border-left: 4px solid #74b9ff;
         }
 
-        .insight-box h4 {
-            color: #0c5460;
-            margin-bottom: 8px;
-            font-size: 1em;
-        }
-
-        .insight-box p {
-            color: #155724;
+        .original-text-box p {
+            color: #2d3748;
             margin: 0;
             font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        /* 🔧 디버그 박스 추가 */
+        .debug-box {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #ffc107;
+            font-size: 0.85em;
+        }
+
+        .debug-box summary {
+            color: #856404;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .debug-box pre {
+            color: #856404;
+            margin: 5px 0;
+            white-space: pre-wrap;
         }
 
         .chart-container {
@@ -209,6 +238,13 @@
             border-radius: 10px;
             margin: 20px 0;
             overflow-x: auto;
+        }
+
+        .markmap-container {
+            height: 400px;
+            margin: 20px 0;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
         }
 
         .table-container {
@@ -293,16 +329,6 @@
             margin-top: 5px;
         }
 
-        .debug-info {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 12px;
-            overflow-x: auto;
-        }
-
         .visual-error {
             background: #ffe6e6;
             color: #d63031;
@@ -312,20 +338,24 @@
             border-left: 4px solid #d63031;
         }
 
-        .purpose-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            margin-left: 10px;
-            font-weight: normal;
+        .assembly-stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
         }
 
-        .purpose-overview { background: #e3f2fd; color: #1565c0; }
-        .purpose-detail { background: #f3e5f5; color: #7b1fa2; }
-        .purpose-comparison { background: #e8f5e9; color: #2e7d32; }
-        .purpose-process { background: #fff3e0; color: #f57c00; }
-        .purpose-concept { background: #fce4ec; color: #c2185b; }
+        .assembly-stats h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .assembly-stats p {
+            color: #1565c0;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -368,6 +398,7 @@
     <script>
         let chartInstances = [];
         let plotlyInstances = [];
+        let markmapInstances = [];
 
         // Mermaid 초기화
         mermaid.initialize({ 
@@ -432,12 +463,6 @@
                         <h3>❌ 오류가 발생했습니다</h3>
                         <p>${error.message}</p>
                         <p>다시 시도해주세요. 문제가 계속되면 YouTube URL이 올바른지 확인해주세요.</p>
-                        <div class="debug-info">
-                            <strong>디버그 정보:</strong><br>
-                            URL: ${url}<br>
-                            시간: ${new Date().toISOString()}<br>
-                            오류: ${error.message}
-                        </div>
                     </div>
                 `;
                 document.getElementById('result').style.display = 'block';
@@ -463,6 +488,16 @@
                 }
             });
             plotlyInstances = [];
+            
+            // Markmap 인스턴스 정리
+            markmapInstances.forEach(instance => {
+                try {
+                    if (instance.destroy) instance.destroy();
+                } catch (e) {
+                    console.warn('Markmap cleanup warning:', e);
+                }
+            });
+            markmapInstances = [];
         }
 
         function displayResult(data) {
@@ -474,10 +509,6 @@
                     <div class="error">
                         <h3>❌ 결과를 불러올 수 없습니다</h3>
                         <p>서버에서 올바른 응답을 받지 못했습니다.</p>
-                        <div class="debug-info">
-                            <strong>받은 데이터:</strong><br>
-                            <pre>${JSON.stringify(data, null, 2)}</pre>
-                        </div>
                     </div>
                 `;
                 document.getElementById('result').style.display = 'block';
@@ -486,6 +517,7 @@
 
             const totalVisuals = data.total_visuals || 0;
             const totalParagraphs = data.total_paragraphs || 0;
+            const assemblyStats = data.assembly_stats;
 
             let html = `
                 <div class="success-stats">
@@ -495,7 +527,7 @@
                     </div>
                     <div class="stat">
                         <div class="stat-number">${totalParagraphs}</div>
-                        <div class="stat-label">문단</div>
+                        <div class="stat-label">텍스트 섹션</div>
                     </div>
                     <div class="stat">
                         <div class="stat-number">${totalVisuals}</div>
@@ -508,89 +540,28 @@
                 </div>
             `;
 
+            // 조립 통계 표시
+            if (assemblyStats) {
+                html += `
+                    <div class="assembly-stats">
+                        <h4>📊 조립 통계</h4>
+                        <p>발견된 태그: ${assemblyStats.total_tags_found || 0}개</p>
+                        <p>삽입된 시각화: ${assemblyStats.visualizations_inserted || 0}개</p>
+                        <p>성공률: ${assemblyStats.success_rate || 'N/A'}</p>
+                    </div>
+                `;
+            }
+
+            // 섹션 렌더링
             data.sections.forEach((section, index) => {
-                if (section.type === 'paragraph') {
+                if (section.type === 'text') {
                     html += `
-                        <div class="section">
-                            <h3>📝 문단 ${index + 1}</h3>
-                            <p>${section.content}</p>
+                        <div class="text-section">
+                            ${formatTextContent(section.content)}
                         </div>
                     `;
-                } else if (section.type === 'chart') {
-                    const icon = getVisualizationIcon(section);
-                    const purposeBadge = getPurposeBadge(section.purpose);
-                    
-                    html += `
-                        <div class="visual-section">
-                            <h3>${icon} ${section.section || '차트'}${purposeBadge}</h3>
-                            ${section.success ? 
-                                renderChartHTML(section, index) :
-                                `<div class="visual-error">
-                                    <p><strong>차트 생성 실패:</strong> ${section.error}</p>
-                                </div>`
-                            }
-                            ${section.insight ? `
-                                <div class="insight-box">
-                                    <h4>💡 인사이트</h4>
-                                    <p>${section.insight}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else if (section.type === 'diagram') {
-                    html += `
-                        <div class="visual-section">
-                            <h3>🔄 다이어그램: ${section.section || '제목 없음'}</h3>
-                            ${section.success ?
-                                `<div class="mermaid-container">
-                                    <div class="mermaid" id="diagram-${index}">${section.code}</div>
-                                </div>` :
-                                `<div class="visual-error">
-                                    <p><strong>다이어그램 생성 실패:</strong> ${section.error}</p>
-                                </div>`
-                            }
-                            ${section.insight ? `
-                                <div class="insight-box">
-                                    <h4>💡 인사이트</h4>
-                                    <p>${section.insight}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else if (section.type === 'table') {
-                    html += `
-                        <div class="visual-section">
-                            <h3>📋 표: ${section.section || '제목 없음'}</h3>
-                            ${section.success ?
-                                `<div class="table-container" id="table-${index}"></div>` :
-                                `<div class="visual-error">
-                                    <p><strong>표 생성 실패:</strong> ${section.error}</p>
-                                </div>`
-                            }
-                            ${section.insight ? `
-                                <div class="insight-box">
-                                    <h4>💡 인사이트</h4>
-                                    <p>${section.insight}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else if (section.type === 'creative') {
-                    html += `
-                        <div class="visual-section">
-                            <h3>🎨 창의적 표현: ${section.section || '제목 없음'}</h3>
-                            <div class="creative-container">
-                                <h4>제안 방법: ${section.method || 'N/A'}</h4>
-                                <p>${section.description || '설명 없음'}</p>
-                            </div>
-                            ${section.insight ? `
-                                <div class="insight-box">
-                                    <h4>💡 인사이트</h4>
-                                    <p>${section.insight}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
+                } else if (section.type === 'visualization') {
+                    html += renderVisualizationSection(section, index);
                 }
             });
 
@@ -601,66 +572,194 @@
             renderVisualizations(data.sections);
         }
 
-        function renderChartHTML(section, index) {
-            if (section.library === 'plotly') {
-                return `<div class="plotly-container" id="plotly-${index}"></div>`;
+        function formatTextContent(content) {
+            // 간단한 마크다운 스타일 형식 변환
+            let formatted = content
+                .replace(/^# (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^## (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^### (.*$)/gm, '<h4>$1</h4>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            if (!formatted.startsWith('<h')) {
+                formatted = '<p>' + formatted + '</p>';
+            }
+            
+            return formatted;
+        }
+
+        function renderVisualizationSection(section, index) {
+            const config = section.config;
+            const originalText = section.original_text; // 🔧 백엔드에서 받은 원본 텍스트
+            const originalRequest = section.original_request; // 🔧 디버그용
+            
+            console.log(`🔧 시각화 섹션 ${section.tag_id}:`, {
+                originalText,
+                originalTextLength: originalText ? originalText.length : 0,
+                originalRequest
+            });
+            
+            let html = `
+                <div class="visual-section">
+                    <h3>
+                        ${getVisualizationIcon(config.type)} 
+                        ${config.title || `시각화 ${section.tag_id}`}
+                        <span class="tag-badge">태그 ${section.tag_id}</span>
+                    </h3>
+            `;
+
+            // 시각화 렌더링 영역
+            html += renderVisualizationHTML(config, index);
+
+            // 🔧 원본 텍스트 표시 (조건 없이 무조건 시도)
+            if (originalText) {
+                html += `
+                    <div class="original-text-box">
+                        <p>${originalText}</p>
+                    </div>
+                `;
+                console.log(`✅ 태그 ${section.tag_id} 원본 텍스트 표시됨: ${originalText.length}자`);
             } else {
-                return `<div class="chart-container">
-                    <canvas id="chart-${index}"></canvas>
+                console.warn(`⚠️ 태그 ${section.tag_id} 원본 텍스트 없음`);
+                
+                // 🔧 디버그 정보 표시 (개발용)
+                html += `
+                    <div class="debug-box">
+                        <details>
+                            <summary>🔧 디버그 정보 (태그 ${section.tag_id})</summary>
+                            <pre>원본 텍스트 길이: ${originalText ? originalText.length : 0}자
+position_context: ${originalRequest?.position_context ? originalRequest.position_context.length : 0}자
+data_source: ${originalRequest?.data_source ? originalRequest.data_source.length : 0}자
+content_description: ${originalRequest?.content_description ? originalRequest.content_description.length : 0}자
+why_helpful: ${originalRequest?.why_helpful ? originalRequest.why_helpful.length : 0}자</pre>
+                        </details>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function renderVisualizationHTML(config, index) {
+            try {
+                switch(config.type) {
+                    case 'chartjs':
+                        return `<div class="chart-container">
+                            <canvas id="chart-${index}"></canvas>
+                        </div>`;
+                    
+                    case 'plotly':
+                        return `<div class="plotly-container" id="plotly-${index}"></div>`;
+                    
+                    case 'mermaid':
+                        return `<div class="mermaid-container">
+                            <div class="mermaid" id="mermaid-${index}">${config.code}</div>
+                        </div>`;
+                    
+                    case 'markmap':
+                        return `<div class="markmap-container" id="markmap-${index}"></div>`;
+                    
+                    case 'table':
+                        return `<div class="table-container" id="table-${index}"></div>`;
+                    
+                    case 'creative':
+                        return `<div class="creative-container">
+                            <h4>제안 방법: ${config.method}</h4>
+                            <p>${config.description}</p>
+                        </div>`;
+                    
+                    default:
+                        return `<div class="visual-error">
+                            <p>지원하지 않는 시각화 타입: ${config.type}</p>
+                        </div>`;
+                }
+            } catch (error) {
+                return `<div class="visual-error">
+                    <p>시각화 렌더링 오류: ${error.message}</p>
                 </div>`;
             }
         }
 
         function renderVisualizations(sections) {
             sections.forEach((section, index) => {
+                if (section.type !== 'visualization') return;
+                
+                const config = section.config;
+                
                 try {
-                    if (section.type === 'chart' && section.success && section.config) {
-                        if (section.library === 'plotly') {
-                            // Plotly 렌더링
-                            const plotDiv = document.getElementById(`plotly-${index}`);
-                            if (plotDiv && section.config) {
-                                Plotly.newPlot(plotDiv, section.config.data || [], section.config.layout || {}, section.config.config || {});
-                                plotlyInstances.push(`plotly-${index}`);
-                                console.log('Plotly 차트 렌더링 성공:', section.section);
-                            }
-                        } else {
-                            // Chart.js 렌더링
+                    switch(config.type) {
+                        case 'chartjs':
                             const canvas = document.getElementById(`chart-${index}`);
-                            if (canvas) {
-                                const chart = new Chart(canvas, section.config);
+                            if (canvas && config.config) {
+                                const chart = new Chart(canvas, config.config);
                                 chartInstances.push(chart);
-                                console.log('Chart.js 렌더링 성공:', section.section);
+                                console.log('Chart.js 렌더링 성공:', config.title);
                             }
-                        }
-                    } else if (section.type === 'table' && section.success && section.data) {
-                        const container = document.getElementById(`table-${index}`);
-                        if (container && section.data.headers && section.data.rows) {
-                            let tableHtml = '<table>';
-                            
-                            // 헤더
-                            tableHtml += '<thead><tr>';
-                            section.data.headers.forEach(header => {
-                                tableHtml += `<th>${header}</th>`;
-                            });
-                            tableHtml += '</tr></thead>';
-                            
-                            // 데이터
-                            tableHtml += '<tbody>';
-                            section.data.rows.forEach(row => {
-                                tableHtml += '<tr>';
-                                row.forEach(cell => {
-                                    tableHtml += `<td>${cell}</td>`;
-                                });
-                                tableHtml += '</tr>';
-                            });
-                            tableHtml += '</tbody></table>';
-                            
-                            container.innerHTML = tableHtml;
-                            console.log('테이블 렌더링 성공:', section.section);
-                        }
+                            break;
+                        
+                        case 'plotly':
+                            const plotDiv = document.getElementById(`plotly-${index}`);
+                            if (plotDiv && config.config) {
+                                Plotly.newPlot(
+                                    plotDiv, 
+                                    config.config.data || [], 
+                                    config.config.layout || {},
+                                    config.config.config || {}
+                                );
+                                plotlyInstances.push(`plotly-${index}`);
+                                console.log('Plotly 차트 렌더링 성공:', config.title);
+                            }
+                            break;
+                        
+                        case 'table':
+                            const tableContainer = document.getElementById(`table-${index}`);
+                            if (tableContainer && config.data) {
+                                let tableHtml = '<table>';
+                                
+                                // 헤더
+                                if (config.data.headers) {
+                                    tableHtml += '<thead><tr>';
+                                    config.data.headers.forEach(header => {
+                                        tableHtml += `<th>${header}</th>`;
+                                    });
+                                    tableHtml += '</tr></thead>';
+                                }
+                                
+                                // 데이터
+                                if (config.data.rows) {
+                                    tableHtml += '<tbody>';
+                                    config.data.rows.forEach(row => {
+                                        tableHtml += '<tr>';
+                                        row.forEach(cell => {
+                                            tableHtml += `<td>${cell}</td>`;
+                                        });
+                                        tableHtml += '</tr>';
+                                    });
+                                    tableHtml += '</tbody>';
+                                }
+                                
+                                tableHtml += '</table>';
+                                tableContainer.innerHTML = tableHtml;
+                                console.log('테이블 렌더링 성공:', config.title);
+                            }
+                            break;
+                        
+                        case 'markmap':
+                            const markmapDiv = document.getElementById(`markmap-${index}`);
+                            if (markmapDiv && config.markdown && window.markmap) {
+                                const { Markmap, loadCSS, loadJS } = window.markmap;
+                                const { root } = Markmap.transform(config.markdown);
+                                const mm = Markmap.create(markmapDiv, null, root);
+                                markmapInstances.push(mm);
+                                console.log('Markmap 렌더링 성공:', config.title);
+                            }
+                            break;
                     }
                 } catch (error) {
-                    console.error(`시각화 렌더링 실패 (${section.type}):`, error);
+                    console.error(`시각화 렌더링 실패 (${config.type}):`, error);
                 }
             });
 
@@ -673,35 +772,16 @@
             }
         }
 
-        function getVisualizationIcon(section) {
-            if (section.library === 'plotly') return '📈';
-            if (section.library === 'chartjs') {
-                const chartType = section.config?.type;
-                switch(chartType) {
-                    case 'bar': return '📊';
-                    case 'line': return '📈';
-                    case 'pie': return '🥧';
-                    case 'radar': return '🎯';
-                    case 'scatter': return '🔸';
-                    default: return '📊';
-                }
-            }
-            return '📊';
-        }
-
-        function getPurposeBadge(purpose) {
-            if (!purpose) return '';
-            
-            const purposeMap = {
-                'overview': '전체 개요',
-                'detail': '세부 분석', 
-                'comparison': '비교',
-                'process': '프로세스',
-                'concept': '개념 설명'
+        function getVisualizationIcon(type) {
+            const icons = {
+                'chartjs': '📊',
+                'plotly': '📈',
+                'mermaid': '🔄',
+                'markmap': '🗺️',
+                'table': '📋',
+                'creative': '🎨'
             };
-            
-            const label = purposeMap[purpose] || purpose;
-            return `<span class="purpose-badge purpose-${purpose}">${label}</span>`;
+            return icons[type] || '📊';
         }
 
         // Enter 키로 실행

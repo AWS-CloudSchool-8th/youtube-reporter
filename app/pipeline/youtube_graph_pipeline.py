@@ -11,18 +11,20 @@ from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langsmith.run_helpers import traceable
 import logging
+import re
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)  # ← name → __name__으로 수정
+logger = logging.getLogger(__name__)
 
-# ========== 1. 상태 정의 ==========
-class GraphState(TypedDict):
+# ========== 1. 상태 정의 (확장됨) ==========
+class ImprovedGraphState(TypedDict):
     youtube_url: str
     caption: str
     report_text: str
-    visual_requirements: List[Dict]
-    visual_results: List[Dict]
+    tagged_report: str
+    visualization_requests: List[Dict]
+    generated_visualizations: List[Dict]
     final_output: Dict
 
 # ========== 2. 환경 변수 로딩 ==========
@@ -52,13 +54,77 @@ llm = ChatBedrock(
     model_kwargs={"temperature": 0.0, "max_tokens": 4096}
 )
 
-# ========== 5. 보고서 생성 ==========
+# ========== 5. 개선된 보고서 생성 프롬프트 ==========
 structure_prompt = ChatPromptTemplate.from_messages([
-    ("system", "너는 유튜브 자막을 보고서 형식으로 재작성하는 AI야. 다음 규칙을 따르세요:\n"
-               "1. 자막 내용을 서술형 문장으로 바꾸세요.\n"
-               "2. 3개 이상의 문단, 300자 이상.\n"
-               "3. 각 문단은 요약+설명 형식으로 작성하세요.\n"
-               "4. 핵심 내용을 누락하지 말고 포괄적으로 작성하세요."),
+    ("system", """너는 유튜브 자막을 상세하고 완전한 보고서로 재작성하는 AI야.
+
+## 핵심 원칙
+- **완전성**: 독자가 영상을 보지 않아도 100% 이해 가능해야 함
+- **구체성**: 중요한 수치, 사례, 인용구는 반드시 포함
+- **상세성**: 각 섹션은 충분히 자세하게 설명 (최소 500자 이상)
+
+## 보고서 작성 지침
+
+#### 1.1 표지 정보
+- 보고서 제목: "[영상 제목] 분석 보고서"
+
+#### 1.2 목차
+- 각 섹션별 페이지 번호 포함
+- 최소 5개 이상의 주요 섹션 구성
+
+#### 1.3 필수 섹션 구성
+1. **개요 (Executive Summary)**
+- 영상의 핵심 내용 요약 (200-300자)
+- 주요 키워드 및 핵심 메시지
+
+2. **주요 내용 분석**
+- 최소 3개 이상의 세부 문단
+- 각 문단당 500자 이상
+- 문단 구조: 소제목 + 요약 + 상세 설명
+
+3. **핵심 인사이트**
+- 영상에서 도출되는 주요 시사점
+- 실무적/학술적 함의
+
+4. **결론 및 제언**
+- 전체 내용 종합
+- 향후 방향성 또는 응용 가능성
+
+5. **부록**
+- 주요 인용구
+- 참고 자료 (해당 시)
+
+### 2. 작성 기준
+
+#### 2.1 문체 및 형식
+- **서술형 문장**: 구어체를 문어체로 완전 변환
+- **객관적 어조**: 3인칭 관점에서 서술
+- **전문적 표현**: 학술적/비즈니스 용어 활용
+- **논리적 연결**: 문장 간 연결고리 명확화
+
+#### 2.2 내용 구성
+- **구체적 정보 필수 포함**:
+  - 정확한 수치 (년도, 크기, 비율 등)
+  - 구체적 사례와 예시
+  - 중요한 인용구나 발언
+  - 회사명, 제품명, 기술명 등
+
+- **각 섹션 최소 500자 이상**:
+  - 단순 요약이 아닌 상세한 설명
+  - 배경 정보와 맥락 제공
+  - 원인과 결과, 영향 분석
+
+- **완전한 이해를 위한 서술**:
+  - 전문 용어는 반드시 설명 추가
+  - 복잡한 개념은 단계별로 설명
+  - 독자가 추가 검색 없이도 이해 가능하도록
+
+#### 2.3 품질 기준
+- **일관성**: 전체 보고서의 어조와 형식 통일
+- **완결성**: 각 섹션이 독립적으로도 이해 가능
+- **정확성**: 원본 자막 내용 왜곡 없이 재구성
+- **가독성**: 명확한 제목, 부제목, 단락 구분
+- **완전성**: 영상의 모든 중요한 내용을 포함하여, 독자가 영상을 보지 않아도 전체 내용을 이해할 수 있도록 한다."""),
     ("human", "{input}")
 ])
 
@@ -77,7 +143,7 @@ report_agent_executor_runnable = RunnableLambda(structure_report)
 # ========== 6. 헬퍼 클래스들 ==========
 class ToolAgent(Runnable):
     """단순 도구를 LangGraph 노드로 변환"""
-    def __init__(self, tool_func, input_key: str, output_key: str):  # ← init → __init__으로 수정
+    def __init__(self, tool_func, input_key: str, output_key: str):
         self.tool_func = tool_func
         self.input_key = input_key
         self.output_key = output_key
@@ -89,7 +155,7 @@ class ToolAgent(Runnable):
 
 class LangGraphAgentNode(Runnable):
     """LangChain Runnable을 LangGraph 노드로 변환"""
-    def __init__(self, runnable, input_key: str, output_key: str):  # ← init → __init__으로 수정
+    def __init__(self, runnable, input_key: str, output_key: str):
         self.runnable = runnable
         self.input_key = input_key
         self.output_key = output_key
@@ -99,133 +165,126 @@ class LangGraphAgentNode(Runnable):
         result = self.runnable.invoke(input_value)
         return {**state, self.output_key: result}
 
-class MergeTool(Runnable):
-    """최종 결과 병합"""
-    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
-        report_text = state.get("report_text", "")
-        visual_results = state.get("visual_results", [])
+# ========== 7. 개선된 맥락 분석 및 태깅 에이전트 ==========
+IMPROVED_CONTEXT_AND_TAGGING_PROMPT = """
+당신은 보고서를 분석하여 시각화가 필요한 부분을 식별하고 태그를 삽입하는 전문가입니다.
 
-        # 보고서를 문단으로 분할
-        paragraphs = [p.strip() for p in report_text.split('\n\n') if p.strip()]
+## 임무
+1. 보고서 내용을 깊이 분석
+2. 시각화가 효과적인 내용 전달에 도움될 부분 식별 
+3. 시각화가 구조화된 내용 전달에 도움될 부분 식별 
+4. 해당 위치에 간단한 숫자 태그 삽입
+5. 각 태그별로 시각화와 관련된 **정확한 원본 텍스트 문단** 추출
 
-        # 섹션 생성
-        sections = []
-
-        # 문단 추가
-        for i, paragraph in enumerate(paragraphs):
-            if len(paragraph) > 50:  # 너무 짧은 문단 제외
-                sections.append({
-                    "type": "paragraph",
-                    "content": paragraph
-                })
-
-        # 시각화 추가
-        sections.extend(visual_results)
-
-        # 통계 계산
-        total_paragraphs = len([s for s in sections if s["type"] == "paragraph"])
-        total_visuals = len([s for s in sections if s["type"] != "paragraph"])
-
-        final_output = {
-            "format": "mixed",
-            "sections": sections,
-            "total_paragraphs": total_paragraphs,
-            "total_visuals": total_visuals
-        }
-
-        return {**state, "final_output": final_output}
-
-# ========== 7. 스마트 시각화 시스템 ==========
-CONTEXT_ANALYSIS_PROMPT = """
-당신은 YouTube 보고서의 맥락을 깊이 분석하는 전문가입니다.
-
-다음 보고서를 분석해서 사용자가 영상을 보지 않고도 완전히 이해할 수 있도록 도와주세요.
-
-보고서:
+## 보고서 분석
 {report_text}
 
-**분석 단계:**
-1. **전체 주제와 목적** 파악
-2. **핵심 개념들** 추출  
-3. **이해하기 어려운 부분** 식별
-4. **시각화로 도움될 수 있는 부분** 판단
+## 작업 단계
+1. **전체 주제와 흐름 파악**
+2. **시각화가 도움될 부분 식별** (비교, 과정, 개념, 데이터 등)
+3. **각 부분에 [VIZ_1], [VIZ_2], [VIZ_3] 형태로 태그 삽입**
+4. **태그별로 시각화와 직접 관련된 완전한 문단 추출**
 
-**응답 형식:**
+## 중요 지침
+- **related_content**에는 시각화와 직접 관련된 **완전한 문단**을 포함하세요
+- 문장이 중간에 끊기지 않도록 **완성된 문장들**로 구성
+- 시각화 주제와 **정확히 일치하는 내용**만 선택
+- 최소 100자 이상의 의미 있는 텍스트 블록 제공
+
+## 출력 형식
+```json
 {{
-  "main_topic": "전체 주제",
-  "key_concepts": ["개념1", "개념2", "개념3"],
-  "difficult_parts": [
+  "tagged_report": "태그가 삽입된 전체 보고서 텍스트",
+  "visualization_requests": [
     {{
-      "content": "이해하기 어려운 내용",
-      "why_difficult": "왜 어려운지",
-      "help_type": "어떤 도움이 필요한지"
-    }}
-  ],
-  "visualization_opportunities": [
-    {{
-      "content": "시각화할 내용", 
-      "purpose": "overview|detail|comparison|process|concept",
-      "why_helpful": "왜 시각화가 도움되는지",
-      "user_benefit": "사용자가 얻을 수 있는 이해"
+      "tag_id": "1",
+      "purpose": "comparison|process|concept|overview|detail",
+      "content_description": "시각화할 구체적 내용",
+      "related_content": "시각화와 직접 관련된 완전한 원본 문단 (완성된 문장들로 구성)"
     }}
   ]
 }}
+```
+
+## 예시
+만약 VM과 Docker 비교 시각화라면:
+```json
+{{
+  "tag_id": "1",
+  "purpose": "comparison", 
+  "content_description": "VM과 Docker 아키텍처 비교",
+  "related_content": "가상머신은 하이퍼바이저를 통해 전체 운영체제를 가상화하는 방식으로 작동합니다. 각 VM은 독립적인 운영체제를 실행하며, 이로 인해 높은 격리성을 제공하지만 상당한 리소스 오버헤드가 발생합니다. 반면 Docker 컨테이너는 호스트 운영체제의 커널을 공유하면서 애플리케이션 레벨에서만 격리를 제공합니다. 이러한 구조적 차이로 인해 컨테이너는 VM 대비 훨씬 가벼운 리소스 사용량을 보이며, 시작 시간도 현저히 빠릅니다."
+}}
+```
 
 JSON만 출력하세요.
 """
 
-def analyze_content_context(report_text: str) -> Dict[str, Any]:
-    """보고서의 맥락을 깊이 분석"""
-    try:
-        prompt = CONTEXT_ANALYSIS_PROMPT.format(report_text=report_text)
-        response = llm.invoke(prompt)
+class ImprovedContextAndTaggingAgent(Runnable):
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        report_text = state.get("report_text", "")
+        
+        logger.info("🏷️ 개선된 맥락 분석 및 태깅 시작...")
+        
+        try:
+            prompt = IMPROVED_CONTEXT_AND_TAGGING_PROMPT.format(report_text=report_text)
+            response = llm.invoke(prompt)
+            content = response.content.strip()
+            
+            start_idx = content.find('{')
+            end_idx = content.rfind('}')
+            
+            if start_idx != -1 and end_idx != -1:
+                json_part = content[start_idx:end_idx+1]
+                result = json.loads(json_part)
+                
+                logger.info(f"✅ 개선된 태깅 완료: {len(result.get('visualization_requests', []))}개 시각화 요청")
+                
+                # 추출된 텍스트 길이 확인
+                for req in result.get('visualization_requests', []):
+                    related_content = req.get('related_content', '')
+                    logger.info(f"태그 {req.get('tag_id')}: 관련 텍스트 {len(related_content)}자 추출")
+                
+                return {
+                    **state,
+                    "tagged_report": result.get("tagged_report", report_text),
+                    "visualization_requests": result.get("visualization_requests", [])
+                }
+            else:
+                logger.error("JSON 파싱 실패")
+                return {**state, "tagged_report": report_text, "visualization_requests": []}
+                
+        except Exception as e:
+            logger.error(f"개선된 맥락 분석 및 태깅 실패: {e}")
+            return {**state, "tagged_report": report_text, "visualization_requests": []}
 
-        content = response.content.strip()
-        start_idx = content.find('{')
-        end_idx = content.rfind('}')
+# ========== 8. 타겟팅된 시각화 생성 에이전트 ==========
+TARGETED_VISUALIZATION_PROMPT = """
+당신은 특정 태그와 맥락 정보를 바탕으로 정확한 시각화를 생성하는 전문가입니다.
 
-        if start_idx != -1 and end_idx != -1:
-            json_part = content[start_idx:end_idx+1]
-            return json.loads(json_part)
-        else:
-            return {"error": "JSON 파싱 실패"}
+## 시각화 요청 정보
+- **태그 ID**: {tag_id}
+- **목적**: {purpose}
+- **내용**: {content_description}
+- **주변 맥락**: {position_context}
+- **데이터 소스**: {data_source}
+- **필요한 이유**: {why_helpful}
 
-    except Exception as e:
-        logger.error(f"컨텍스트 분석 실패: {e}")
-        return {"error": str(e)}
+## 전체 자막 (추가 참고용)
+{caption_context}
 
-SMART_VISUALIZATION_PROMPT = """
-당신은 최적의 시각화를 자동으로 생성하는 AI입니다.
+## 지침
+1. 제공된 맥락과 데이터를 정확히 활용
+2. 태그가 삽입될 위치에서 독자 이해를 최대화
+3. 보고서에 언급된 실제 정보만 사용
+4. 요청된 목적에 정확히 부합하는 시각화 생성
 
-**상황:**
-- 주제: {main_topic}
-- 핵심 개념: {key_concepts}
-
-**시각화 기회:**
-{visualization_opportunity}
-
-**목적:** {purpose}
-**왜 도움되는지:** {why_helpful}
-**사용자 이익:** {user_benefit}
-
-**당신의 임무:**
-1. 이 내용을 가장 효과적으로 표현할 시각화 방법을 결정
-2. 필요한 데이터나 구조를 추출/생성
-3. 실제 시각화 코드나 설정을 만들기
-
-**사용 가능한 도구들:**
-- **간단한 차트**: 비교, 트렌드, 비율 → Chart.js 
-- **수학/과학**: 함수, 공식, 관계 → Plotly.js + 수학 계산
-- **프로세스/흐름**: 단계, 절차 → Mermaid
-- **구조화된 정보**: 정확한 데이터 → HTML Table
-- **개념 관계/마인드맵**: 분류, 연결, 구조 → Markmap (강력 추천!)
-- **창의적 표현**: 위의 것들로 안되면 새로운 방법 제안
-
-**중요**: 
-- 정해진 형식에 얽매이지 말고 가장 효과적인 방법을 선택하세요
-- **개념 관계, 분류체계, 학습 구조**에는 Markmap을 우선 고려하세요
-- 내용에서 실제 데이터를 추출하거나 합리적으로 생성하세요  
-- 사용자가 "아, 이래서 시각화가 필요했구나!"라고 느끼도록 하세요
+## 사용 가능한 시각화 타입
+- **chartjs**: 데이터 비교, 트렌드, 비율
+- **plotly**: 수학적/과학적 그래프, 복잡한 데이터
+- **mermaid**: 프로세스, 플로우차트, 타임라인
+- **markmap**: 개념 관계, 마인드맵, 분류 체계
+- **table**: 구조화된 정보, 비교표
 
 다음 중 하나의 형식으로 응답하세요:
 
@@ -282,7 +341,7 @@ SMART_VISUALIZATION_PROMPT = """
   "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
 }}
 
-**4. Markmap 마인드맵:** (개념 관계/구조에 최적!)
+**4. Markmap 마인드맵:**
 {{
   "type": "markmap",
   "title": "마인드맵 제목",
@@ -315,184 +374,196 @@ SMART_VISUALIZATION_PROMPT = """
 JSON만 출력하세요.
 """
 
-def generate_smart_visualization(context: Dict[str, Any], opportunity: Dict[str, Any]) -> Dict[str, Any]:
-    """스마트하게 최적의 시각화 생성"""
-    try:
-        prompt = SMART_VISUALIZATION_PROMPT.format(
-            main_topic=context.get('main_topic', ''),
-            key_concepts=', '.join(context.get('key_concepts', [])),
-            visualization_opportunity=opportunity.get('content', ''),
-            purpose=opportunity.get('purpose', ''),
-            why_helpful=opportunity.get('why_helpful', ''),
-            user_benefit=opportunity.get('user_benefit', '')
-        )
-        
-        response = llm.invoke(prompt)
-        content = response.content.strip()
-        
-        start_idx = content.find('{')
-        end_idx = content.rfind('}')
-        
-        if start_idx != -1 and end_idx != -1:
-            json_part = content[start_idx:end_idx+1]
-            return json.loads(json_part)
-        else:
-            return {"error": "JSON 파싱 실패"}
-            
-    except Exception as e:
-        logger.error(f"스마트 시각화 생성 실패: {e}")
-        return {"error": str(e)}
-
-class SmartVisualizationPipeline(Runnable):
+class TargetedVisualizationAgent(Runnable):
     def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
-        start = time.time()
-        report_text = state.get("report_text", "")
+        visualization_requests = state.get("visualization_requests", [])
+        caption_context = state.get("caption", "")
         
-        # 1단계: 컨텍스트 분석
-        logger.info("🧠 컨텍스트 분석 시작...")
-        context = analyze_content_context(report_text)
+        if not visualization_requests:
+            logger.info("❌ 시각화 요청이 없습니다.")
+            return {**state, "generated_visualizations": []}
         
-        if "error" in context:
-            logger.error(f"컨텍스트 분석 실패: {context['error']}")
-            return {**state, "visual_results": []}
+        logger.info(f"🎨 {len(visualization_requests)}개 시각화 생성 시작...")
         
-        logger.info(f"📝 주제: {context.get('main_topic', 'Unknown')}")
-        logger.info(f"🔑 핵심 개념: {len(context.get('key_concepts', []))}개")
-        logger.info(f"🎯 시각화 기회: {len(context.get('visualization_opportunities', []))}개")
+        generated_visualizations = []
         
-        # 2단계: 각 시각화 기회에 대해 스마트 생성
-        visual_results = []
-        opportunities = context.get('visualization_opportunities', [])
-        
-        for i, opportunity in enumerate(opportunities):
-            logger.info(f"🎨 시각화 {i+1}/{len(opportunities)} 생성 중...")
+        for i, req in enumerate(visualization_requests):
+            logger.info(f"🎯 시각화 {i+1}/{len(visualization_requests)} 생성 중... (태그: {req.get('tag_id', 'unknown')})")
             
-            viz_result = generate_smart_visualization(context, opportunity)
-            
-            if "error" not in viz_result:
-                # 성공한 시각화를 표준 형식으로 변환
-                standardized = self.standardize_visualization(viz_result, opportunity)
-                if standardized:
-                    visual_results.append(standardized)
-                    logger.info(f"✅ 시각화 생성 성공: {viz_result.get('type', 'unknown')}")
-                else:
-                    logger.warning(f"⚠️ 시각화 표준화 실패")
-            else:
-                logger.error(f"❌ 시각화 생성 실패: {viz_result['error']}")
-        
-        logger.info(f"🎯 스마트 시각화 파이프라인 완료: {round(time.time() - start, 2)}초")
-        logger.info(f"📊 생성된 시각화: {len(visual_results)}개")
-        
-        return {**state, "visual_results": visual_results}
-    
-    def standardize_visualization(self, viz_result: Dict[str, Any], opportunity: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """AI가 생성한 시각화를 표준 형식으로 변환"""
-        try:
-            base = {
-                "section": viz_result.get('title', opportunity.get('content', '시각화')[:50]),
-                "success": True,
-                "insight": viz_result.get('insight', ''),
-                "purpose": opportunity.get('purpose', ''),
-                "user_benefit": opportunity.get('user_benefit', '')
-            }
-            
-            viz_type = viz_result.get('type', '')
-            
-            if viz_type == 'chartjs':
-                return {
-                    **base,
-                    "type": "chart",
-                    "library": "chartjs",
-                    "config": viz_result.get('config', {})
-                }
-            
-            elif viz_type == 'plotly':
-                return {
-                    **base, 
-                    "type": "chart",
-                    "library": "plotly",
-                    "config": viz_result.get('config', {})
-                }
-            
-            elif viz_type == 'mermaid':
-                return {
-                    **base,
-                    "type": "diagram", 
-                    "library": "mermaid",
-                    "code": viz_result.get('code', '')
-                }
-            
-            # 🆕 Markmap 케이스 추가
-            elif viz_type == 'markmap':
-                return {
-                    **base,
-                    "type": "mindmap",
-                    "library": "markmap", 
-                    "markdown": viz_result.get('markdown', ''),
-                    "title": viz_result.get('title', '마인드맵')
-                }
-            
-            elif viz_type == 'table':
-                return {
-                    **base,
-                    "type": "table",
-                    "library": "html", 
-                    "data": viz_result.get('data', {})
-                }
-            
-            elif viz_type == 'creative':
-                return {
-                    **base,
-                    "type": "creative",
-                    "library": "custom",
-                    "method": viz_result.get('method', ''),
-                    "description": viz_result.get('description', '')
-                }
-            
-            else:
-                return None
+            try:
+                prompt = TARGETED_VISUALIZATION_PROMPT.format(
+                    tag_id=req.get('tag_id', ''),
+                    purpose=req.get('purpose', ''),
+                    content_description=req.get('content_description', ''),
+                    position_context=req.get('position_context', ''),
+                    data_source=req.get('data_source', ''),
+                    why_helpful=req.get('why_helpful', ''),
+                    caption_context=caption_context[:1000]  # 길이 제한
+                )
                 
-        except Exception as e:
-            logger.error(f"시각화 표준화 오류: {e}")
-            return None
+                response = llm.invoke(prompt)
+                content = response.content.strip()
+                
+                start_idx = content.find('{')
+                end_idx = content.rfind('}')
+                
+                if start_idx != -1 and end_idx != -1:
+                    json_part = content[start_idx:end_idx+1]
+                    viz_result = json.loads(json_part)
+                    
+                    generated_visualizations.append({
+                        "tag_id": req.get('tag_id'),
+                        "original_request": req,
+                        "visualization": viz_result
+                    })
+                    
+                    logger.info(f"✅ 태그 {req.get('tag_id')} 시각화 생성 성공")
+                else:
+                    logger.warning(f"⚠️ 태그 {req.get('tag_id')} JSON 파싱 실패")
+                    
+            except Exception as e:
+                logger.error(f"❌ 태그 {req.get('tag_id')} 시각화 생성 실패: {e}")
+        
+        logger.info(f"🎨 시각화 생성 완료: {len(generated_visualizations)}/{len(visualization_requests)}개 성공")
+        
+        return {**state, "generated_visualizations": generated_visualizations}
 
-# ========== 8. 그래프 구성 ==========
-smart_visualization_pipeline = SmartVisualizationPipeline()
+# ========== 9. 최종 조립 에이전트 ==========
+class SimplifiedFinalAssemblyAgent(Runnable):
+    def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
+        tagged_report = state.get("tagged_report", "")
+        generated_visualizations = state.get("generated_visualizations", [])
+        
+        logger.info("🔧 간소화된 최종 보고서 조립 시작...")
+        
+        # 시각화를 태그 ID별로 매핑
+        viz_by_tag = {viz["tag_id"]: viz["visualization"] for viz in generated_visualizations}
+        
+        # 최종 섹션 생성
+        final_sections = []
+        current_text = ""
+        
+        # 태그를 찾아서 교체하면서 섹션 생성
+        tag_pattern = r'\[VIZ_(\d+)\]'
+        
+        last_end = 0
+        for match in re.finditer(tag_pattern, tagged_report):
+            tag_id = match.group(1)
+            
+            # 태그 이전의 텍스트 추가
+            text_before = tagged_report[last_end:match.start()].strip()
+            if text_before:
+                current_text += text_before
+            
+            # 누적된 텍스트가 있으면 섹션으로 추가
+            if current_text.strip():
+                final_sections.append({
+                    "type": "text",
+                    "content": current_text.strip()
+                })
+                current_text = ""
+            
+            # 해당 태그의 시각화 추가 (있다면)
+            if tag_id in viz_by_tag:
+                # 원본 요청에서 관련 텍스트 추출
+                original_request = next(
+                    (viz["original_request"] for viz in generated_visualizations if viz["tag_id"] == tag_id), 
+                    {}
+                )
+                
+                # related_content만 사용
+                related_content = original_request.get("related_content", "").strip()
+                
+                # 백업: related_content가 없으면 기존 로직 사용
+                if not related_content or len(related_content) < 20:
+                    position_context = original_request.get("position_context", "").strip()
+                    if position_context and len(position_context) > 20:
+                        related_content = position_context
+                
+                final_sections.append({
+                    "type": "visualization",
+                    "tag_id": tag_id,
+                    "config": viz_by_tag[tag_id],
+                    "original_request": original_request,
+                    "original_text": related_content
+                })
+                logger.info(f"✅ 태그 {tag_id} 시각화 삽입 완료 (관련 텍스트: {len(related_content)}자)")
+            else:
+                logger.warning(f"⚠️ 태그 {tag_id}에 대한 시각화를 찾을 수 없음")
+            
+            last_end = match.end()
+        
+        # 마지막 남은 텍스트 추가
+        remaining_text = tagged_report[last_end:].strip()
+        if remaining_text:
+            current_text += remaining_text
+            if current_text.strip():
+                final_sections.append({
+                    "type": "text",
+                    "content": current_text.strip()
+                })
+        
+        # 통계 계산
+        text_count = len([s for s in final_sections if s["type"] == "text"])
+        viz_count = len([s for s in final_sections if s["type"] == "visualization"])
+        
+        final_output = {
+            "format": "integrated_sequential",
+            "sections": final_sections,
+            "total_paragraphs": text_count,
+            "total_visuals": viz_count,
+            "assembly_stats": {
+                "total_tags_found": len(re.findall(tag_pattern, tagged_report)),
+                "visualizations_inserted": viz_count,
+                "success_rate": f"{viz_count}/{len(re.findall(tag_pattern, tagged_report))}"
+            }
+        }
+        
+        logger.info(f"🔧 간소화된 조립 완료!")
+        logger.info(f"📊 결과: 텍스트 {text_count}개, 시각화 {viz_count}개")
+        
+        return {**state, "final_output": final_output}
 
-def build_smart_graph():
-    """스마트 시각화가 적용된 그래프 빌드"""
-    builder = StateGraph(state_schema=GraphState)
+# ========== 10. 개선된 그래프 구성 ==========
+def build_improved_graph():
+    builder = StateGraph(state_schema=ImprovedGraphState)
     
     builder.add_node("caption_node", ToolAgent(extract_youtube_caption_tool, "youtube_url", "caption"))
     builder.add_node("report_node", LangGraphAgentNode(report_agent_executor_runnable, "caption", "report_text"))
-    builder.add_node("smart_visual_node", smart_visualization_pipeline)
-    builder.add_node("merge_node", MergeTool())
+    builder.add_node("tagging_node", ImprovedContextAndTaggingAgent())
+    builder.add_node("visualization_node", TargetedVisualizationAgent())
+    builder.add_node("assembly_node", SimplifiedFinalAssemblyAgent())
     
     builder.set_entry_point("caption_node")
     builder.add_edge("caption_node", "report_node")
-    builder.add_edge("report_node", "smart_visual_node")
-    builder.add_edge("smart_visual_node", "merge_node")
-    builder.add_edge("merge_node", "__end__")
+    builder.add_edge("report_node", "tagging_node")
+    builder.add_edge("tagging_node", "visualization_node")
+    builder.add_edge("visualization_node", "assembly_node")
+    builder.add_edge("assembly_node", "__end__")
     
     return builder.compile()
 
 # 컴파일된 그래프
-smart_compiled_graph = build_smart_graph()
+improved_compiled_graph = build_improved_graph()
 
-# ========== 9. 실행 함수 ==========
-@traceable(name="smart-youtube-report")
-def run_smart_graph(youtube_url: str) -> Dict[str, Any]:
-    """스마트 시각화가 적용된 YouTube 보고서 생성"""
-    logger.info("\n🚀 [Smart Graph] 실행 시작")
+# ========== 11. 실행 함수 ==========
+@traceable(name="improved-sequential-youtube-report")
+def run_improved_graph(youtube_url: str) -> Dict[str, Any]:
+    """개선된 순차 통합 YouTube 보고서 생성"""
+    logger.info("\n🚀 [Improved Sequential Graph] 실행 시작")
     logger.info(f"🎯 입력 URL: {youtube_url}")
     
     try:
-        result = smart_compiled_graph.invoke({"youtube_url": youtube_url})
-        logger.info("\n✅ [Smart Graph] 실행 완료")
-        logger.info(f"📦 최종 결과: 문단 {result['final_output']['total_paragraphs']}개, 시각화 {result['final_output']['total_visuals']}개")
+        result = improved_compiled_graph.invoke({"youtube_url": youtube_url})
+        logger.info("\n✅ [Improved Sequential Graph] 실행 완료")
+        
+        stats = result['final_output'].get('assembly_stats', {})
+        logger.info(f"📦 최종 결과: 텍스트 {result['final_output']['total_paragraphs']}개, 시각화 {result['final_output']['total_visuals']}개")
+        logger.info(f"📊 조립 성공률: {stats.get('success_rate', 'N/A')}")
+        
         return result
     except Exception as e:
-        logger.error(f"\n❌ [Smart Graph] 실행 실패: {e}")
+        logger.error(f"\n❌ [Improved Sequential Graph] 실행 실패: {e}")
         return {
             "youtube_url": youtube_url,
             "final_output": {
@@ -505,4 +576,4 @@ def run_smart_graph(youtube_url: str) -> Dict[str, Any]:
         }
 
 # 기존 호환성을 위한 별칭
-run_graph = run_smart_graph
+run_graph = run_improved_graph
