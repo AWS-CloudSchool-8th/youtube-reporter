@@ -356,6 +356,38 @@
             margin: 5px 0;
             font-size: 0.9em;
         }
+
+        /* 헤더 크기 차별화 */
+        .text-section h1 {
+            font-size: 2.2em;
+            color: #2c3e50;
+            margin: 30px 0 20px 0;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .text-section h2 {
+            font-size: 1.8em;
+            color: #34495e;
+            margin: 25px 0 15px 0;
+            border-left: 5px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        .text-section h3 {
+            font-size: 1.4em;
+            color: #555;
+            margin: 20px 0 10px 0;
+            border-left: 3px solid #f39c12;
+            padding-left: 10px;
+        }
+
+        .text-section h4 {
+            font-size: 1.2em;
+            color: #666;
+            margin: 15px 0 8px 0;
+            font-weight: 600;
+}
     </style>
 </head>
 <body>
@@ -573,22 +605,58 @@
         }
 
         function formatTextContent(content) {
-            // 간단한 마크다운 스타일 형식 변환
-            let formatted = content
-                .replace(/^# (.*$)/gm, '<h2>$1</h2>')
-                .replace(/^## (.*$)/gm, '<h3>$1</h3>')
-                .replace(/^### (.*$)/gm, '<h4>$1</h4>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>');
+    let formatted = content;
+    
+    // 1단계: 이미 마크다운 헤더가 있는지 확인
+    const hasMarkdownHeaders = /^#{1,4}\s/.test(content);
+    
+    if (!hasMarkdownHeaders) {
+        // 2단계: 패턴 매칭으로 자동 헤더 변환
+        formatted = content
+            // 보고서 제목 (맨 첫 줄이 [...]로 둘러싸인 경우)
+            .replace(/^\[([^\]]+)\]/m, '# $1')
             
-            if (!formatted.startsWith('<h')) {
-                formatted = '<p>' + formatted + '</p>';
-            }
+            // 큰 섹션들 (숫자. 로 시작하는 경우)
+            .replace(/^(\d+\.\s*[^.]+(?:\([^)]+\))?)\s*$/gm, '## $1')
             
-            return formatted;
-        }
+            // 중간 섹션들 (숫자.숫자 로 시작하는 경우)
+            .replace(/^(\d+\.\d+\s*[^.]+)\s*$/gm, '### $1')
+            
+            // 작은 섹션들 (- 로 시작하는 제목같은 경우)
+            .replace(/^-\s*([^-].{10,})\s*$/gm, '#### $1');
+    }
+    
+    // 3단계: 마크다운을 HTML로 변환
+    formatted = formatted
+        // 헤더 처리
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')  
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
+        
+        // 텍스트 스타일
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        
+        // 리스트 처리
+        .replace(/^\s*[-*]\s+(.*$)/gm, '<li>$1</li>')
+        
+        // 줄바꿈 처리
+        .replace(/\n\s*\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    
+    // 4단계: 리스트 그룹핑
+    formatted = formatted.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/gs, function(match) {
+        return '<ul>' + match + '</ul>';
+    });
+    
+    // 5단계: 문단 태그 추가
+    if (!formatted.startsWith('<h')) {
+        formatted = '<p>' + formatted + '</p>';
+    }
+    
+    return formatted;
+}
 
         function renderVisualizationSection(section, index) {
             const config = section.config;
