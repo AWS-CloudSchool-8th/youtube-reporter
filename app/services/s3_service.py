@@ -12,8 +12,7 @@ class S3Service:
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
         
-        # AWS_S3_BUCKET을 우선 사용하고, 없으면 S3_BUCKET_NAME 사용
-        self.bucket_name = settings.AWS_S3_BUCKET or settings.S3_BUCKET_NAME
+        self.bucket_name = settings.S3_BUCKET_NAME
         
         # 초기화 시 버킷 정보 출력
         print(f"🪣 S3 서비스 초기화: 버킷={self.bucket_name}, 리전={settings.AWS_REGION}")

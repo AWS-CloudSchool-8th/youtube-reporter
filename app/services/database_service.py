@@ -100,3 +100,30 @@ class DatabaseService:
         return False
 
 database_service = DatabaseService()
+
+# 비동기 함수들 (프론트엔드 호환성을 위해)
+async def get_user_jobs(username: str):
+    """사용자 작업 목록 조회 (비동기)"""
+    db = next(get_db())
+    try:
+        jobs = database_service.get_user_jobs(db, username)
+        return [{
+            "id": job.id,
+            "status": job.status,
+            "job_type": job.job_type,
+            "input_data": job.input_data,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "completed_at": job.completed_at.isoformat() if job.completed_at else None
+        } for job in jobs]
+    finally:
+        db.close()
+
+async def get_job_progress(job_id: str):
+    """작업 진행률 조회 (비동기)"""
+    # Redis나 다른 저장소에서 진행률 정보를 가져오는 로직
+    # 현재는 기본값 반환
+    return {
+        "progress": 50,
+        "message": "분석 진행 중...",
+        "status": "processing"
+    }

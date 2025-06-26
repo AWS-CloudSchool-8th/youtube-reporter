@@ -15,13 +15,17 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
     AWS_REGION: str = "ap-northeast-2"
-    AWS_S3_BUCKET: Optional[str] = None
+    S3_BUCKET_NAME: Optional[str] = None
 
     # Polly 설정
     POLLY_VOICE_ID: str = "Seoyeon"
 
     # CORS 설정
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",  # React 개발 서버
+        "http://127.0.0.1:3000",
+        "*"  # 개발 환경용, 프로덕션에서는 제거 필요
+    ]
 
     # API 설정
     API_V1_STR: str = "/api/v1"
