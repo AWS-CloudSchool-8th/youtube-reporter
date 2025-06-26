@@ -8,7 +8,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from app.core.config import settings
 from app.services.state_manager import state_manager
-from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

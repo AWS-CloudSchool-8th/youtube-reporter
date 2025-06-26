@@ -51,21 +51,39 @@ langchain-community==0.3.24
 langchain-core==0.3.64
 langchain-experimental==0.3.4
 langchain-text-splitters==0.3.8
+
+# LangGraph
 langgraph==0.4.8
 langgraph-checkpoint==2.0.26
 langgraph-checkpoint-redis==0.0.6
 langgraph-prebuilt==0.2.2
 langgraph-sdk==0.1.70
+
+# LangSmith (추적 및 모니터링)
 langsmith==0.3.45
 
 # OpenAI
 openai==1.84.0
 
-# 유틸리티
+# 로깅 및 유틸리티
 email-validator==2.2.0
 python-ulid==3.0.0
 orjson==3.10.18
 xxhash==3.5.0
+colorlog>=6.7.0
+rich>=13.0.0
+
+# ===== 비동기 지원 =====
+aiofiles>=23.0.0
+
+# ===== 타입 지원 =====
+typing-extensions>=4.7.0
+
+# ===== JSON 처리 =====
+ujson>=5.8.0
 
 # 개발 도구 (선택사항)
 watchfiles==1.1.0
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
