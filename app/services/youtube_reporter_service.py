@@ -170,6 +170,15 @@ class YouTubeReporterService:
                 content=json.dumps(report_data, ensure_ascii=False, indent=2),
                 file_type="json"
             )
+            
+            # Redis에 리포트 내용 캐싱 (빠른 조회용)
+            try:
+                from app.core.redis_client import redis_client
+                cache_key = f"report_content:{job_id}"
+                redis_client.set_with_ttl(cache_key, result, 3600)  # 1시간 캐싱
+                logger.info(f"✅ Redis에 리포트 내용 캐싱 완료: {job_id}")
+            except Exception as e:
+                logger.warning(f"Redis 캐싱 실패 (무시됨): {e}")
 
             # YouTube 메타데이터 별도 저장
             await self._save_youtube_metadata(user_id, job_id, youtube_url)

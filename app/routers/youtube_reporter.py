@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_current_user_optional
 from app.core.database import get_db
 from app.services.youtube_reporter_service import youtube_reporter_service
 from app.services.database_service import database_service
@@ -167,11 +167,33 @@ async def get_analysis_result(
         if not job_report:
             raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다")
 
-        # S3에서 리포트 내용 가져오기
+        # Redis에서 리포트 내용 가져오기 (빠른 조회)
         from app.services.user_s3_service import user_s3_service
+        from app.core.redis_client import redis_client
+        import json
 
         try:
             download_url = user_s3_service.get_presigned_url(job_report.s3_key)
+            
+            # 1. Redis에서 먼저 조회 (빠름)
+            report_content = None
+            cache_key = f"report_content:{job_id}"
+            
+            try:
+                cached_content = redis_client.get(cache_key)
+                if cached_content:
+                    report_content = cached_content
+                    logger.info(f"Redis에서 리포트 내용 조회: {job_id}")
+                else:
+                    # 2. Redis에 없으면 S3에서 가져오기
+                    content = user_s3_service.get_file_content(job_report.s3_key)
+                    if content and job_report.file_type == 'json':
+                        report_content = json.loads(content)
+                        # Redis에 캐싱 (1시간)
+                        redis_client.set_with_ttl(cache_key, report_content, 3600)
+                        logger.info(f"S3에서 리포트 내용 조회 및 Redis 캐싱: {job_id}")
+            except Exception as e:
+                logger.warning(f"리포트 내용 조회 실패: {e}")
 
             return {
                 "job_id": job_id,
@@ -181,6 +203,7 @@ async def get_analysis_result(
                 "download_url": download_url,
                 "s3_key": job_report.s3_key,
                 "file_type": job_report.file_type,
+                "content": report_content,  # Redis 캐싱된 리포트 내용
                 "message": "✅ YouTube Reporter 분석이 완료되었습니다!"
             }
 
@@ -203,13 +226,17 @@ async def get_analysis_result(
 
 @router.get("/jobs")
 async def list_my_analyses(
-        current_user: dict = Depends(get_current_user),
+        current_user: dict = Depends(get_current_user_optional),
         db: Session = Depends(get_db)
 ):
     """
-    내 YouTube Reporter 분석 작업 목록 조회
+    내 YouTube Reporter 분석 작업 목록 조회 (로그인 선택적)
     """
     try:
+        # 로그인하지 않은 경우 빈 목록 반환
+        if not current_user:
+            return {"jobs": [], "total": 0}
+            
         user_id = current_user["user_id"]
 
         # YouTube Reporter 작업만 필터링

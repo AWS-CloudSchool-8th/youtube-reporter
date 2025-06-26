@@ -122,6 +122,17 @@ class UserS3Service:
         except Exception as e:
             raise Exception(f"URL 생성 실패: {str(e)}")
     
+    def get_file_content(self, s3_key: str) -> str:
+        """파일 내용 가져오기"""
+        try:
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=s3_key
+            )
+            return response['Body'].read().decode('utf-8')
+        except Exception as e:
+            raise Exception(f"파일 내용 조회 실패: {str(e)}")
+    
     def delete_user_file(self, s3_key: str):
         """사용자 파일 삭제"""
         try:
