@@ -81,11 +81,11 @@ JSON만 출력하세요.
                 return result
             else:
                 logger.error("JSON 파싱 실패")
-                return {"tagged_report": report_text, "visualization_requests": []}
+                return {**state, "visualization_requests": []}
                 
         except Exception as e:
             logger.error(f"맥락 분석 및 태깅 실패: {e}")
-            return {"tagged_report": report_text, "visualization_requests": []}
+            return {**state, "visualization_requests": []}
     
     def generate_visualizations(self, visualization_requests: List[Dict], caption_context: str = "") -> List[Dict]:
         """시각화 요청에 따라 시각화 생성"""
@@ -98,6 +98,7 @@ JSON만 출력하세요.
         generated_visualizations = []
         
         for i, req in enumerate(visualization_requests):
+            tag_id = str(i + 1) 
             logger.info(f"시각화 {i+1}/{len(visualization_requests)} 생성 중... (태그: {req.get('tag_id', 'unknown')})")
             
             try:
@@ -243,6 +244,8 @@ JSON만 출력하세요.
                     # 원본 텍스트 추가
                     viz_result['original_text'] = req.get('related_content', '')
                     
+                    req_with_tag = {**req, "tag_id": tag_id}
+
                     generated_visualizations.append({
                         "tag_id": req.get('tag_id'),
                         "original_request": req,

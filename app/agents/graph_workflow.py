@@ -12,6 +12,67 @@ from .visual_agent import VisualAgent
 
 logger = logging.getLogger(__name__)
 
+
+SMART_FINAL_ASSEMBLY_PROMPT = """
+당신은 보고서와 시각화를 자연스럽게 조합하는 전문가입니다.
+
+## 임무:
+원본 보고서를 적절한 섹션으로 나누고, 각 시각화를 가장 어울리는 위치에 배치하세요.
+
+## 원본 보고서:
+{report_text}
+
+## 생성된 시각화 목록:
+{visualizations_summary}
+
+## 배치 원칙:
+1. **텍스트 유사성**: 시각화의 related_content와 가장 유사한 텍스트 부분 찾기
+2. **논리적 흐름**: 독자가 자연스럽게 이해할 수 있는 순서
+3. **섹션 완결성**: 각 섹션이 독립적으로도 이해 가능하도록
+
+## 작업 방법:
+1. 원본 보고서를 논리적 섹션으로 분할 (제목, 소제목, 주요 문단 기준)
+2. 각 시각화의 related_content와 매칭되는 섹션 식별
+3. 해당 섹션 직후에 시각화 배치
+4. 전체적인 읽기 흐름 최적화
+
+## 출력 형식:
+```json
+{{
+  "sections": [
+    {{
+      "type": "text",
+      "content": "첫 번째 섹션의 완전한 텍스트 내용",
+      "section_info": "섹션 설명 (선택사항)"
+    }},
+    {{
+      "type": "visualization",
+      "viz_index": 0,
+      "placement_reason": "이 위치에 배치한 이유",
+      "content_match_score": "높음|중간|낮음"
+    }},
+    {{
+      "type": "text", 
+      "content": "두 번째 섹션의 완전한 텍스트 내용"
+    }}
+  ],
+  "assembly_summary": {{
+    "total_text_sections": 숫자,
+    "total_visualizations": 숫자,
+    "matching_method": "어떤 방식으로 매칭했는지"
+  }}
+}}
+```
+
+## 중요사항:
+- **원본 보고서의 모든 텍스트를 반드시 포함**하세요
+- 텍스트를 요약하거나 생략하지 마세요
+- 각 시각화는 정확히 한 번만 배치하세요
+
+JSON만 출력하세요.
+"""
+
+
 class ToolAgent(Runnable):
     """단순 도구를 LangGraph 노드로 변환"""
     def __init__(self, tool_func, input_key: str, output_key: str):
@@ -71,6 +132,12 @@ class VisualizationAgent(Runnable):
 
 class FinalAssemblyAgent(Runnable):
     """최종 조립 에이전트"""
+    def __init__(self):
+        # 🔧 수정 2: LLM 초기화 추가 (최신 브랜치와 동일하게)
+        from .report_agent import ReportAgent
+        self.report_agent = ReportAgent()
+        self.llm = self.report_agent.llm  # ReportAgent의 LLM 재사용
+
     def invoke(self, state: Dict[str, Any], config: Optional[Any] = None) -> Dict[str, Any]:
         report_text = state.get("report_text", "")
         generated_visualizations = state.get("generated_visualizations", [])
@@ -132,6 +199,7 @@ class FinalAssemblyAgent(Runnable):
                             viz_data = generated_visualizations[viz_index]
                             enhanced_sections.append({
                                 **section,
+                                "tag_id": f"viz_{viz_index + 1}",
                                 "config": viz_data["visualization"],
                                 "original_request": viz_data["original_request"]
                             })
@@ -187,6 +255,7 @@ class FinalAssemblyAgent(Runnable):
         for i, viz in enumerate(generated_visualizations):
             sections.append({
                 "type": "visualization",
+                "tag_id": f"viz_{i + 1}",
                 "viz_index": i,
                 "config": viz["visualization"],
                 "original_request": viz["original_request"],

@@ -15,6 +15,7 @@ print(f"[DEBUG] ReportAgent - AWS_REGION: {os.getenv('AWS_REGION')}")
 class ReportAgent:
     def __init__(self):
         load_dotenv()  # 환경변수 다시 로드
+        
         model_id = os.getenv("BEDROCK_MODEL_ID")
         if not model_id:
             raise ValueError("BEDROCK_MODEL_ID 환경변수가 설정되지 않았습니다")
