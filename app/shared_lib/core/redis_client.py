@@ -1,7 +1,7 @@
 import redis
 import json
 from typing import Dict, Any, Optional
-from app.core.config import settings
+from shared_lib.core.config import settings
 
 class RedisClient:
     def __init__(self):

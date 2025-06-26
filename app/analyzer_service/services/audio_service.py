@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
-from app.core.config import settings
-from app.services.s3_service import s3_service
+from shared_lib.core.config import settings
+from report_service.services.s3_service import s3_service
 
 class AudioService:
     def __init__(self):
@@ -12,13 +12,13 @@ class AudioService:
         self.voice_id = settings.POLLY_VOICE_ID
 
     async def generate_audio(self, text: str, job_id: str, voice_id: Optional[str] = None) -> Dict[str, Any]:
-        """Polly¸¦ »ç¿ëÇÏ¿© ÅØ½ºÆ®¸¦ À½¼ºÀ¸·Î º¯È¯"""
+        """Pollyë¥¼ ì‚¬ìš©í•˜ì—¬ í…ìŠ¤íŠ¸ë¥¼ ìŒì„±ìœ¼ë¡œ ë³€í™˜"""
         try:
             voice_id = voice_id or self.voice_id
             
-            # ÅØ½ºÆ® ±æÀÌ È®ÀÎ (Polly Á¦ÇÑ: 3000ÀÚ)
+            # í…ìŠ¤íŠ¸ ê¸¸ì´ í™•ì¸ (Polly ì œí•œ: 3000ì)
             if len(text) > 3000:
-                # ÅØ½ºÆ®¸¦ Ã»Å©·Î ºĞÇÒ
+                # í…ìŠ¤íŠ¸ë¥¼ ì²­í¬ë¡œ ë¶„í• 
                 chunks = [text[i:i+2800] for i in range(0, len(text), 2800)]
                 audio_parts = []
                 
@@ -31,11 +31,11 @@ class AudioService:
                     )
                     audio_parts.append(response['AudioStream'].read())
                 
-                # ¿Àµğ¿À ÆÄÆ®µéÀ» ÇÏ³ª·Î ÇÕÄ¡±â
+                # ì˜¤ë””ì˜¤ íŒŒíŠ¸ë“¤ì„ í•˜ë‚˜ë¡œ í•©ì¹˜ê¸°
                 audio_data = b''.join(audio_parts)
                 
             else:
-                # ´ÜÀÏ ¿äÃ»À¸·Î Ã³¸®
+                # ë‹¨ì¼ ìš”ì²­ìœ¼ë¡œ ì²˜ë¦¬
                 response = self.polly_client.synthesize_speech(
                     Text=text,
                     OutputFormat='mp3',
@@ -44,7 +44,7 @@ class AudioService:
                 )
                 audio_data = response['AudioStream'].read()
             
-            # S3¿¡ ¿Àµğ¿À ÆÄÀÏ ÀúÀå
+            # S3ì— ì˜¤ë””ì˜¤ íŒŒì¼ ì €ì¥
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             audio_s3_key = f"audio/{timestamp}_{job_id}.mp3"
             
@@ -68,14 +68,14 @@ class AudioService:
                 "voice_id": voice_id,
                 "audio_url": f"s3://{s3_service.bucket_name}/{audio_s3_key}",
                 "size": len(audio_data),
-                "duration_estimate": len(text) / 200  # ´ë·«ÀûÀÎ Àç»ı ½Ã°£ (ÃÊ)
+                "duration_estimate": len(text) / 200  # ëŒ€ëµì ì¸ ì¬ìƒ ì‹œê°„ (ì´ˆ)
             }
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Polly À½¼º »ı¼º ½ÇÆĞ: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Polly ìŒì„± ìƒì„± ì‹¤íŒ¨: {str(e)}")
 
     async def stream_audio(self, audio_s3_key: str) -> StreamingResponse:
-        """S3¿¡¼­ ¿Àµğ¿À ÆÄÀÏ ½ºÆ®¸®¹Ö"""
+        """S3ì—ì„œ ì˜¤ë””ì˜¤ íŒŒì¼ ìŠ¤íŠ¸ë¦¬ë°"""
         try:
             response = s3_service.s3_client.get_object(
                 Bucket=s3_service.bucket_name,
@@ -103,10 +103,10 @@ class AudioService:
             )
             
         except Exception as e:
-            raise HTTPException(status_code=404, detail=f"¿Àµğ¿À ÆÄÀÏÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {str(e)}")
+            raise HTTPException(status_code=404, detail=f"ì˜¤ë””ì˜¤ íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {str(e)}")
 
     async def find_audio_file(self, audio_id: str) -> str:
-        """audio_id·Î S3¿¡¼­ ¿Àµğ¿À ÆÄÀÏ Ã£±â"""
+        """audio_idë¡œ S3ì—ì„œ ì˜¤ë””ì˜¤ íŒŒì¼ ì°¾ê¸°"""
         if not audio_id.endswith('.mp3'):
             response = s3_service.s3_client.list_objects_v2(
                 Bucket=s3_service.bucket_name,
@@ -118,7 +118,7 @@ class AudioService:
                 if audio_id in obj['Key'] and obj['Key'].endswith('.mp3'):
                     return obj['Key']
             
-            raise HTTPException(status_code=404, detail=f"¿Àµğ¿À ÆÄÀÏÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù: {audio_id}")
+            raise HTTPException(status_code=404, detail=f"ì˜¤ë””ì˜¤ íŒŒì¼ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: {audio_id}")
         
         return f"audio/{audio_id}"
 

@@ -1,24 +1,25 @@
+# -*- coding: utf-8 -*-
 from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form, Query
 from typing import List, Optional
 from datetime import datetime
 
-from app.models.analysis import (
+from shared_lib.models.analysis import (
     VideoInfo, SearchRequest, YouTubeAnalysisRequest,
     DocumentAnalysisRequest, AnalysisResponse
 )
-from app.services.s3_service import s3_service
-from app.services.audio_service import audio_service
-from app.services.analysis_service import analysis_service
-from app.core.config import settings
+from report_service.services.s3_service import s3_service
+from services.audio_service import audio_service
+from services.analysis_service import analysis_service
+from shared_lib.core.config import settings
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-# ºĞ¼® ÀÛ¾÷ ÀúÀå¼Ò
+# ë¶„ì„ ì‘ì—… ì €ì¥ì†Œ
 analysis_jobs = {}
 
 @router.get("/")
 async def list_analysis_jobs():
-    """¸ğµç ºĞ¼® ÀÛ¾÷ ¸ñ·Ï Á¶È¸"""
+    """ëª¨ë“  ë¶„ì„ ì‘ì—… ëª©ë¡ ì¡°íšŒ"""
     jobs_list = []
     for job_id, job in analysis_jobs.items():
         job_info = {
@@ -63,9 +64,9 @@ async def list_analysis_jobs():
 
 @router.get("/{job_id}", response_model=AnalysisResponse)
 async def get_analysis_status(job_id: str):
-    """ºĞ¼® ÀÛ¾÷ »óÅÂ ¹× °á°ú Á¶È¸"""
+    """ë¶„ì„ ì‘ì—… ìƒíƒœ ë° ê²°ê³¼ ì¡°íšŒ"""
     if job_id not in analysis_jobs:
-        raise HTTPException(status_code=404, detail="ºĞ¼® ÀÛ¾÷À» Ã£À» ¼ö ¾ø½À´Ï´Ù.")
+        raise HTTPException(status_code=404, detail="ë¶„ì„ ì‘ì—…ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.")
     
     job = analysis_jobs[job_id]
     
@@ -85,20 +86,20 @@ async def get_analysis_status(job_id: str):
 
 @router.delete("/{job_id}")
 async def delete_analysis_job(job_id: str, delete_s3_files: bool = Query(False)):
-    """ºĞ¼® ÀÛ¾÷ »èÁ¦ (¼±ÅÃÀûÀ¸·Î S3 ÆÄÀÏµµ »èÁ¦)"""
+    """ë¶„ì„ ì‘ì—… ì‚­ì œ (ì„ íƒì ìœ¼ë¡œ S3 íŒŒì¼ë„ ì‚­ì œ)"""
     if job_id not in analysis_jobs:
-        raise HTTPException(status_code=404, detail="ºĞ¼® ÀÛ¾÷À» Ã£À» ¼ö ¾ø½À´Ï´Ù.")
+        raise HTTPException(status_code=404, detail="ë¶„ì„ ì‘ì—…ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.")
     
     job = analysis_jobs[job_id]
     deleted_files = []
     
-    # S3 ÆÄÀÏ »èÁ¦ (¿É¼Ç)
+    # S3 íŒŒì¼ ì‚­ì œ (ì˜µì…˜)
     if delete_s3_files and job.get("result"):
         try:
             s3_info = job["result"].get("s3_info", {})
             audio_info = job["result"].get("audio_info", {})
             
-            # º¸°í¼­ ÆÄÀÏ »èÁ¦
+            # ë³´ê³ ì„œ íŒŒì¼ ì‚­ì œ
             if s3_info.get("s3_key"):
                 await s3_service.delete_report(s3_info["s3_key"])
                 deleted_files.append(s3_info["s3_key"])
@@ -107,27 +108,27 @@ async def delete_analysis_job(job_id: str, delete_s3_files: bool = Query(False))
                 await s3_service.delete_report(s3_info["text_s3_key"])
                 deleted_files.append(s3_info["text_s3_key"])
             
-            # ¿Àµğ¿À ÆÄÀÏ »èÁ¦
+            # ì˜¤ë””ì˜¤ íŒŒì¼ ì‚­ì œ
             if audio_info.get("audio_s3_key"):
                 await s3_service.delete_report(audio_info["audio_s3_key"])
                 deleted_files.append(audio_info["audio_s3_key"])
                 
         except Exception as e:
-            print(f"S3 ÆÄÀÏ »èÁ¦ Áß ¿À·ù: {e}")
+            print(f"S3 íŒŒì¼ ì‚­ì œ ì¤‘ ì˜¤ë¥˜: {e}")
     
-    # ÀÛ¾÷ »èÁ¦
+    # ì‘ì—… ì‚­ì œ
     del analysis_jobs[job_id]
     
     return {
-        "message": f"ÀÛ¾÷ {job_id}°¡ »èÁ¦µÇ¾ú½À´Ï´Ù.",
+        "message": f"ì‘ì—… {job_id}ê°€ ì‚­ì œë˜ì—ˆìŠµë‹ˆë‹¤.",
         "deleted_s3_files": deleted_files if delete_s3_files else [],
         "s3_deletion_requested": delete_s3_files
     }
 
 @router.get("/health")
 async def health_check():
-    """½Ã½ºÅÛ »óÅÂ È®ÀÎ"""
-    # S3 ¿¬°á Å×½ºÆ®
+    """ì‹œìŠ¤í…œ ìƒíƒœ í™•ì¸"""
+    # S3 ì—°ê²° í…ŒìŠ¤íŠ¸
     s3_status = False
     try:
         s3_service.s3_client.head_bucket(Bucket=s3_service.bucket_name)
@@ -135,7 +136,7 @@ async def health_check():
     except:
         s3_status = False
     
-    # Polly ¿¬°á Å×½ºÆ®
+    # Polly ì—°ê²° í…ŒìŠ¤íŠ¸
     polly_status = False
     try:
         audio_service.polly_client.describe_voices(LanguageCode='ko-KR')

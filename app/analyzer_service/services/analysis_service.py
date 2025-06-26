@@ -3,9 +3,9 @@ from datetime import datetime
 import uuid
 from fastapi import HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from app.models.analysis import AnalysisResponse
-from app.services.langgraph_service import langgraph_service
-from app.services.rouge_service import rouge_service
+from shared_lib.models.analysis import AnalysisResponse
+from services.langgraph_service import langgraph_service
+from services.rouge_service import rouge_service
 
 class AnalysisService:
     def __init__(self):
@@ -15,7 +15,7 @@ class AnalysisService:
         )
 
     async def analyze_youtube_with_fsm(self, youtube_url: str, job_id: str = None, user_id: str = None) -> AnalysisResponse:
-        """LangGraph FSMÀ» »ç¿ëÇÑ YouTube ºĞ¼®"""
+        """LangGraph FSMì„ ì‚¬ìš©í•œ YouTube ë¶„ì„"""
         try:
             fsm_result = await langgraph_service.analyze_youtube_with_fsm(
                 youtube_url=youtube_url,
@@ -23,28 +23,28 @@ class AnalysisService:
                 user_id=user_id
             )
             
-            # ROUGE Æò°¡ °è»ê
+            # ROUGE í‰ê°€ ê³„ì‚°
             rouge_scores = None
             if fsm_result and fsm_result.get('final_output'):
                 try:
-                    # ¿øº» ÅØ½ºÆ® (caption)¿Í ¿ä¾à ÅØ½ºÆ® ÃßÃâ
+                    # ì›ë³¸ í…ìŠ¤íŠ¸ (caption)ì™€ ìš”ì•½ í…ìŠ¤íŠ¸ ì¶”ì¶œ
                     original_text = fsm_result.get('caption', '')
                     summary_text = ''
                     
-                    # final_output¿¡¼­ ¿ä¾à ÅØ½ºÆ® ÃßÃâ
+                    # final_outputì—ì„œ ìš”ì•½ í…ìŠ¤íŠ¸ ì¶”ì¶œ
                     final_output = fsm_result['final_output']
                     if isinstance(final_output, dict) and 'sections' in final_output:
                         summary_text = ' '.join([section.get('content', '') for section in final_output['sections']])
                     elif isinstance(final_output, str):
                         summary_text = final_output
                     
-                    # ROUGE Á¡¼ö °è»ê (¿øº»°ú ¿ä¾àÀÌ ¸ğµÎ ÀÖÀ» ¶§¸¸)
+                    # ROUGE ì ìˆ˜ ê³„ì‚° (ì›ë³¸ê³¼ ìš”ì•½ì´ ëª¨ë‘ ìˆì„ ë•Œë§Œ)
                     if original_text and summary_text:
                         rouge_scores = rouge_service.calculate_rouge_scores(original_text, summary_text)
                         print(f"\n?? YouTube URL: {youtube_url}")
                         
                 except Exception as rouge_error:
-                    print(f"?? ROUGE °è»ê Áß ¿À·ù: {rouge_error}")
+                    print(f"?? ROUGE ê³„ì‚° ì¤‘ ì˜¤ë¥˜: {rouge_error}")
             
             analysis_results = {
                 "fsm_analysis": fsm_result,
@@ -60,25 +60,25 @@ class AnalysisService:
                 completed_at=datetime.now()
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"YouTube FSM ºĞ¼® ½ÇÆĞ: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"YouTube FSM ë¶„ì„ ì‹¤íŒ¨: {str(e)}")
 
     async def analyze_document(self, content: str, metadata: Dict[str, Any]) -> AnalysisResponse:
-        """¹®¼­ ºĞ¼®"""
+        """ë¬¸ì„œ ë¶„ì„"""
         try:
-            # ¹®¼­ ºĞÇÒ
+            # ë¬¸ì„œ ë¶„í• 
             docs = self.text_splitter.split_text(content)
             
-            # ¹®¼­ ºĞ¼®
+            # ë¬¸ì„œ ë¶„ì„
             analysis_results = await self._analyze_document_content(docs, metadata)
             
-            # ROUGE Æò°¡ (¹®¼­ ¿ä¾àÀÌ ÀÖ´Â °æ¿ì)
+            # ROUGE í‰ê°€ (ë¬¸ì„œ ìš”ì•½ì´ ìˆëŠ” ê²½ìš°)
             rouge_scores = None
             if analysis_results.get('analysis') and content:
                 try:
                     rouge_scores = rouge_service.calculate_rouge_scores(content, analysis_results['analysis'])
-                    print(f"\n?? ¹®¼­ ºĞ¼® ROUGE Æò°¡ ¿Ï·á")
+                    print(f"\n?? ë¬¸ì„œ ë¶„ì„ ROUGE í‰ê°€ ì™„ë£Œ")
                 except Exception as rouge_error:
-                    print(f"?? ¹®¼­ ROUGE °è»ê Áß ¿À·ù: {rouge_error}")
+                    print(f"?? ë¬¸ì„œ ROUGE ê³„ì‚° ì¤‘ ì˜¤ë¥˜: {rouge_error}")
             
             analysis_results['rouge_scores'] = rouge_scores
             
@@ -91,14 +91,14 @@ class AnalysisService:
             )
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"¹®¼­ ºĞ¼® ½ÇÆĞ: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"ë¬¸ì„œ ë¶„ì„ ì‹¤íŒ¨: {str(e)}")
 
 
 
 
 
     async def _analyze_document_content(self, docs: List[str], metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """¹®¼­ ³»¿ë ºĞ¼® - LangGraph ServiceÀÇ Claude »ç¿ë"""
+        """ë¬¸ì„œ ë‚´ìš© ë¶„ì„ - LangGraph Serviceì˜ Claude ì‚¬ìš©"""
         from app.services.langgraph_service import llm
         from langchain.prompts import ChatPromptTemplate
         

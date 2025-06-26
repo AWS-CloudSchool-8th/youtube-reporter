@@ -3,7 +3,7 @@ import hmac
 import hashlib
 import base64
 from botocore.exceptions import ClientError
-from app.core.config import settings
+from shared_lib.core.config import settings
 
 client = boto3.client("cognito-idp", region_name=settings.AWS_REGION)
 

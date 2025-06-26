@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+boto3
+requests
+langchain
+langchain-aws
+langchain-core
+langchain-experimental
+pydantic
+python-multipart
+langgraph
+redis

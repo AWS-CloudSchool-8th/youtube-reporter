@@ -2,8 +2,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import boto3
 from fastapi import HTTPException
-from app.models.report import ReportInfo, ReportListResponse
-from app.core.config import settings
+from shared_lib.models.report import ReportInfo, ReportListResponse
+from shared_lib.core.config import settings
 
 class ReportService:
     def __init__(self):
@@ -17,9 +17,7 @@ class ReportService:
 
     async def list_reports(self, prefix: str = "reports/", max_keys: int = 100,
                          continuation_token: Optional[str] = None) -> ReportListResponse:
-        """S3에 저장된 리포트 목록 조회"""
         try:
-            # S3 객체 목록 조회
             response = self.s3_client.list_objects_v2(
                 Bucket=self.bucket_name,
                 Prefix=prefix,
@@ -27,7 +25,6 @@ class ReportService:
                 ContinuationToken=continuation_token
             )
 
-            # 리포트 정보 변환
             reports = []
             for item in response.get("Contents", []):
                 report = ReportInfo(
@@ -47,25 +44,22 @@ class ReportService:
             )
 
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 리포트 목록 조회 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"failed to upload s3 report: {str(e)}")
 
     async def get_report(self, report_id: str) -> Dict[str, Any]:
-        """리포트 다운로드 URL 생성"""
         try:
-            # 리포트 메타데이터 조회
             response = self.s3_client.head_object(
                 Bucket=self.bucket_name,
                 Key=f"reports/{report_id}.pdf"
             )
 
-            # 다운로드 URL 생성
             url = self.s3_client.generate_presigned_url(
                 'get_object',
                 Params={
                     'Bucket': self.bucket_name,
                     'Key': f"reports/{report_id}.pdf"
                 },
-                ExpiresIn=3600  # 1시간
+                ExpiresIn=3600 
             )
 
             return {
@@ -79,11 +73,10 @@ class ReportService:
 
         except self.s3_client.exceptions.ClientError as e:
             if e.response["Error"]["Code"] == "404":
-                raise HTTPException(status_code=404, detail="리포트를 찾을 수 없습니다")
-            raise HTTPException(status_code=500, detail=f"S3 리포트 조회 실패: {str(e)}")
+                raise HTTPException(status_code=404, detail="cannot find report")
+            raise HTTPException(status_code=500, detail=f"can't find S3 report : {str(e)}")
 
     def _get_content_type(self, key: str) -> str:
-        """파일 확장자에 따른 Content-Type 반환"""
         ext = key.split(".")[-1].lower()
         content_types = {
             "pdf": "application/pdf",

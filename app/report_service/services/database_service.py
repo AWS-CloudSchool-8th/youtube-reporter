@@ -3,12 +3,11 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
 
-from app.models.database_models import UserAnalysisJob, UserReport, UserAudioFile
-from app.core.database import get_db
+from shared_lib.models.database_models import UserAnalysisJob, UserReport, UserAudioFile
+from shared_lib.core.database import get_db
 
 class DatabaseService:
     def create_analysis_job(self, db: Session, user_id: str, job_type: str, input_data: dict) -> UserAnalysisJob:
-        """분석 작업 생성"""
         job = UserAnalysisJob(
             user_id=user_id,
             job_type=job_type,
@@ -21,7 +20,6 @@ class DatabaseService:
         return job
     
     def update_job_status(self, db: Session, job_id: str, status: str, result_s3_key: str = None):
-        """작업 상태 업데이트"""
         job = db.query(UserAnalysisJob).filter(UserAnalysisJob.id == job_id).first()
         if job:
             job.status = status
@@ -32,20 +30,17 @@ class DatabaseService:
             db.commit()
     
     def get_user_jobs(self, db: Session, user_id: str, limit: int = 50) -> List[UserAnalysisJob]:
-        """사용자 작업 목록 조회"""
         return db.query(UserAnalysisJob).filter(
             UserAnalysisJob.user_id == user_id
         ).order_by(UserAnalysisJob.created_at.desc()).limit(limit).all()
     
     def get_job_by_id(self, db: Session, job_id: str, user_id: str) -> Optional[UserAnalysisJob]:
-        """작업 ID로 조회 (사용자 권한 확인)"""
         return db.query(UserAnalysisJob).filter(
             UserAnalysisJob.id == job_id,
             UserAnalysisJob.user_id == user_id
         ).first()
     
     def create_user_report(self, db: Session, job_id: str, user_id: str, title: str, s3_key: str, file_type: str) -> UserReport:
-        """사용자 보고서 생성"""
         report = UserReport(
             job_id=job_id,
             user_id=user_id,
@@ -59,7 +54,6 @@ class DatabaseService:
         return report
     
     def create_user_audio(self, db: Session, job_id: str, user_id: str, s3_key: str, duration: int) -> UserAudioFile:
-        """사용자 오디오 파일 생성"""
         audio = UserAudioFile(
             job_id=job_id,
             user_id=user_id,
@@ -72,26 +66,22 @@ class DatabaseService:
         return audio
     
     def get_user_reports(self, db: Session, user_id: str, limit: int = 50) -> List[UserReport]:
-        """사용자 보고서 목록"""
         return db.query(UserReport).filter(
             UserReport.user_id == user_id
         ).order_by(UserReport.created_at.desc()).limit(limit).all()
     
     def get_user_audio_files(self, db: Session, user_id: str, limit: int = 50) -> List[UserAudioFile]:
-        """사용자 오디오 파일 목록"""
         return db.query(UserAudioFile).filter(
             UserAudioFile.user_id == user_id
         ).order_by(UserAudioFile.created_at.desc()).limit(limit).all()
     
     def delete_job(self, db: Session, job_id: str, user_id: str) -> bool:
-        """작업 삭제 (사용자 권한 확인)"""
         job = db.query(UserAnalysisJob).filter(
             UserAnalysisJob.id == job_id,
             UserAnalysisJob.user_id == user_id
         ).first()
         
         if job:
-            # 관련 보고서와 오디오 파일도 삭제
             db.query(UserReport).filter(UserReport.job_id == job_id).delete()
             db.query(UserAudioFile).filter(UserAudioFile.job_id == job_id).delete()
             db.delete(job)

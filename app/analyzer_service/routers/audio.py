@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
-from app.models.audio import AudioRequest, AudioResponse
-from app.services.audio_service import audio_service
+from shared_lib.models.audio import AudioRequest, AudioResponse
+from services.audio_service import audio_service
 from datetime import datetime
 
 router = APIRouter(prefix="/audio", tags=["audio"])
 
 @router.post("/generate", response_model=AudioResponse)
 async def generate_audio(request: AudioRequest):
-    """ÅØ½ºÆ®¸¦ Polly·Î À½¼º º¯È¯"""
+    """í…ìŠ¤íŠ¸ë¥¼ Pollyë¡œ ìŒì„± ë³€í™˜"""
     try:
         job_id = f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         result = await audio_service.generate_audio(request.text, job_id, request.voice_id)
@@ -26,11 +26,11 @@ async def generate_audio(request: AudioRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"À½¼º »ı¼º ½ÇÆĞ: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"ìŒì„± ìƒì„± ì‹¤íŒ¨: {str(e)}")
 
 @router.get("/stream/{audio_id}")
 async def stream_audio(audio_id: str):
-    """S3¿¡¼­ ¿Àµğ¿À ÆÄÀÏ ½ºÆ®¸®¹Ö Àç»ı"""
+    """S3ì—ì„œ ì˜¤ë””ì˜¤ íŒŒì¼ ìŠ¤íŠ¸ë¦¬ë° ì¬ìƒ"""
     try:
         audio_s3_key = await audio_service.find_audio_file(audio_id)
         return await audio_service.stream_audio(audio_s3_key)
@@ -38,4 +38,4 @@ async def stream_audio(audio_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"¿Àµğ¿À ½ºÆ®¸®¹Ö ½ÇÆĞ: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"ì˜¤ë””ì˜¤ ìŠ¤íŠ¸ë¦¬ë° ì‹¤íŒ¨: {str(e)}") 

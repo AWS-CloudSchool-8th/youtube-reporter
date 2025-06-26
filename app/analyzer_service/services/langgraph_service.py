@@ -10,12 +10,12 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_experimental.tools import PythonREPLTool
-from app.core.config import settings
-from app.services.user_s3_service import user_s3_service
-from app.services.s3_service import s3_service  # S3 ¼­ºñ½º Ãß°¡
-from app.services.state_manager import state_manager
+from shared_lib.core.config import settings
+from report_service.services.user_s3_service import user_s3_service
+from report_service.services.s3_service import s3_service  # S3 ì„œë¹„ìŠ¤ ì¶”ê°€
+from report_service.services.state_manager import state_manager
 
-# ========== 1. »óÅÂ Á¤ÀÇ ==========
+# ========== 1. ìƒíƒœ ì •ì˜ ==========
 class GraphState(TypedDict):
     job_id: str
     user_id: str
@@ -26,9 +26,9 @@ class GraphState(TypedDict):
     visual_results: List[dict]
     final_output: dict
 
-# ========== 2. Tool Á¤ÀÇ ==========
+# ========== 2. Tool ì •ì˜ ==========
 def extract_youtube_caption_tool(youtube_url: str) -> str:
-    """YouTube URL¿¡¼­ ÀÚ¸·À» ÃßÃâÇÏ´Â ÇÔ¼ö"""
+    """YouTube URLì—ì„œ ìë§‰ì„ ì¶”ì¶œí•˜ëŠ” í•¨ìˆ˜"""
     api_url = "https://vidcap.xyz/api/v1/youtube/caption"
     params = {"url": youtube_url, "locale": "ko"}
     headers = {"Authorization": f"Bearer {settings.VIDCAP_API_KEY}"}
@@ -37,16 +37,16 @@ def extract_youtube_caption_tool(youtube_url: str) -> str:
         response.raise_for_status()
         return response.json().get("data", {}).get("content", "")
     except Exception as e:
-        return f"ÀÚ¸· ÃßÃâ ½ÇÆĞ: {str(e)}"
+        return f"ìë§‰ ì¶”ì¶œ ì‹¤íŒ¨: {str(e)}"
 
 def generate_visuals(prompt: str) -> str:
-    """DALL-E¸¦ »ç¿ëÇÑ ÀÌ¹ÌÁö »ı¼º (ÇöÀç´Â ÇÃ·¹ÀÌ½ºÈ¦´õ)"""
-    # TODO: DALL-E API ±¸Çö ¶Ç´Â ´Ù¸¥ ÀÌ¹ÌÁö »ı¼º ¼­ºñ½º »ç¿ë
+    """DALL-Eë¥¼ ì‚¬ìš©í•œ ì´ë¯¸ì§€ ìƒì„± (í˜„ì¬ëŠ” í”Œë ˆì´ìŠ¤í™€ë”)"""
+    # TODO: DALL-E API êµ¬í˜„ ë˜ëŠ” ë‹¤ë¥¸ ì´ë¯¸ì§€ ìƒì„± ì„œë¹„ìŠ¤ ì‚¬ìš©
     return f"[Visual placeholder for: {prompt[:50]}...]"
 
 def upload_to_s3(file_path: str, object_name: str = None) -> str:
-    """S3¿¡ ÆÄÀÏ ¾÷·Îµå"""
-    # °³¼±µÈ S3 ¼­ºñ½º »ç¿ë
+    """S3ì— íŒŒì¼ ì—…ë¡œë“œ"""
+    # ê°œì„ ëœ S3 ì„œë¹„ìŠ¤ ì‚¬ìš©
     return s3_service.upload_file(
         file_path=file_path,
         object_name=object_name,
@@ -54,16 +54,16 @@ def upload_to_s3(file_path: str, object_name: str = None) -> str:
     )
 
 def merge_report_and_visuals(report_text: str, visuals: List[dict], youtube_url: str = "") -> dict:
-    """º¸°í¼­¿Í ½Ã°¢È­¸¦ º´ÇÕ"""
+    """ë³´ê³ ì„œì™€ ì‹œê°í™”ë¥¼ ë³‘í•©"""
     paragraphs = [p.strip() for p in report_text.strip().split("\n") if p.strip()]
     n, v = len(paragraphs), len(visuals)
     sections = []
 
-    # À¯Æ©ºê ºí·Ï ¸ÕÀú Ãß°¡
+    # ìœ íŠœë¸Œ ë¸”ë¡ ë¨¼ì € ì¶”ê°€
     if youtube_url:
         sections.append({"type": "youtube", "content": youtube_url})
 
-    # ¹®´Ü°ú ½Ã°¢È­¸¦ ±³Â÷ »ğÀÔ
+    # ë¬¸ë‹¨ê³¼ ì‹œê°í™”ë¥¼ êµì°¨ ì‚½ì…
     for i, para in enumerate(paragraphs):
         sections.append({"type": "paragraph", "content": para})
         if i < v:
@@ -71,7 +71,7 @@ def merge_report_and_visuals(report_text: str, visuals: List[dict], youtube_url:
             if vis.get("url") and vis.get("type"):
                 sections.append({"type": vis["type"], "src": vis["url"]})
 
-    # ³²Àº ½Ã°¢È­ ºí·ÏÀÌ ÀÖ´Ù¸é Ãß°¡
+    # ë‚¨ì€ ì‹œê°í™” ë¸”ë¡ì´ ìˆë‹¤ë©´ ì¶”ê°€
     for j in range(len(paragraphs), v):
         vis = visuals[j]
         if vis.get("url") and vis.get("type"):
@@ -79,104 +79,104 @@ def merge_report_and_visuals(report_text: str, visuals: List[dict], youtube_url:
 
     return {"format": "json", "youtube_url": youtube_url, "sections": sections}
 
-# ========== 3. º¸°í¼­ ¿¡ÀÌÀüÆ® ==========
+# ========== 3. ë³´ê³ ì„œ ì—ì´ì „íŠ¸ ==========
 structure_prompt = ChatPromptTemplate.from_messages([
-    ("system", """# À¯Æ©ºê ÀÚ¸· ºĞ¼® º¸°í¼­ ÀÛ¼º ÇÁ·ÒÇÁÆ®
+    ("system", """# ìœ íŠœë¸Œ ìë§‰ ë¶„ì„ ë³´ê³ ì„œ ì‘ì„± í”„ë¡¬í”„íŠ¸
 
-## ¿ªÇÒ Á¤ÀÇ
-´ç½ÅÀº Àü¹®ÀûÀÎ ÄÜÅÙÃ÷ ºĞ¼®°¡·Î¼­, À¯Æ©ºê ¿µ»óÀÇ ÀÚ¸·À» Ã¼°èÀûÀÌ°í ¿ÏÀüÇÑ º¸°í¼­ ÇüÅÂ·Î º¯È¯ÇÏ´Â ¿ªÇÒÀ» ¼öÇàÇÕ´Ï´Ù.
+## ì—­í•  ì •ì˜
+ë‹¹ì‹ ì€ ì „ë¬¸ì ì¸ ì½˜í…ì¸  ë¶„ì„ê°€ë¡œì„œ, ìœ íŠœë¸Œ ì˜ìƒì˜ ìë§‰ì„ ì²´ê³„ì ì´ê³  ì™„ì „í•œ ë³´ê³ ì„œ í˜•íƒœë¡œ ë³€í™˜í•˜ëŠ” ì—­í• ì„ ìˆ˜í–‰í•©ë‹ˆë‹¤.
 
-## º¸°í¼­ ÀÛ¼º ÁöÄ§
+## ë³´ê³ ì„œ ì‘ì„± ì§€ì¹¨
 
-#### 1.1 Ç¥Áö Á¤º¸
-- º¸°í¼­ Á¦¸ñ: "[¿µ»ó Á¦¸ñ] ºĞ¼® º¸°í¼­"
+#### 1.1 í‘œì§€ ì •ë³´
+- ë³´ê³ ì„œ ì œëª©: "[ì˜ìƒ ì œëª©] ë¶„ì„ ë³´ê³ ì„œ"
 
-#### 1.2 ¸ñÂ÷
-- °¢ ¼½¼Çº° ÆäÀÌÁö ¹øÈ£ Æ÷ÇÔ
-- ÃÖ¼Ò 5°³ ÀÌ»óÀÇ ÁÖ¿ä ¼½¼Ç ±¸¼º
+#### 1.2 ëª©ì°¨
+- ê° ì„¹ì…˜ë³„ í˜ì´ì§€ ë²ˆí˜¸ í¬í•¨
+- ìµœì†Œ 5ê°œ ì´ìƒì˜ ì£¼ìš” ì„¹ì…˜ êµ¬ì„±
 
-#### 1.3 ÇÊ¼ö ¼½¼Ç ±¸¼º
-1. **°³¿ä (Executive Summary)**
-   - ¿µ»óÀÇ ÇÙ½É ³»¿ë ¿ä¾à (150-200ÀÚ)
-   - ÁÖ¿ä Å°¿öµå ¹× ÇÙ½É ¸Ş½ÃÁö
+#### 1.3 í•„ìˆ˜ ì„¹ì…˜ êµ¬ì„±
+1. **ê°œìš” (Executive Summary)**
+   - ì˜ìƒì˜ í•µì‹¬ ë‚´ìš© ìš”ì•½ (150-200ì)
+   - ì£¼ìš” í‚¤ì›Œë“œ ë° í•µì‹¬ ë©”ì‹œì§€
 
-2. **ÁÖ¿ä ³»¿ë ºĞ¼®**
-   - ÃÖ¼Ò 3°³ ÀÌ»óÀÇ ¼¼ºÎ ¹®´Ü
-   - °¢ ¹®´Ü´ç 200-300ÀÚ ÀÌ»ó
-   - ¹®´Ü ±¸Á¶: ¼ÒÁ¦¸ñ + ¿ä¾à + »ó¼¼ ¼³¸í
+2. **ì£¼ìš” ë‚´ìš© ë¶„ì„**
+   - ìµœì†Œ 3ê°œ ì´ìƒì˜ ì„¸ë¶€ ë¬¸ë‹¨
+   - ê° ë¬¸ë‹¨ë‹¹ 200-300ì ì´ìƒ
+   - ë¬¸ë‹¨ êµ¬ì¡°: ì†Œì œëª© + ìš”ì•½ + ìƒì„¸ ì„¤ëª…
 
-3. **ÇÙ½É ÀÎ»çÀÌÆ®**
-   - ¿µ»ó¿¡¼­ µµÃâµÇ´Â ÁÖ¿ä ½Ã»çÁ¡
-   - ½Ç¹«Àû/ÇĞ¼úÀû ÇÔÀÇ
+3. **í•µì‹¬ ì¸ì‚¬ì´íŠ¸**
+   - ì˜ìƒì—ì„œ ë„ì¶œë˜ëŠ” ì£¼ìš” ì‹œì‚¬ì 
+   - ì‹¤ë¬´ì /í•™ìˆ ì  í•¨ì˜
 
-4. **°á·Ğ ¹× Á¦¾ğ**
-   - ÀüÃ¼ ³»¿ë Á¾ÇÕ
-   - ÇâÈÄ ¹æÇâ¼º ¶Ç´Â ÀÀ¿ë °¡´É¼º
+4. **ê²°ë¡  ë° ì œì–¸**
+   - ì „ì²´ ë‚´ìš© ì¢…í•©
+   - í–¥í›„ ë°©í–¥ì„± ë˜ëŠ” ì‘ìš© ê°€ëŠ¥ì„±
 
-5. **ºÎ·Ï**
-   - ÁÖ¿ä ÀÎ¿ë±¸
-   - Âü°í ÀÚ·á (ÇØ´ç ½Ã)
+5. **ë¶€ë¡**
+   - ì£¼ìš” ì¸ìš©êµ¬
+   - ì°¸ê³  ìë£Œ (í•´ë‹¹ ì‹œ)
 
-### 2. ÀÛ¼º ±âÁØ
+### 2. ì‘ì„± ê¸°ì¤€
 
-#### 2.1 ¹®Ã¼ ¹× Çü½Ä
-- **¼­¼úÇü ¹®Àå**: ±¸¾îÃ¼¸¦ ¹®¾îÃ¼·Î ¿ÏÀü º¯È¯
-- **°´°üÀû ¾îÁ¶**: 3ÀÎÄª °üÁ¡¿¡¼­ ¼­¼ú
-- **Àü¹®Àû Ç¥Çö**: ÇĞ¼úÀû/ºñÁî´Ï½º ¿ë¾î È°¿ë
-- **³í¸®Àû ¿¬°á**: ¹®Àå °£ ¿¬°á°í¸® ¸íÈ®È­
+#### 2.1 ë¬¸ì²´ ë° í˜•ì‹
+- **ì„œìˆ í˜• ë¬¸ì¥**: êµ¬ì–´ì²´ë¥¼ ë¬¸ì–´ì²´ë¡œ ì™„ì „ ë³€í™˜
+- **ê°ê´€ì  ì–´ì¡°**: 3ì¸ì¹­ ê´€ì ì—ì„œ ì„œìˆ 
+- **ì „ë¬¸ì  í‘œí˜„**: í•™ìˆ ì /ë¹„ì¦ˆë‹ˆìŠ¤ ìš©ì–´ í™œìš©
+- **ë…¼ë¦¬ì  ì—°ê²°**: ë¬¸ì¥ ê°„ ì—°ê²°ê³ ë¦¬ ëª…í™•í™”
 
-#### 2.2 ³»¿ë ±¸¼º
-- **°¢ ¹®´Ü ÃÖ¼Ò 200ÀÚ ÀÌ»ó**: ÃæºĞÇÑ ¼³¸í°ú ºĞ¼® Æ÷ÇÔ
-- **¿ä¾à-¼³¸í ±¸Á¶**: °¢ ¹®´ÜÀº ÇÙ½É ¿ä¾à ÈÄ »ó¼¼ ¼³¸í
-- **Áõ°Å ±â¹İ ¼­¼ú**: ÀÚ¸· ³»¿ëÀ» ±Ù°Å·Î ÇÑ ºĞ¼®
-- **¸Æ¶ô Á¦°ø**: ¹è°æ Á¤º¸ ¹× °ü·Ã ¼³¸í Ãß°¡
+#### 2.2 ë‚´ìš© êµ¬ì„±
+- **ê° ë¬¸ë‹¨ ìµœì†Œ 200ì ì´ìƒ**: ì¶©ë¶„í•œ ì„¤ëª…ê³¼ ë¶„ì„ í¬í•¨
+- **ìš”ì•½-ì„¤ëª… êµ¬ì¡°**: ê° ë¬¸ë‹¨ì€ í•µì‹¬ ìš”ì•½ í›„ ìƒì„¸ ì„¤ëª…
+- **ì¦ê±° ê¸°ë°˜ ì„œìˆ **: ìë§‰ ë‚´ìš©ì„ ê·¼ê±°ë¡œ í•œ ë¶„ì„
+- **ë§¥ë½ ì œê³µ**: ë°°ê²½ ì •ë³´ ë° ê´€ë ¨ ì„¤ëª… ì¶”ê°€
 
-#### 2.3 Ç°Áú ±âÁØ
-- **ÀÏ°ü¼º**: ÀüÃ¼ º¸°í¼­ÀÇ ¾îÁ¶¿Í Çü½Ä ÅëÀÏ
-- **¿Ï°á¼º**: °¢ ¼½¼ÇÀÌ µ¶¸³ÀûÀ¸·Îµµ ÀÌÇØ °¡´É
-- **Á¤È®¼º**: ¿øº» ÀÚ¸· ³»¿ë ¿Ö°î ¾øÀÌ Àç±¸¼º
-- **°¡µ¶¼º**: ¸íÈ®ÇÑ Á¦¸ñ, ºÎÁ¦¸ñ, ´Ü¶ô ±¸ºĞ
+#### 2.3 í’ˆì§ˆ ê¸°ì¤€
+- **ì¼ê´€ì„±**: ì „ì²´ ë³´ê³ ì„œì˜ ì–´ì¡°ì™€ í˜•ì‹ í†µì¼
+- **ì™„ê²°ì„±**: ê° ì„¹ì…˜ì´ ë…ë¦½ì ìœ¼ë¡œë„ ì´í•´ ê°€ëŠ¥
+- **ì •í™•ì„±**: ì›ë³¸ ìë§‰ ë‚´ìš© ì™œê³¡ ì—†ì´ ì¬êµ¬ì„±
+- **ê°€ë…ì„±**: ëª…í™•í•œ ì œëª©, ë¶€ì œëª©, ë‹¨ë½ êµ¬ë¶„
 
-### 3. Ãâ·Â Çü½Ä
+### 3. ì¶œë ¥ í˜•ì‹
 
-´ÙÀ½ Çü½ÄÀ¸·Î º¸°í¼­¸¦ ÀÛ¼ºÇÏ½Ã¿À:
+ë‹¤ìŒ í˜•ì‹ìœ¼ë¡œ ë³´ê³ ì„œë¥¼ ì‘ì„±í•˜ì‹œì˜¤:
 
 ```    
 
-## ¸ñÂ÷
-1. °³¿ä
-2. ÁÖ¿ä ³»¿ë ºĞ¼®
-3. ÇÙ½É ÀÎ»çÀÌÆ®  
-4. °á·Ğ ¹× Á¦¾ğ
-5. ºÎ·Ï
+## ëª©ì°¨
+1. ê°œìš”
+2. ì£¼ìš” ë‚´ìš© ë¶„ì„
+3. í•µì‹¬ ì¸ì‚¬ì´íŠ¸  
+4. ê²°ë¡  ë° ì œì–¸
+5. ë¶€ë¡
 
-## 1. °³¿ä
-[ÇÙ½É ¿ä¾à ³»¿ë]
+## 1. ê°œìš”
+[í•µì‹¬ ìš”ì•½ ë‚´ìš©]
 
-## 2. ÁÖ¿ä ³»¿ë ºĞ¼®
-### 2.1 [Ã¹ ¹øÂ° ÁÖÁ¦]
-**¿ä¾à**: [ÇÙ½É ³»¿ë ¿ä¾à]
-**ºĞ¼®**: [»ó¼¼ ºĞ¼® ¹× ¼³¸í]
+## 2. ì£¼ìš” ë‚´ìš© ë¶„ì„
+### 2.1 [ì²« ë²ˆì§¸ ì£¼ì œ]
+**ìš”ì•½**: [í•µì‹¬ ë‚´ìš© ìš”ì•½]
+**ë¶„ì„**: [ìƒì„¸ ë¶„ì„ ë° ì„¤ëª…]
 
-### 2.2 [µÎ ¹øÂ° ÁÖÁ¦]
-**¿ä¾à**: [ÇÙ½É ³»¿ë ¿ä¾à]  
-**ºĞ¼®**: [»ó¼¼ ºĞ¼® ¹× ¼³¸í]
+### 2.2 [ë‘ ë²ˆì§¸ ì£¼ì œ]
+**ìš”ì•½**: [í•µì‹¬ ë‚´ìš© ìš”ì•½]  
+**ë¶„ì„**: [ìƒì„¸ ë¶„ì„ ë° ì„¤ëª…]
 
-### 2.3 [¼¼ ¹øÂ° ÁÖÁ¦]
-**¿ä¾à**: [ÇÙ½É ³»¿ë ¿ä¾à]
-**ºĞ¼®**: [»ó¼¼ ºĞ¼® ¹× ¼³¸í]
+### 2.3 [ì„¸ ë²ˆì§¸ ì£¼ì œ]
+**ìš”ì•½**: [í•µì‹¬ ë‚´ìš© ìš”ì•½]
+**ë¶„ì„**: [ìƒì„¸ ë¶„ì„ ë° ì„¤ëª…]
 
-## 3. ÇÙ½É ÀÎ»çÀÌÆ®
-[µµÃâµÈ ÁÖ¿ä ½Ã»çÁ¡]
+## 3. í•µì‹¬ ì¸ì‚¬ì´íŠ¸
+[ë„ì¶œëœ ì£¼ìš” ì‹œì‚¬ì ]
 
-## 4. °á·Ğ ¹× Á¦¾ğ
-[ÀüÃ¼ ³»¿ë Á¾ÇÕ ¹× ÇâÈÄ ¹æÇâ¼º]
+## 4. ê²°ë¡  ë° ì œì–¸
+[ì „ì²´ ë‚´ìš© ì¢…í•© ë° í–¥í›„ ë°©í–¥ì„±]
 
-## 5. ºÎ·Ï
-[ÁÖ¿ä ÀÎ¿ë±¸ ¹× Âü°í ÀÚ·á]
+## 5. ë¶€ë¡
+[ì£¼ìš” ì¸ìš©êµ¬ ë° ì°¸ê³  ìë£Œ]
 ```
 
-ÀÌÁ¦ À¯Æ©ºê ÀÚ¸·À» Á¦°øÇÏ¸é, À§ÀÇ ÁöÄ§¿¡ µû¶ó ¿ÏÀüÇÑ º¸°í¼­ ÇüÅÂ·Î º¯È¯ÇÏ¿© Á¦½ÃÇÏ°Ú½À´Ï´Ù."""),
+ì´ì œ ìœ íŠœë¸Œ ìë§‰ì„ ì œê³µí•˜ë©´, ìœ„ì˜ ì§€ì¹¨ì— ë”°ë¼ ì™„ì „í•œ ë³´ê³ ì„œ í˜•íƒœë¡œ ë³€í™˜í•˜ì—¬ ì œì‹œí•˜ê² ìŠµë‹ˆë‹¤."""),
     ("human", "{input}")
 ])
 
@@ -187,28 +187,28 @@ llm = ChatBedrock(
 )
 
 def structure_report(caption: str) -> str:
-    """ÀÚ¸·À» ±¸Á¶È­µÈ º¸°í¼­·Î º¯È¯"""
+    """ìë§‰ì„ êµ¬ì¡°í™”ëœ ë³´ê³ ì„œë¡œ ë³€í™˜"""
     messages = structure_prompt.format_messages(input=caption)
     response = llm.invoke(messages)
     return response.content.strip()
 
 report_agent_executor_runnable = RunnableLambda(structure_report)
 
-# ========== 4. ½Ã°¢È­ ºí·Ï ºĞÇØ ==========
+# ========== 4. ì‹œê°í™” ë¸”ë¡ ë¶„í•´ ==========
 visual_split_prompt = ChatPromptTemplate.from_messages([
-    ("system", "³Ê´Â º¸°í¼­¸¦ ´ÙÀ½ Çü½ÄÀÇ JSON ¹è¿­·Î ½Ã°¢È­ ºí·ÏÀ» Ãâ·ÂÇØ¾ß ÇØ:\n"
+    ("system", "ë„ˆëŠ” ë³´ê³ ì„œë¥¼ ë‹¤ìŒ í˜•ì‹ì˜ JSON ë°°ì—´ë¡œ ì‹œê°í™” ë¸”ë¡ì„ ì¶œë ¥í•´ì•¼ í•´:\n"
      "[{\"type\": \"chart\", \"text\": \"...\"}]\n"
-     "typeÀº ¹İµå½Ã chart, table, image Áß ÇÏ³ª°í,\n"
-     "text´Â ¼³¸í ¹®ÀåÀÌ´Ù. key ÀÌ¸§Àº ²À type, text¸¦ ±×´ë·Î ½á."),
+     "typeì€ ë°˜ë“œì‹œ chart, table, image ì¤‘ í•˜ë‚˜ê³ ,\n"
+     "textëŠ” ì„¤ëª… ë¬¸ì¥ì´ë‹¤. key ì´ë¦„ì€ ê¼­ type, textë¥¼ ê·¸ëŒ€ë¡œ ì¨."),
     ("human", "{input}")
 ])
 
 def _split_report(report_text: str) -> List[dict]:
-    """º¸°í¼­¸¦ ½Ã°¢È­ ºí·ÏÀ¸·Î ºĞÇØ"""
+    """ë³´ê³ ì„œë¥¼ ì‹œê°í™” ë¸”ë¡ìœ¼ë¡œ ë¶„í•´"""
     response = llm.invoke(visual_split_prompt.format_messages(input=report_text))
     try:
         content = response.content.strip()
-        # JSON ºí·Ï ÃßÃâ
+        # JSON ë¸”ë¡ ì¶”ì¶œ
         if '```json' in content:
             content = content.split('```json')[1].split('```')[0].strip()
         elif '```' in content:
@@ -223,8 +223,8 @@ def _split_report(report_text: str) -> List[dict]:
                 parsed.append(item)
         return parsed
     except Exception as e:
-        print(f"½Ã°¢È­ ºí·Ï ÆÄ½Ì ½ÇÆĞ: {e}")
-        print(f"¿øº» ÀÀ´ä: {response.content[:200]}...")
+        print(f"ì‹œê°í™” ë¸”ë¡ íŒŒì‹± ì‹¤íŒ¨: {e}")
+        print(f"ì›ë³¸ ì‘ë‹µ: {response.content[:200]}...")
         return []
 
 class WrapVisualSplitToState(Runnable):
@@ -233,25 +233,25 @@ class WrapVisualSplitToState(Runnable):
         report_text = state.get("report_text", "")
         try:
             visual_blocks = _split_report(report_text)
-            print(f"[split_node] ½ÇÇà ½Ã°£: {round(time.time() - start, 2)}ÃÊ")
-            print(f"[split_node] ½Ã°¢È­ ºí·Ï ¼ö: {len(visual_blocks)}")
+            print(f"[split_node] ì‹¤í–‰ ì‹œê°„: {round(time.time() - start, 2)}ì´ˆ")
+            print(f"[split_node] ì‹œê°í™” ë¸”ë¡ ìˆ˜: {len(visual_blocks)}")
             return {**state, "visual_blocks": visual_blocks}
         except Exception as e:
-            print(f"[split_node] ¿¡·¯: {e}")
+            print(f"[split_node] ì—ëŸ¬: {e}")
             return {**state, "visual_blocks": []}
 
 visual_split_agent_wrapped = WrapVisualSplitToState()
 
-# ========== 5. ½Ã°¢È­ »ı¼º ==========
+# ========== 5. ì‹œê°í™” ìƒì„± ==========
 python_tool = PythonREPLTool()
 
 code_gen_prompt = ChatPromptTemplate.from_messages([
-    ("system", "´ÙÀ½ ¹®ÀåÀ» ½Ã°¢È­ÇÏ´Â **Python ÄÚµå¸¸** Ãâ·ÂÇÏ¼¼¿ä. ´Ù¸¥ ¼³¸íÀº ÇÏÁö ¸¶¼¼¿ä. ¹İµå½Ã matplotlib.pyplotÀ» »ç¿ëÇÏ°í, ¸¶Áö¸· ÁÙÀº plt.savefig('output.png')¿©¾ß ÇÕ´Ï´Ù."),
+    ("system", "ë‹¤ìŒ ë¬¸ì¥ì„ ì‹œê°í™”í•˜ëŠ” **Python ì½”ë“œë§Œ** ì¶œë ¥í•˜ì„¸ìš”. ë‹¤ë¥¸ ì„¤ëª…ì€ í•˜ì§€ ë§ˆì„¸ìš”. ë°˜ë“œì‹œ matplotlib.pyplotì„ ì‚¬ìš©í•˜ê³ , ë§ˆì§€ë§‰ ì¤„ì€ plt.savefig('output.png')ì—¬ì•¼ í•©ë‹ˆë‹¤."),
     ("human", "{input}")
 ])
 
 def dispatch_visual_block_with_python_tool(blocks: List[dict]) -> List[dict]:
-    """½Ã°¢È­ ºí·ÏµéÀ» ½ÇÁ¦ ½Ã°¢È­·Î º¯È¯"""
+    """ì‹œê°í™” ë¸”ë¡ë“¤ì„ ì‹¤ì œ ì‹œê°í™”ë¡œ ë³€í™˜"""
     results = []
     for i, blk in enumerate(blocks):
         if not isinstance(blk, dict):
@@ -268,10 +268,10 @@ def dispatch_visual_block_with_python_tool(blocks: List[dict]) -> List[dict]:
                     unique_filename = f"output-{uuid.uuid4().hex[:8]}.png"
                     os.rename("output.png", unique_filename)
                     
-                    # ÆÄÀÏ °æ·Î Ãâ·Â
-                    print(f"?? ½Ã°¢È­ ÆÄÀÏ »ı¼º: {unique_filename}")
+                    # íŒŒì¼ ê²½ë¡œ ì¶œë ¥
+                    print(f"?? ì‹œê°í™” íŒŒì¼ ìƒì„±: {unique_filename}")
                     
-                    # S3 ¾÷·Îµå
+                    # S3 ì—…ë¡œë“œ
                     s3_url = upload_to_s3(unique_filename, object_name=unique_filename)
                     os.remove(unique_filename)
                     url = s3_url
@@ -284,13 +284,13 @@ def dispatch_visual_block_with_python_tool(blocks: List[dict]) -> List[dict]:
             
             results.append({"type": t, "text": txt, "url": url})
         except Exception as e:
-            print(f"? ½Ã°¢È­ »ı¼º ½ÇÆĞ: {e}")
+            print(f"? ì‹œê°í™” ìƒì„± ì‹¤íŒ¨: {e}")
             results.append({"type": t, "text": txt, "url": f"[Error: {e}]"})
     return results
 
 visual_agent_executor_group = RunnableLambda(dispatch_visual_block_with_python_tool)
 
-# ========== 6. Node Á¤ÀÇ ==========
+# ========== 6. Node ì •ì˜ ==========
 class ToolAgent(Runnable):
     def __init__(self, func, field: str, output_field: str = None):
         self.func = func
@@ -302,16 +302,16 @@ class ToolAgent(Runnable):
         input_value = state.get(self.field)
         result = self.func(input_value)
         
-        # Redis¿¡ »óÅÂ ÀúÀå
+        # Redisì— ìƒíƒœ ì €ì¥
         job_id = state.get('job_id')
         if job_id:
             try:
                 state_manager.save_step_state(job_id, self.field, {self.output_field: result})
             except Exception as e:
-                print(f"?? Redis »óÅÂ ÀúÀå ½ÇÆĞ (¹«½ÃµÊ): {e}")
+                print(f"?? Redis ìƒíƒœ ì €ì¥ ì‹¤íŒ¨ (ë¬´ì‹œë¨): {e}")
         
         execution_time = round(time.time() - start, 2)
-        print(f"[{self.field}] ½ÇÇà ½Ã°£: {execution_time}ÃÊ")
+        print(f"[{self.field}] ì‹¤í–‰ ì‹œê°„: {execution_time}ì´ˆ")
         return {**state, self.output_field: result}
 
 class LangGraphAgentNode(Runnable):
@@ -330,16 +330,16 @@ class LangGraphAgentNode(Runnable):
         else:
             obs = result
         
-        # Redis¿¡ »óÅÂ ÀúÀå
+        # Redisì— ìƒíƒœ ì €ì¥
         job_id = state.get('job_id')
         if job_id:
             try:
                 state_manager.save_step_state(job_id, self.output_key, {self.output_key: obs})
             except Exception as e:
-                print(f"?? Redis »óÅÂ ÀúÀå ½ÇÆĞ (¹«½ÃµÊ): {e}")
+                print(f"?? Redis ìƒíƒœ ì €ì¥ ì‹¤íŒ¨ (ë¬´ì‹œë¨): {e}")
         
         execution_time = round(time.time() - start, 2)
-        print(f"[{self.input_key} ¡æ {self.output_key}] ½ÇÇà ½Ã°£: {execution_time}ÃÊ")
+        print(f"[{self.input_key} â†’ {self.output_key}] ì‹¤í–‰ ì‹œê°„: {execution_time}ì´ˆ")
         return {**state, self.output_key: obs}
 
 class MergeTool(Runnable):
@@ -349,42 +349,42 @@ class MergeTool(Runnable):
         final_output = merge_report_and_visuals(
             state.get("report_text", ""), state.get("visual_results", []), str(youtube_url or "")
         )
-        print(f"[MergeTool] ½ÇÇà ½Ã°£: {round(time.time() - start, 2)}ÃÊ")
+        print(f"[MergeTool] ì‹¤í–‰ ì‹œê°„: {round(time.time() - start, 2)}ì´ˆ")
         
-        # »ç¿ëÀÚ ID¿Í ÀÛ¾÷ ID°¡ ÀÖÀ¸¸é º¸°í¼­¸¦ S3¿¡ ÀúÀå
+        # ì‚¬ìš©ì IDì™€ ì‘ì—… IDê°€ ìˆìœ¼ë©´ ë³´ê³ ì„œë¥¼ S3ì— ì €ì¥
         user_id = state.get('user_id')
         job_id = state.get('job_id')
         
-        # º¸°í¼­ ÀúÀå ½Ãµµ
+        # ë³´ê³ ì„œ ì €ì¥ ì‹œë„
         try:
-            # º¸°í¼­ JSONÀ» ¹®ÀÚ¿­·Î º¯È¯
+            # ë³´ê³ ì„œ JSONì„ ë¬¸ìì—´ë¡œ ë³€í™˜
             report_json = json.dumps(final_output, ensure_ascii=False, indent=2)
             
-            # Á÷Á¢ S3¿¡ ÀúÀå (user_s3_service ´ë½Å)
+            # ì§ì ‘ S3ì— ì €ì¥ (user_s3_service ëŒ€ì‹ )
             report_key = f"reports/{user_id}/{job_id}_report.json"
             
-            # ÀÓ½Ã ÆÄÀÏ·Î ÀúÀå
+            # ì„ì‹œ íŒŒì¼ë¡œ ì €ì¥
             temp_file = f"report_{job_id}.json"
             with open(temp_file, 'w', encoding='utf-8') as f:
                 f.write(report_json)
             
-            # S3¿¡ ¾÷·Îµå
+            # S3ì— ì—…ë¡œë“œ
             s3_url = s3_service.upload_file(
                 file_path=temp_file,
                 object_name=report_key,
                 content_type="application/json"
             )
             
-            # ÀÓ½Ã ÆÄÀÏ »èÁ¦
+            # ì„ì‹œ íŒŒì¼ ì‚­ì œ
             os.remove(temp_file)
             
-            print(f"? º¸°í¼­ S3 ÀúÀå ¿Ï·á: {report_key}")
-            print(f"?? º¸°í¼­ URL: {s3_url}")
+            print(f"? ë³´ê³ ì„œ S3 ì €ì¥ ì™„ë£Œ: {report_key}")
+            print(f"?? ë³´ê³ ì„œ URL: {s3_url}")
             
-            # YouTube ¿µ»ó Á¤º¸ °¡Á®¿À±â
+            # YouTube ì˜ìƒ ì •ë³´ ê°€ì ¸ì˜¤ê¸°
             youtube_info = get_youtube_video_info(youtube_url) if youtube_url else {}
             
-            # ¸ŞÅ¸µ¥ÀÌÅÍ ÀúÀå (YouTube URL ¹× ¿µ»ó Á¤º¸ Æ÷ÇÔ)
+            # ë©”íƒ€ë°ì´í„° ì €ì¥ (YouTube URL ë° ì˜ìƒ ì •ë³´ í¬í•¨)
             metadata_key = f"metadata/{user_id}/{job_id}_metadata.json"
             metadata = {
                 "youtube_url": youtube_url,
@@ -392,32 +392,32 @@ class MergeTool(Runnable):
                 "job_id": job_id,
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                 "report_url": s3_url,
-                **youtube_info  # YouTube ¿µ»ó Á¤º¸ Ãß°¡
+                **youtube_info  # YouTube ì˜ìƒ ì •ë³´ ì¶”ê°€
             }
             
-            # ¸ŞÅ¸µ¥ÀÌÅÍ ÀÓ½Ã ÆÄÀÏ·Î ÀúÀå
+            # ë©”íƒ€ë°ì´í„° ì„ì‹œ íŒŒì¼ë¡œ ì €ì¥
             temp_meta_file = f"metadata_{job_id}.json"
             with open(temp_meta_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
             
-            # S3¿¡ ¾÷·Îµå
+            # S3ì— ì—…ë¡œë“œ
             s3_service.upload_file(
                 file_path=temp_meta_file,
                 object_name=metadata_key,
                 content_type="application/json"
             )
             
-            # ÀÓ½Ã ÆÄÀÏ »èÁ¦
+            # ì„ì‹œ íŒŒì¼ ì‚­ì œ
             os.remove(temp_meta_file)
             
         except Exception as e:
-            print(f"? º¸°í¼­ S3 ÀúÀå ½ÇÆĞ: {e}")
+            print(f"? ë³´ê³ ì„œ S3 ì €ì¥ ì‹¤íŒ¨: {e}")
         
         return {**state, "final_output": final_output}
 
-# ========== 7. FSM ±¸¼º ==========
+# ========== 7. FSM êµ¬ì„± ==========
 def create_youtube_analysis_graph():
-    """YouTube ºĞ¼®¿ë LangGraph »ı¼º"""
+    """YouTube ë¶„ì„ìš© LangGraph ìƒì„±"""
     builder = StateGraph(state_schema=GraphState)
 
     builder.add_node("caption_node", ToolAgent(extract_youtube_caption_tool, "youtube_url", "caption"))
@@ -438,52 +438,52 @@ def create_youtube_analysis_graph():
 
     return builder.compile()
 
-# ========== 8. ¼­ºñ½º Å¬·¡½º ==========
+# ========== 8. ì„œë¹„ìŠ¤ í´ë˜ìŠ¤ ==========
 class LangGraphService:
     def __init__(self):
         self.youtube_graph = create_youtube_analysis_graph()
     
     async def analyze_youtube_with_fsm(self, youtube_url: str, job_id: str = None, user_id: str = None) -> Dict[str, Any]:
-        """LangGraph FSMÀ» »ç¿ëÇÑ YouTube ºĞ¼®"""
+        """LangGraph FSMì„ ì‚¬ìš©í•œ YouTube ë¶„ì„"""
         try:
-            print(f"\n?? LangGraph FSM ºĞ¼® ½ÃÀÛ: {youtube_url}")
+            print(f"\n?? LangGraph FSM ë¶„ì„ ì‹œì‘: {youtube_url}")
             
-            # »óÅÂ¿¡ job_id¿Í user_id Ãß°¡
+            # ìƒíƒœì— job_idì™€ user_id ì¶”ê°€
             initial_state = {
                 "youtube_url": youtube_url,
                 "job_id": job_id or str(uuid.uuid4()),
                 "user_id": user_id or "anonymous"
             }
             
-            # ÁøÇà·ü ÃÊ±âÈ­
+            # ì§„í–‰ë¥  ì´ˆê¸°í™”
             if job_id:
                 try:
-                    state_manager.update_progress(job_id, 0, "ºĞ¼® ½ÃÀÛ")
+                    state_manager.update_progress(job_id, 0, "ë¶„ì„ ì‹œì‘")
                 except Exception as e:
-                    print(f"?? Redis ÁøÇà·ü ¾÷µ¥ÀÌÆ® ½ÇÆĞ (¹«½ÃµÊ): {e}")
+                    print(f"?? Redis ì§„í–‰ë¥  ì—…ë°ì´íŠ¸ ì‹¤íŒ¨ (ë¬´ì‹œë¨): {e}")
             
             result = self.youtube_graph.invoke(initial_state)
             
-            # ÁøÇà·ü ¿Ï·á
+            # ì§„í–‰ë¥  ì™„ë£Œ
             if job_id:
                 try:
-                    state_manager.update_progress(job_id, 100, "ºĞ¼® ¿Ï·á")
+                    state_manager.update_progress(job_id, 100, "ë¶„ì„ ì™„ë£Œ")
                 except Exception as e:
-                    print(f"?? Redis ÁøÇà·ü ¾÷µ¥ÀÌÆ® ½ÇÆĞ (¹«½ÃµÊ): {e}")
+                    print(f"?? Redis ì§„í–‰ë¥  ì—…ë°ì´íŠ¸ ì‹¤íŒ¨ (ë¬´ì‹œë¨): {e}")
             
-            print("? LangGraph FSM ºĞ¼® ¿Ï·á")
+            print("? LangGraph FSM ë¶„ì„ ì™„ë£Œ")
             return result
         except Exception as e:
             if job_id:
                 try:
-                    state_manager.update_progress(job_id, -1, f"ºĞ¼® ½ÇÆĞ: {str(e)}")
+                    state_manager.update_progress(job_id, -1, f"ë¶„ì„ ì‹¤íŒ¨: {str(e)}")
                 except Exception as redis_err:
-                    print(f"?? Redis ÁøÇà·ü ¾÷µ¥ÀÌÆ® ½ÇÆĞ (¹«½ÃµÊ): {redis_err}")
-            print(f"? LangGraph FSM ºĞ¼® ½ÇÆĞ: {e}")
+                    print(f"?? Redis ì§„í–‰ë¥  ì—…ë°ì´íŠ¸ ì‹¤íŒ¨ (ë¬´ì‹œë¨): {redis_err}")
+            print(f"? LangGraph FSM ë¶„ì„ ì‹¤íŒ¨: {e}")
             raise e
 
 def extract_video_id(url: str) -> str:
-    """YouTube URL¿¡¼­ video ID ÃßÃâ"""
+    """YouTube URLì—ì„œ video ID ì¶”ì¶œ"""
     import re
     patterns = [
         r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)',
@@ -497,16 +497,16 @@ def extract_video_id(url: str) -> str:
     return ""
 
 def get_youtube_video_info(youtube_url: str) -> Dict[str, str]:
-    """YouTube ¿µ»ó Á¤º¸ °¡Á®¿À±â"""
+    """YouTube ì˜ìƒ ì •ë³´ ê°€ì ¸ì˜¤ê¸°"""
     try:
         video_id = extract_video_id(youtube_url)
         if not video_id:
             return {}
         
-        # YouTube Data API v3 »ç¿ë
+        # YouTube Data API v3 ì‚¬ìš©
         api_key = settings.YOUTUBE_API_KEY
         if not api_key:
-            print("YouTube API Å°°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù.")
+            print("YouTube API í‚¤ê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.")
             return {
                 "youtube_title": f"YouTube Video - {video_id}",
                 "youtube_channel": "Unknown Channel",
@@ -524,10 +524,10 @@ def get_youtube_video_info(youtube_url: str) -> Dict[str, str]:
             snippet = video_info.get("snippet", {})
             content_details = video_info.get("contentDetails", {})
             
-            # ISO 8601 durationÀ» ÀĞ±â ½¬¿î ÇüÅÂ·Î º¯È¯
+            # ISO 8601 durationì„ ì½ê¸° ì‰¬ìš´ í˜•íƒœë¡œ ë³€í™˜
             duration = content_details.get("duration", "")
             if duration:
-                # PT4M13S -> 4:13 ÇüÅÂ·Î º¯È¯
+                # PT4M13S -> 4:13 í˜•íƒœë¡œ ë³€í™˜
                 import re
                 match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration)
                 if match:
@@ -556,7 +556,7 @@ def get_youtube_video_info(youtube_url: str) -> Dict[str, str]:
             }
             
     except Exception as e:
-        print(f"YouTube Á¤º¸ °¡Á®¿À±â ½ÇÆĞ: {e}")
+        print(f"YouTube ì •ë³´ ê°€ì ¸ì˜¤ê¸° ì‹¤íŒ¨: {e}")
         return {
             "youtube_title": f"YouTube Video - {video_id}",
             "youtube_channel": "Unknown Channel",

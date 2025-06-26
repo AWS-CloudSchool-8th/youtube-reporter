@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from app.services.cognito_service import verify_access_token
+from auth_service.services.cognito_service import verify_access_token
 from typing import Dict
 
 security = HTTPBearer()
