@@ -25,7 +25,6 @@ class Settings(BaseSettings):
 
     # API 설정
     API_V1_STR: str = "/api/v1"
-    S3_BUCKET_NAME: str = "content-analysis-reports"
 
     # API 키
     VIDCAP_API_KEY: str = ""
@@ -39,7 +38,10 @@ class Settings(BaseSettings):
     LANGCHAIN_PROJECT: Optional[str] = None
     LANGCHAIN_TRACING_V2: Optional[str] = None
 
-    # AWS Bedrock 설정 (기본 AWS 자격증명 사용)
+    # AWS Bedrock 설정
+    BEDROCK_MODEL_ID: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    BEDROCK_TEMPERATURE: float = 0.3
+    BEDROCK_MAX_TOKENS: int = 4096
     
     # AWS Cognito 설정
     COGNITO_USER_POOL_ID: Optional[str] = None

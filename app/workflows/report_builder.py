@@ -8,9 +8,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from app.core.config import settings
 from app.services.state_manager import state_manager
-from app.utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ReportAgent(Runnable):
@@ -19,8 +19,8 @@ class ReportAgent(Runnable):
     def __init__(self):
         self.llm = ChatBedrock(
             client=boto3.client("bedrock-runtime", region_name=settings.AWS_REGION),
-            model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
-            model_kwargs={"temperature": 0.3, "max_tokens": 4096}
+            model_id=settings.BEDROCK_MODEL_ID,
+            model_kwargs={"temperature": settings.BEDROCK_TEMPERATURE, "max_tokens": settings.BEDROCK_MAX_TOKENS}
         )
 
     def invoke(self, state: dict, config=None) -> dict:

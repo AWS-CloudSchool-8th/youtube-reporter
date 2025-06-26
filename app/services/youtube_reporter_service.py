@@ -5,15 +5,15 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
-from app.agents.graph_workflow import YouTubeReporterWorkflow
+from app.workflows.youtube_workflow import YouTubeReporterWorkflow
 from app.services.database_service import database_service
 from app.services.user_s3_service import user_s3_service
 from app.services.s3_service import s3_service
 from app.services.audio_service import audio_service
 from app.services.state_manager import state_manager
-from app.utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class YouTubeReporterService:

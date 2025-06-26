@@ -3,9 +3,9 @@ import requests
 from langchain_core.runnables import Runnable
 from app.core.config import settings
 from app.services.state_manager import state_manager
-from app.utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CaptionAgent(Runnable):

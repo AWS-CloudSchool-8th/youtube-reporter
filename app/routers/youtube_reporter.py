@@ -8,9 +8,9 @@ from app.core.database import get_db
 from app.services.youtube_reporter_service import youtube_reporter_service
 from app.services.database_service import database_service
 from app.models.youtube_reporter import YouTubeReporterRequest, YouTubeReporterResponse
-from app.utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/youtube-reporter", tags=["YouTube Reporter"])
 

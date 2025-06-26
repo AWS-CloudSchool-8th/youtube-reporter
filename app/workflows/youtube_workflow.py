@@ -1,14 +1,14 @@
 # app/agents/graph_workflow.py
 from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph
-from .caption_agent import CaptionAgent
-from .summary_agent import SummaryAgent
-from .visual_agent import SmartVisualAgent
-from .report_agent import ReportAgent
+from .caption_extractor import CaptionAgent
+from .content_summarizer import SummaryAgent
+from .visualization_generator import SmartVisualAgent
+from .report_builder import ReportAgent
 from app.services.state_manager import state_manager
-from app.utils.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GraphState(TypedDict):
