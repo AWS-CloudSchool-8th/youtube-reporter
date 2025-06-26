@@ -22,7 +22,13 @@ Thumbs.db
 
 # dotenv 환경변수 파일
 .env
-.env.*
+.env.local
+.env.production
+.env.development
+.env.test
+
+# .env.example은 예제 파일이므로 Git에 포함
+!.env.example
 
 # Uvicorn log files or runtime
 *.log
