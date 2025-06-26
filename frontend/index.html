@@ -272,6 +272,7 @@
             background: #fafbfc;
             border-radius: 10px;
             padding: 20px;
+            position: relative;
         }
 
         .insight {
@@ -305,6 +306,48 @@
             font-size: 1rem;
             border-top: 1px solid #eee;
             background: #fafbfc;
+        }
+
+        /* React Flow 스타일 개선 */
+        .react-flow__node {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .react-flow__edge-text {
+            font-size: 11px;
+            font-weight: 500;
+            fill: #555;
+        }
+
+        .react-flow__controls {
+            bottom: 10px;
+            left: 10px;
+        }
+
+        .react-flow__minimap {
+            bottom: 10px;
+            right: 10px;
+            background: #fafbfc;
+            border: 1px solid #e1e5e9;
+        }
+
+        /* D3.js 스타일 */
+        .d3-node {
+            fill: #667eea;
+            stroke: white;
+            stroke-width: 2;
+        }
+
+        .d3-link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5;
+        }
+
+        .d3-text {
+            font-size: 12px;
+            font-weight: 500;
+            fill: #333;
         }
 
         @media (max-width: 768px) {
@@ -342,10 +385,24 @@
             }
         }
     </style>
+    
+    <!-- 📊 기존 라이브러리들 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader"></script>
+    
+    <!-- 🧠 Markmap 라이브러리 제거 - React Flow로 대체 -->
+    <!-- <script src="https://unpkg.com/d3@6"></script>
+    <script src="https://unpkg.com/markmap-lib@0.14.3/dist/browser/index.js"></script>
+    <script src="https://unpkg.com/markmap-view@0.14.3/dist/browser/index.js"></script> -->
+    
+    <!-- 🔄 React Flow 라이브러리 -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/reactflow@11.10.1/dist/umd/index.js"></script>
+    
+    <!-- 📈 D3.js 라이브러리 -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -516,33 +573,70 @@
             }, 100);
         }
 
+        // 🎯 핵심 렌더링 함수 - 모든 시각화 타입 지원
         function renderVisualization(section) {
             const container = document.getElementById(`viz-${section.tag_id}`);
-            if (!container) return;
+            if (!container) {
+                console.error(`Container not found for tag_id: ${section.tag_id}`);
+                return;
+            }
 
             const config = section.config;
+            console.log('렌더링 시작:', section.tag_id, config.type);
             
             try {
-                if (config.type === 'chartjs') {
-                    // Chart.js 렌더링
+                if (config.type === 'plotly') {
+                    // ✅ Plotly.js 구현
+                    const plotlyData = config.config?.data || config.data || [];
+                    const plotlyLayout = {
+                        ...(config.config?.layout || config.layout || {}),
+                        font: { family: 'Arial, sans-serif' },
+                        margin: { t: 50, r: 30, b: 40, l: 50 }
+                    };
+                    const plotlyConfig = {
+                        responsive: true,
+                        displayModeBar: true,
+                        modeBarButtonsToRemove: ['pan2d', 'lasso2d']
+                    };
+                    
+                    Plotly.newPlot(container, plotlyData, plotlyLayout, plotlyConfig);
+                    
+                } else if (config.type === 'chartjs') {
+                    // ✅ Chart.js 구현
                     const canvas = document.createElement('canvas');
                     container.appendChild(canvas);
                     
                     new Chart(canvas, config.config);
                     
                 } else if (config.type === 'mermaid') {
-                    // Mermaid 다이어그램 렌더링
+                    // ✅ Mermaid 다이어그램 구현
                     container.innerHTML = `<div class="mermaid">${config.code}</div>`;
                     mermaid.init(undefined, container.querySelector('.mermaid'));
                     
+                } else if (config.type === 'markmap') {
+                    // ⚠️ Markmap 비활성화 - React Flow로 대체
+                    container.innerHTML = `
+                        <div style="padding: 40px; color: #666; text-align: center;">
+                            🧠 마인드맵은 React Flow로 구현됩니다.<br>
+                            <small>AI가 마인드맵 형태의 React Flow를 생성하도록 설정되어 있습니다.</small>
+                        </div>
+                    `;
+                    
+                } else if (config.type === 'flow' || config.library === 'reactflow') {
+                    // ✅ React Flow 구현
+                    renderReactFlow(container, config);
+                    
+                } else if (config.type === 'd3' || config.library === 'd3js') {
+                    // ✅ D3.js 구현
+                    renderD3Visualization(container, config);
+                    
                 } else if (config.type === 'table') {
-                    // 테이블 렌더링
+                    // ✅ HTML 테이블 구현
                     const table = document.createElement('table');
                     table.style.width = '100%';
                     table.style.borderCollapse = 'collapse';
                     table.style.marginTop = '20px';
                     
-                    // 헤더
                     if (config.data.headers) {
                         const thead = document.createElement('thead');
                         const headerRow = document.createElement('tr');
@@ -556,7 +650,6 @@
                         table.appendChild(thead);
                     }
                     
-                    // 바디
                     if (config.data.rows) {
                         const tbody = document.createElement('tbody');
                         config.data.rows.forEach((row, index) => {
@@ -584,6 +677,418 @@
             }
         }
 
+        // 🔄 React Flow 렌더링 함수 (개선됨)
+        function renderReactFlow(container, config) {
+            console.log('React Flow 렌더링 시작:', config);
+            
+            // React Flow가 로드되었는지 확인
+            if (typeof ReactFlow === 'undefined') {
+                container.innerHTML = '<div style="color: red; padding: 20px;">❌ React Flow 라이브러리가 로드되지 않았습니다.</div>';
+                return;
+            }
+
+            // 컨테이너 초기화 및 스타일 설정
+            container.innerHTML = '';
+            container.style.width = '100%';
+            container.style.height = '400px';
+            container.style.border = '1px solid #e1e5e9';
+            container.style.borderRadius = '8px';
+            container.style.overflow = 'hidden';
+
+            const { createElement: h, useState, useCallback } = React;
+            const { createRoot } = ReactDOM;
+
+            const nodes = config.data?.nodes || [];
+            const edges = config.data?.edges || [];
+
+            // 노드 스타일 개선
+            const nodeStyles = {
+                input: {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: '2px solid #667eea',
+                    borderRadius: '8px',
+                    padding: '10px 15px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                },
+                default: {
+                    background: 'white',
+                    color: '#333',
+                    border: '2px solid #667eea',
+                    borderRadius: '8px',
+                    padding: '10px 15px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                },
+                output: {
+                    background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                    color: 'white',
+                    border: '2px solid #43e97b',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    boxShadow: '0 4px 12px rgba(67, 233, 123, 0.3)'
+                }
+            };
+
+            // React Flow 컴포넌트 생성
+            const FlowComponent = () => {
+                const [reactFlowInstance, setReactFlowInstance] = useState(null);
+
+                const onInit = useCallback((instance) => {
+                    setReactFlowInstance(instance);
+                    // fitView를 약간 지연시켜 레이아웃이 완료된 후 실행
+                    setTimeout(() => {
+                        instance.fitView({ 
+                            padding: 0.2,
+                            includeHiddenNodes: false,
+                            minZoom: 0.5,
+                            maxZoom: 1.5
+                        });
+                    }, 100);
+                }, []);
+
+                // 노드에 스타일 적용
+                const styledNodes = nodes.map(node => ({
+                    ...node,
+                    style: nodeStyles[node.type || 'default']
+                }));
+
+                // 엣지 스타일 개선
+                const styledEdges = edges.map(edge => ({
+                    ...edge,
+                    type: edge.type || 'smoothstep',
+                    style: {
+                        stroke: '#667eea',
+                        strokeWidth: 2,
+                        ...edge.style
+                    },
+                    labelStyle: {
+                        fontSize: '11px',
+                        fontWeight: '500',
+                        fill: '#555'
+                    }
+                }));
+
+                return h(ReactFlow.ReactFlow, {
+                    nodes: styledNodes,
+                    edges: styledEdges,
+                    onInit: onInit,
+                    fitView: true,
+                    nodesDraggable: config.options?.nodesDraggable !== false,
+                    nodesConnectable: config.options?.nodesConnectable || false,
+                    elementsSelectable: config.options?.elementsSelectable !== false,
+                    style: { 
+                        width: '100%', 
+                        height: '100%',
+                        background: '#fafbfc'
+                    },
+                    defaultViewport: { x: 0, y: 0, zoom: 1 },
+                    minZoom: 0.2,
+                    maxZoom: 2,
+                    attributionPosition: 'bottom-left'
+                });
+            };
+
+            try {
+                // React 컴포넌트 마운트
+                const root = createRoot(container);
+                root.render(h(FlowComponent));
+            } catch (error) {
+                console.error('React Flow 렌더링 오류:', error);
+                container.innerHTML = `
+                    <div style="padding: 40px; color: #c33; text-align: center;">
+                        ❌ React Flow 렌더링 실패<br>
+                        <small>오류: ${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // 📈 D3.js 렌더링 함수
+        function renderD3Visualization(container, config) {
+            console.log('D3.js 렌더링 시작:', config);
+            
+            // 컨테이너 초기화
+            container.innerHTML = '';
+            
+            const width = config.config?.width || 800;
+            const height = config.config?.height || 400;
+            const colors = config.config?.colors || ['#667eea', '#f093fb', '#4facfe', '#43e97b'];
+
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`);
+
+            if (config.visualization_type === 'timeline') {
+                renderD3Timeline(svg, config.data, width, height, colors);
+            } else if (config.visualization_type === 'force') {
+                renderD3ForceGraph(svg, config.data, width, height, colors);
+            } else if (config.visualization_type === 'treemap') {
+                renderD3Treemap(svg, config.data, width, height, colors);
+            } else if (config.visualization_type === 'sankey') {
+                renderD3Sankey(svg, config.data, width, height, colors);
+            } else {
+                // 기본 네트워크 그래프
+                renderD3ForceGraph(svg, config.data, width, height, colors);
+            }
+        }
+
+        // D3.js Force Graph 구현
+        function renderD3ForceGraph(svg, data, width, height, colors) {
+            const nodes = data.nodes || [];
+            const links = data.links || [];
+
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .enter().append('line')
+                .attr('class', 'd3-link')
+                .attr('stroke-width', d => Math.sqrt(d.value || 1));
+
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(nodes)
+                .enter().append('circle')
+                .attr('class', 'd3-node')
+                .attr('r', d => Math.sqrt((d.value || 10) * 2))
+                .attr('fill', (d, i) => colors[i % colors.length])
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+            const text = svg.append('g')
+                .selectAll('text')
+                .data(nodes)
+                .enter().append('text')
+                .attr('class', 'd3-text')
+                .text(d => d.name || d.id)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '.35em');
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+
+                text
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        // D3.js Timeline 구현
+        function renderD3Timeline(svg, data, width, height, colors) {
+            const events = data.events || data.nodes || [];
+            const margin = { top: 50, right: 50, bottom: 50, left: 100 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            // 시간 스케일 생성
+            const timeExtent = d3.extent(events, d => new Date(d.date || d.time || Date.now()));
+            const xScale = d3.scaleTime()
+                .domain(timeExtent)
+                .range([0, innerWidth]);
+
+            const yScale = d3.scaleBand()
+                .domain(events.map((d, i) => i))
+                .range([0, innerHeight])
+                .padding(0.1);
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // 타임라인 라인
+            g.append('line')
+                .attr('x1', 0)
+                .attr('x2', innerWidth)
+                .attr('y1', innerHeight / 2)
+                .attr('y2', innerHeight / 2)
+                .attr('stroke', '#ddd')
+                .attr('stroke-width', 2);
+
+            // 이벤트 점들
+            g.selectAll('circle')
+                .data(events)
+                .enter().append('circle')
+                .attr('cx', d => xScale(new Date(d.date || d.time || Date.now())))
+                .attr('cy', innerHeight / 2)
+                .attr('r', 8)
+                .attr('fill', (d, i) => colors[i % colors.length])
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2);
+
+            // 이벤트 라벨
+            g.selectAll('text')
+                .data(events)
+                .enter().append('text')
+                .attr('x', d => xScale(new Date(d.date || d.time || Date.now())))
+                .attr('y', (d, i) => innerHeight / 2 + (i % 2 === 0 ? -20 : 30))
+                .attr('text-anchor', 'middle')
+                .attr('class', 'd3-text')
+                .text(d => d.name || d.title || d.label);
+
+            // X축
+            g.append('g')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(xScale));
+        }
+
+        // D3.js Treemap 구현
+        function renderD3Treemap(svg, data, width, height, colors) {
+            const root = d3.hierarchy(data)
+                .sum(d => d.value || 1)
+                .sort((a, b) => b.value - a.value);
+
+            d3.treemap()
+                .size([width, height])
+                .padding(2)(root);
+
+            const leaf = svg.selectAll('g')
+                .data(root.leaves())
+                .enter().append('g')
+                .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+            leaf.append('rect')
+                .attr('width', d => d.x1 - d.x0)
+                .attr('height', d => d.y1 - d.y0)
+                .attr('fill', (d, i) => colors[i % colors.length])
+                .attr('stroke', 'white')
+                .attr('stroke-width', 1);
+
+            leaf.append('text')
+                .attr('x', 4)
+                .attr('y', 20)
+                .attr('class', 'd3-text')
+                .text(d => d.data.name || d.data.id)
+                .attr('font-size', '12px')
+                .attr('fill', 'white');
+        }
+
+        // D3.js Sankey 구현 (간단한 버전)
+        function renderD3Sankey(svg, data, width, height, colors) {
+            const nodes = data.nodes || [];
+            const links = data.links || [];
+
+            // 노드 위치 계산
+            const nodeWidth = 20;
+            const nodePadding = 40;
+            const levels = [...new Set(nodes.map(d => d.level || 0))].sort();
+            
+            nodes.forEach(node => {
+                const level = node.level || 0;
+                const levelIndex = levels.indexOf(level);
+                node.x = (width / (levels.length - 1)) * levelIndex;
+                node.y = (height / nodes.filter(n => n.level === level).length) * 
+                        nodes.filter(n => n.level === level).indexOf(node);
+            });
+
+            // 링크 그리기
+            const linkGenerator = d3.linkHorizontal()
+                .x(d => d.x + nodeWidth / 2)
+                .y(d => d.y + 20);
+
+            svg.selectAll('path')
+                .data(links)
+                .enter().append('path')
+                .attr('d', d => {
+                    const source = nodes.find(n => n.id === d.source);
+                    const target = nodes.find(n => n.id === d.target);
+                    return linkGenerator({ source, target });
+                })
+                .attr('fill', 'none')
+                .attr('stroke', '#999')
+                .attr('stroke-width', d => Math.max(1, d.value || 1))
+                .attr('opacity', 0.7);
+
+            // 노드 그리기
+            const node = svg.selectAll('rect')
+                .data(nodes)
+                .enter().append('g');
+
+            node.append('rect')
+                .attr('x', d => d.x)
+                .attr('y', d => d.y)
+                .attr('width', nodeWidth)
+                .attr('height', 40)
+                .attr('fill', (d, i) => colors[i % colors.length])
+                .attr('stroke', 'white')
+                .attr('stroke-width', 1);
+
+            node.append('text')
+                .attr('x', d => d.x + nodeWidth + 5)
+                .attr('y', d => d.y + 25)
+                .attr('class', 'd3-text')
+                .text(d => d.name || d.id);
+        }
+
+        // 🧠 JSON을 마크다운으로 변환하는 헬퍼 함수 (개선됨)
+        function jsonToMarkdown(data, level = 1) {
+            if (typeof data === 'string') {
+                return `${'#'.repeat(level)} ${data}\n\n`;
+            }
+            
+            if (Array.isArray(data)) {
+                return data.map(item => {
+                    if (typeof item === 'string') {
+                        return `${'- '.repeat(level - 1)}${item}\n`;
+                    } else {
+                        return jsonToMarkdown(item, level);
+                    }
+                }).join('');
+            }
+            
+            if (typeof data === 'object' && data !== null) {
+                let markdown = '';
+                for (const [key, value] of Object.entries(data)) {
+                    markdown += `${'#'.repeat(level)} ${key}\n\n`;
+                    if (typeof value === 'object') {
+                        markdown += jsonToMarkdown(value, level + 1);
+                    } else {
+                        markdown += `${value}\n\n`;
+                    }
+                }
+                return markdown;
+            }
+            
+            return `${'#'.repeat(level)} ${data}\n\n`;
+        }
+
         // Mermaid 초기화
         mermaid.initialize({ 
             startOnLoad: false,
@@ -594,6 +1099,18 @@
                 primaryBorderColor: '#667eea',
                 lineColor: '#667eea'
             }
+        });
+
+        // 🔧 라이브러리 로드 확인
+        window.addEventListener('load', () => {
+            console.log('라이브러리 로드 상태:');
+            console.log('- Chart.js:', typeof Chart !== 'undefined');
+            console.log('- Plotly:', typeof Plotly !== 'undefined');
+            console.log('- Mermaid:', typeof mermaid !== 'undefined');
+            console.log('- D3:', typeof d3 !== 'undefined');
+            console.log('- React:', typeof React !== 'undefined');
+            console.log('- ReactFlow:', typeof ReactFlow !== 'undefined');
+            console.log('- Markmap:', '비활성화됨 (React Flow로 대체)');
         });
     </script>
 </body>

@@ -128,18 +128,26 @@ JSON만 출력하세요.
 
 
 ## 사용 가능한 시각화 타입
-- **chartjs**: 데이터 비교, 트렌드, 비율
+- **chartjs**: 데이터 비교, 트렌드, 비율, 순위, 구성 비율
 - **plotly**: 수학적/과학적 그래프, 복잡한 데이터
-- **mermaid**: 프로세스, 플로우차트, 타임라인
-- **markmap**: 개념 관계, 마인드맵, 분류 체계
+- **React Flow**: 프로세스, 분류체계, 마인드맵
 - **table**: 구조화된 정보, 비교표
+- **D3.js**: 타임라인
+
+**플로우 차트 작성 규칙 (React Flow):**
+- nodes: 노드 배열 [노드1, 노드2, ...]
+- edges: 연결 배열 [연결1, 연결2, ...]
+- 노드 속성: id, type, position, data
+- 연결 속성: id, source, target, type, label
+- 노드 타입: default, input, output, custom
+
 
 다음 중 하나의 형식으로 응답하세요:
 
 **1. Chart.js 차트:**
 {{
   "type": "chartjs",
-  "chart_type": "bar|line|pie|radar|scatter",
+  "chart_type": "bar|line|pie|radar|scatter|doughnut",
   "title": "차트 제목",
   "config": {{
     "type": "bar",
@@ -180,22 +188,53 @@ JSON만 출력하세요.
   "insight": "이 그래프를 통해 얻을 수 있는 인사이트"
 }}
 
-**3. Mermaid 다이어그램:**
+**3. - 플로우 차트 (React Flow):**
 {{
-  "type": "mermaid",
-  "diagram_type": "flowchart|timeline|concept",  
-  "title": "다이어그램 제목",
-  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
-  "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
+  "type": "React flow",
+  "library": "reactflow",
+  "title": "명확한 제목",
+  "flow_type": "flowchart|workflow|mindmap",
+  "data": {{
+    "nodes": [
+      {{ "id": "1", "type": "input", "position": {{ "x": 0, "y": 0 }}, "data": {{ "label": "시작" }} }},
+      {{ "id": "2", "position": {{ "x": 100, "y": 100 }}, "data": {{ "label": "과정" }} }},
+      {{ "id": "3", "type": "output", "position": {{ "x": 200, "y": 200 }}, "data": {{ "label": "완료" }} }}
+    ],
+    "edges": [
+      {{ "id": "e1-2", "source": "1", "target": "2", "label": "연결 1" }},
+      {{ "id": "e2-3", "source": "2", "target": "3", "label": "연결 2" }}
+    ]
+  }},
+  "options": {{
+    "direction": "LR",
+    "fitView": true
+  }},
+  "insight": "이 플로우 차트가 보여주는 프로세스 흐름"
 }}
 
-**4. Markmap 마인드맵:**
+**4. - 고급 시각화 (D3.js):**
 {{
-  "type": "markmap",
-  "title": "마인드맵 제목",
-  "markdown": "# 중심 주제\\n\\n## 큰 분류 1\\n\\n- 세부사항 1\\n- 세부사항 2\\n  - 하위 항목\\n\\n## 큰 분류 2\\n\\n- 세부사항 A\\n- 세부사항 B",
-  "insight": "이 마인드맵을 통해 얻을 수 있는 인사이트"
+  "type": "d3",
+  "library": "d3js",
+  "title": "명확한 제목",
+  "visualization_type": "timeline|treemap|sankey|force",
+  "data": {{
+    "nodes": [
+      {{ "id": "node1", "name": "노드1", "value": 10 }},
+      {{ "id": "node2", "name": "노드2", "value": 20 }}
+    ],
+    "links": [
+      {{ "source": "node1", "target": "node2", "value": 5 }}
+    ]
+  }},
+  "config": {{
+    "width": 800,
+    "height": 600,
+    "colors": ["#667eea", "#f093fb", "#4facfe", "#43e97b"]
+  }},
+  "insight": "이 고급 시각화가 보여주는 핵심 패턴"
 }}
+
 
 **5. HTML 테이블:**
 {{
