@@ -2,9 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import analysis, audio, document, youtube, report, auth, user_analysis, s3
+from app.routers import analysis, audio, document, youtube, report, auth, user_analysis, s3, youtube_reporter
 from app.core.database import engine
 from app.models.database_models import Base
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -33,34 +34,43 @@ app.include_router(document.router)
 app.include_router(youtube.router)
 app.include_router(report.router)
 app.include_router(s3.router)  # S3 라우터 추가
+app.include_router(youtube_reporter.router)  # YouTube Reporter 라우터 추가
 
 @app.get("/")
 async def root():
     return {
-        "message": "통합 콘텐츠 분석 API Server with S3 & Polly",
+        "message": "통합 콘텐츠 분석 API Server with YouTube Reporter",
         "version": settings.VERSION,
         "new_features": [
             "S3 자동 보고서 저장",
             "Polly 음성 변환",
-            "오디오 스트리밍 재생"
+            "오디오 스트리밍 재생",
+            "YouTube Reporter - 스마트 시각화",  # 새로 추가
+            "LangGraph 기반 에이전트 워크플로우",  # 새로 추가
+            "컨텍스트 기반 시각화 자동 생성"  # 새로 추가
         ],
         "supported_inputs": [
             "YouTube URLs (단일/다중)",
             "문서 파일 (PDF, DOCX, XLSX, CSV, TXT)",
-            "YouTube 검색 키워드"
+            "YouTube 검색 키워드",
+            "YouTube Reporter - 포괄적 분석"  # 새로 추가
         ],
         "pipeline": [
             "1. 콘텐츠 추출",
             "2. AI 분석 및 구조화",
-            "3. S3 보고서 저장",
-            "4. Polly 음성 변환",
-            "5. 통합 결과 반환"
+            "3. 스마트 시각화 생성",  # 수정
+            "4. S3 보고서 저장",
+            "5. Polly 음성 변환",
+            "6. 통합 결과 반환"
         ],
         "endpoints": {
             "youtube_search": "/search",
             "youtube_analysis": "/analysis/youtube",
             "document_analysis": "/analysis/document",
             "search_analysis": "/analysis/search",
+            "youtube_reporter": "/youtube-reporter/analyze",  # 새로 추가
+            "youtube_reporter_status": "/youtube-reporter/jobs/{job_id}/status",  # 새로 추가
+            "youtube_reporter_result": "/youtube-reporter/jobs/{job_id}/result",  # 새로 추가
             "analysis_status": "/analysis/{job_id}",
             "report_download": "/reports/{report_id}",
             "audio_generation": "/audio/generate",
