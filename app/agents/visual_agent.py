@@ -29,23 +29,20 @@ class VisualAgent:
     def analyze_and_tag(self, report_text: str) -> Dict[str, Any]:
         """보고서를 분석하여 시각화 태그 삽입"""
         prompt = f"""
-당신은 보고서를 분석하여 시각화가 필요한 부분을 식별하고 태그를 삽입하는 전문가입니다.
+당신은 보고서를 분석하여 시각화가 필요한 부분을 식별하는 전문가입니다.
 
 ## 임무
 1. 보고서 내용을 깊이 분석
 2. 시각화가 효과적인 내용 전달에 도움될 부분 식별 
-3. 시각화가 구조화된 내용 전달에 도움될 부분 식별 
-4. 해당 위치에 간단한 숫자 태그 삽입
-5. 각 태그별로 시각화와 관련된 **정확한 원본 텍스트 문단** 추출
+3. 시각화와 관련된 **정확한 원본 텍스트 문단** 추출
 
 ## 보고서 분석
 {report_text}
 
 ## 작업 단계
 1. **전체 주제와 흐름 파악**
-2. **시각화가 도움될 부분 식별** (비교, 과정, 개념, 데이터 등)
-3. **각 부분에 [VIZ_1], [VIZ_2], [VIZ_3] 형태로 태그 삽입**
-4. **태그별로 시각화와 직접 관련된 완전한 문단 추출**
+2. **시각화가 도움될 부분 식별** (비교, 과정, 개념, 데이터, 구조, 흐름 등)
+3. **시각화와 직접 관련된 완전한 문단 추출**
 
 ## 중요 지침
 - **related_content**에는 시각화와 직접 관련된 **완전한 문단**을 포함하세요
@@ -56,13 +53,11 @@ class VisualAgent:
 ## 출력 형식
 ```json
 {{
-  "tagged_report": "태그가 삽입된 전체 보고서 텍스트",
   "visualization_requests": [
     {{
-      "tag_id": "1",
       "purpose": "comparison|process|concept|overview|detail",
       "content_description": "시각화할 구체적 내용",
-      "related_content": "시각화와 직접 관련된 완전한 원본 문단 (완성된 문장들로 구성)"
+      "related_content": "시각화와 직접 관련된 완전한 원본 문단"
     }}
   ]
 }}
@@ -106,23 +101,30 @@ JSON만 출력하세요.
             logger.info(f"시각화 {i+1}/{len(visualization_requests)} 생성 중... (태그: {req.get('tag_id', 'unknown')})")
             
             try:
+                purpose = req.get("purpose", "")
+                content_description = req.get("content_description", "")
+                related_content = req.get("related_content", "")
                 prompt = f"""
 당신은 특정 태그와 맥락 정보를 바탕으로 정확한 시각화를 생성하는 전문가입니다.
 
+
 ## 시각화 요청 정보
-- **태그 ID**: {req.get('tag_id', '')}
-- **목적**: {req.get('purpose', '')}
-- **내용**: {req.get('content_description', '')}
-- **관련 텍스트**: {req.get('related_content', '')}
+- **목적**: {purpose}
+- **내용**: {content_description}
+
+## 원본 텍스트(이 정보만 사용하세요): {related_content}
+
 
 ## 전체 자막 (추가 참고용)
-{caption_context[:1000]}
+{caption_context}
+
 
 ## 지침
 1. 제공된 맥락과 데이터를 정확히 활용
-2. 태그가 삽입될 위치에서 독자 이해를 최대화
-3. 보고서에 언급된 실제 정보만 사용
+2. 독자 이해를 최대화
+3. 위 원본 텍스트와 전체 자막에서 명시된 정보만 사용. **원본 텍스트, 전체 자막에 없는 임의의 데이터를 넣지 말 것**
 4. 요청된 목적에 정확히 부합하는 시각화 생성
+
 
 ## 사용 가능한 시각화 타입
 - **chartjs**: 데이터 비교, 트렌드, 비율
@@ -136,6 +138,7 @@ JSON만 출력하세요.
 **1. Chart.js 차트:**
 {{
   "type": "chartjs",
+  "chart_type": "bar|line|pie|radar|scatter",
   "title": "차트 제목",
   "config": {{
     "type": "bar",
@@ -151,54 +154,78 @@ JSON만 출력하세요.
       "responsive": true,
       "maintainAspectRatio": false
     }}
-  }}
+  }},
+  "insight": "이 차트를 통해 얻을 수 있는 인사이트"
 }}
 
-**2. Plotly 차트:**
+**2. Plotly 수학/과학:**
 {{
-  "type": "plotly",
-  "title": "차트 제목",
+  "type": "plotly", 
+  "chart_type": "function|scatter|heatmap|3d|line charts|pie charts|bubble charts|histograms",
+  "title": "그래프 제목",
   "config": {{
     "data": [{{
-      "x": ["A", "B", "C"],
-      "y": [1, 3, 2],
+      "x": [1, 2, 3, 4],
+      "y": [10, 11, 12, 13],
       "type": "scatter",
       "mode": "lines+markers"
     }}],
     "layout": {{
-      "title": "차트 제목",
+      "title": "그래프 제목",
       "xaxis": {{"title": "X축"}},
       "yaxis": {{"title": "Y축"}}
     }}
-  }}
+  }},
+  "insight": "이 그래프를 통해 얻을 수 있는 인사이트"
 }}
 
 **3. Mermaid 다이어그램:**
 {{
   "type": "mermaid",
+  "diagram_type": "flowchart|timeline|concept",  
   "title": "다이어그램 제목",
-  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]"
+  "code": "graph TD\\n    A[Start] --> B[Process]\\n    B --> C[End]",
+  "insight": "이 다이어그램을 통해 얻을 수 있는 인사이트"
 }}
 
 **4. Markmap 마인드맵:**
 {{
   "type": "markmap",
   "title": "마인드맵 제목",
-  "markdown": "# 중심 주제\\n## 주요 분야 1\\n- 세부사항 1\\n- 세부사항 2\\n## 주요 분야 2\\n- 세부사항 3"
+  "markdown": "# 중심 주제\\n\\n## 큰 분류 1\\n\\n- 세부사항 1\\n- 세부사항 2\\n  - 하위 항목\\n\\n## 큰 분류 2\\n\\n- 세부사항 A\\n- 세부사항 B",
+  "insight": "이 마인드맵을 통해 얻을 수 있는 인사이트"
 }}
 
-**5. 테이블:**
+**5. HTML 테이블:**
 {{
   "type": "table",
-  "title": "테이블 제목",
+  "title": "표 제목", 
   "data": {{
     "headers": ["항목", "값", "설명"],
     "rows": [
       ["항목1", "값1", "설명1"],
       ["항목2", "값2", "설명2"]
     ]
-  }}
+  }},
+  "insight": "이 표를 통해 얻을 수 있는 인사이트"
 }}
+
+**6. 창의적 제안:**
+{{
+  "type": "creative",
+  "method": "제안하는 방법",
+  "description": "어떻게 구현할지",
+  "insight": "왜 이 방법이 최적인지"
+}}
+
+## 🔍 실제 작업 과정
+
+1. **원본 텍스트 분석**: 구체적 수치, 항목, 관계 추출
+2. **데이터 유형 판단**: 수치형/구조형/개념형 구분
+3. **적절한 타입 선택**: 위 가이드에 따라 선택
+4. **원본 기반 생성**: 추출된 정보만으로 시각화 구성
+5. **data_source 추가**: 원본에서 인용한 구체적 부분 명시
+
 
 JSON만 출력하세요.
 """
