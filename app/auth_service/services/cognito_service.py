@@ -28,7 +28,7 @@ def sign_up_user(email: str, password: str):
                 {"Name": "email", "Value": email}
             ]
         )
-        return {"message": "회원가입 성공. 이메일 인증 코드를 확인하세요."}
+        return {"message": "successful signup. Confirm your email verification code."}
     except ClientError as e:
         raise e
     
@@ -41,7 +41,7 @@ def confirm_user_signup(email: str, code: str):
             Username=email,
             ConfirmationCode=code,
         )
-        return {"message": "이메일 인증이 완료되었습니다."}
+        return {"message": "email verification confirmed."}
     except ClientError as e:
         raise e
     
@@ -66,7 +66,6 @@ def sign_in_user(email: str, password: str):
         raise e
 
 def refresh_user_token(refresh_token: str, email: str):
-    """토큰 갱신"""
     secret_hash = get_secret_hash(email)
     try:
         response = client.initiate_auth(
@@ -85,7 +84,6 @@ def refresh_user_token(refresh_token: str, email: str):
         raise e
 
 def get_user_info(access_token: str):
-    """사용자 정보 조회"""
     try:
         response = client.get_user(AccessToken=access_token)
         user_attributes = {}
@@ -101,7 +99,6 @@ def get_user_info(access_token: str):
         raise e
 
 def verify_access_token(access_token: str):
-    """토큰 검증"""
     try:
         response = client.get_user(AccessToken=access_token)
         return {"valid": True, "username": response['Username']}

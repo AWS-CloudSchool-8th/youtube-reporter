@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Header
 from typing import Optional
 from shared_lib.models.auth import SignUpRequest, ConfirmSignUpRequest, SignInRequest, RefreshTokenRequest
-from app.services.cognito_service import (
+from services.cognito_service import (
     sign_up_user, confirm_user_signup, sign_in_user, 
     refresh_user_token, get_user_info, verify_access_token
 )
@@ -33,7 +33,6 @@ def login(req: SignInRequest):
 
 @router.post("/refresh")
 def refresh_token(req: RefreshTokenRequest):
-    """토큰 갱신"""
     try:
         return refresh_user_token(req.refresh_token, req.email)
     except ClientError as e:
@@ -41,7 +40,6 @@ def refresh_token(req: RefreshTokenRequest):
 
 @router.get("/me")
 def get_current_user(authorization: Optional[str] = Header(None)):
-    """현재 사용자 정보 조회"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization header required")
     
@@ -53,7 +51,6 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
 @router.get("/verify")
 def verify_token(authorization: Optional[str] = Header(None)):
-    """토큰 검증"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization header required")
     
