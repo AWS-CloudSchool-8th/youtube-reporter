@@ -1,8 +1,9 @@
-# app/agents/graph_workflow.py
+# app/workflows/youtube_workflow.py
 from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph
 from .caption_extractor import CaptionAgent
 from .content_summarizer import SummaryAgent
+from .visualization_analyzer import VisualizationAnalyzer
 from .visualization_generator import SmartVisualAgent
 from .report_builder import ReportAgent
 from app.services.state_manager import state_manager
@@ -12,45 +13,49 @@ logger = logging.getLogger(__name__)
 
 
 class GraphState(TypedDict):
-    """워크플로우 상태 정의 - taeho 백엔드 통합 버전"""
+    """워크플로우 상태 정의 - yesol-merge + correct-visualization-agents 통합"""
     job_id: str
     user_id: str
     youtube_url: str
     caption: str
     summary: str
-    visual_sections: List[Dict[str, Any]]
+    visualization_requests: List[Dict[str, Any]]  # TaggingAgent 출력
+    visual_sections: List[Dict[str, Any]]  # VisualizationAgent 출력
     report_result: Dict[str, Any]
     final_output: Dict[str, Any]
 
 
 class YouTubeReporterWorkflow:
-    """YouTube 영상 분석 및 리포트 생성 워크플로우 - taeho 백엔드 통합 버전"""
+    """YouTube 영상 분석 및 리포트 생성 워크플로우 - yesol-merge + correct-visualization-agents 통합"""
 
     def __init__(self):
         logger.info("YouTube Reporter 워크플로우 초기화 중...")
         self.caption_agent = CaptionAgent()
         self.summary_agent = SummaryAgent()
-        self.visual_agent = SmartVisualAgent()
+        self.analyzer_agent = VisualizationAnalyzer()  # 시각화 요청 분석
+        self.visual_agent = SmartVisualAgent()  # 시각화 생성
         self.report_agent = ReportAgent()
         self.graph = self._build_graph()
         logger.info("✅ YouTube Reporter 워크플로우 초기화 완료")
 
     def _build_graph(self):
-        """LangGraph 워크플로우 구성"""
+        """LangGraph 워크플로우 구성 - VisualizationAnalyzer + SmartVisualAgent 2단계 방식"""
         builder = StateGraph(state_schema=GraphState)
 
         # 노드 추가
         builder.add_node("caption_node", self.caption_agent)
         builder.add_node("summary_node", self.summary_agent)
-        builder.add_node("visual_node", self.visual_agent)
+        builder.add_node("analyzer_node", self.analyzer_agent)  # 1단계: 시각화 요청 분석
+        builder.add_node("visual_node", self.visual_agent)  # 2단계: 시각화 생성
         builder.add_node("report_node", self.report_agent)
         builder.add_node("finalize_node", self._finalize_result)
 
         # 엣지 연결 - 순차적 실행
         builder.set_entry_point("caption_node")
         builder.add_edge("caption_node", "summary_node")
-        builder.add_edge("summary_node", "visual_node")
-        builder.add_edge("visual_node", "report_node")
+        builder.add_edge("summary_node", "analyzer_node")  # summary → analyzer
+        builder.add_edge("analyzer_node", "visual_node")  # analyzer → visual
+        builder.add_edge("visual_node", "report_node")  # visual → report
         builder.add_edge("report_node", "finalize_node")
         builder.add_edge("finalize_node", "__end__")
 
@@ -86,6 +91,8 @@ class YouTubeReporterWorkflow:
                 "youtube_url": state.get("youtube_url", ""),
                 "caption_length": len(state.get("caption", "")),
                 "summary_length": len(state.get("summary", "")),
+                "visualization_requests": len(state.get("visualization_requests", [])),
+                "visualization_method": "VisualizationAnalyzer + SmartVisualAgent (2-stage)",
                 "user_id": user_id,
                 "job_id": job_id,
                 "generated_at": report_result.get("metadata", {}).get("generated_at", "")
@@ -109,26 +116,31 @@ class YouTubeReporterWorkflow:
                     logger.warning("시각화 섹션 '%s' 데이터 누락", section.get("title"))
                     section["error"] = "시각화 데이터가 없습니다"
                 else:
+                    # 시각화 타입 검증
                     viz_info = section.get("visualization_type")
                     if isinstance(viz_info, dict):
                         viz_type = viz_info.get("type")
                     else:
-                        if viz_info and not isinstance(viz_info, str):
-                            logger.warning("Unexpected visualization_type format: %s", viz_info)
                         viz_type = viz_info
 
-                    if viz_type == "chart" and not section["data"].get("config"):
-                        section["error"] = "차트 설정이 없습니다"
-                    elif viz_type == "network" and not section["data"].get("data"):
-                        section["error"] = "네트워크 데이터가 없습니다"
-                    elif viz_type == "flow" and not section["data"].get("data"):
-                        section["error"] = "플로우 데이터가 없습니다"
+                    # 데이터 구조 검증
+                    data = section.get("data", {})
+                    if viz_type == "chartjs" and not data.get("config"):
+                        section["error"] = "Chart.js 설정이 없습니다"
+                    elif viz_type == "visjs" and not data.get("config", {}).get("nodes"):
+                        section["error"] = "vis.js 노드 데이터가 없습니다"
+                    elif viz_type == "reactflow" and not data.get("config", {}).get("nodes"):
+                        section["error"] = "React Flow 노드 데이터가 없습니다"
+                    elif viz_type == "table" and not data.get("data", {}).get("headers"):
+                        section["error"] = "테이블 헤더가 없습니다"
 
         logger.info("📊 최종 리포트 생성 완료:")
         logger.info(f"   - 제목: {final_output['title']}")
         logger.info(f"   - 전체 섹션: {final_output['statistics']['total_sections']}개")
         logger.info(f"   - 텍스트: {final_output['statistics']['text_sections']}개")
         logger.info(f"   - 시각화: {final_output['statistics']['visualizations']}개")
+        logger.info(f"   - 시각화 요청: {final_output['process_info']['visualization_requests']}개")
+        logger.info(f"   - 시각화 방식: {final_output['process_info']['visualization_method']}")
 
         return {**state, "final_output": final_output}
 
@@ -136,6 +148,7 @@ class YouTubeReporterWorkflow:
         """YouTube URL을 처리하여 리포트 생성"""
         logger.info(f"\n{'=' * 60}")
         logger.info(f"🎬 YouTube Reporter 시작: {youtube_url}")
+        logger.info(f"🔄 시각화 방식: VisualizationAnalyzer + SmartVisualAgent (2단계)")
         logger.info(f"🆔 Job ID: {job_id}")
         logger.info(f"👤 User ID: {user_id}")
         logger.info(f"{'=' * 60}\n")
@@ -146,7 +159,8 @@ class YouTubeReporterWorkflow:
             "youtube_url": youtube_url,
             "caption": "",
             "summary": "",
-            "visual_sections": [],
+            "visualization_requests": [],  # TaggingAgent에서 생성
+            "visual_sections": [],  # VisualizationAgent에서 생성
             "report_result": {},
             "final_output": {}
         }
@@ -160,12 +174,19 @@ class YouTubeReporterWorkflow:
                     logger.warning(f"진행률 초기화 실패 (무시됨): {e}")
 
             logger.info("📝 1단계: 자막 추출 시작...")
+            logger.info("🧠 2단계: 내용 요약 시작...")
+            logger.info("🔍 3단계: 시각화 분석 시작...")
+            logger.info("🎨 4단계: 시각화 생성 시작...")
+            logger.info("📊 5단계: 최종 리포트 생성 시작...")
+
             result = self.graph.invoke(initial_state)
 
             final_output = result.get("final_output", {})
 
             if final_output.get("success"):
                 logger.info("\n✅ 리포트 생성 성공!")
+                logger.info(f"📈 생성된 시각화 요청: {len(result.get('visualization_requests', []))}개")
+                logger.info(f"🎨 생성된 시각화: {len(result.get('visual_sections', []))}개")
             else:
                 logger.warning("\n⚠️ 리포트 생성 중 일부 문제 발생")
 
@@ -195,6 +216,7 @@ class YouTubeReporterWorkflow:
                     "youtube_url": youtube_url,
                     "user_id": user_id,
                     "job_id": job_id,
-                    "error": str(e)
+                    "error": str(e),
+                    "visualization_method": "VisualizationAnalyzer + SmartVisualAgent (2-stage)"
                 }
             }
