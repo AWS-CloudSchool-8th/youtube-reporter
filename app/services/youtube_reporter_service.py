@@ -12,6 +12,7 @@ from app.services.s3_service import s3_service
 from app.services.audio_service import audio_service
 from app.services.state_manager import state_manager
 import logging
+from app.services.langgraph_service import get_youtube_video_info
 
 logger = logging.getLogger(__name__)
 
@@ -180,8 +181,13 @@ class YouTubeReporterService:
             except Exception as e:
                 logger.warning(f"Redis 캐싱 실패 (무시됨): {e}")
 
-            # YouTube 메타데이터 별도 저장
-            await self._save_youtube_metadata(user_id, job_id, youtube_url)
+            # YouTube 메타데이터 별도 저장 (추가 정보 포함)
+            youtube_info = get_youtube_video_info(youtube_url)
+            await self._save_youtube_metadata(user_id, job_id, youtube_url,
+                                              youtube_title=youtube_info.get("youtube_title", ""),
+                                              youtube_channel=youtube_info.get("youtube_channel", ""),
+                                              youtube_duration=youtube_info.get("youtube_duration", ""),
+                                              youtube_thumbnail=youtube_info.get("youtube_thumbnail", ""))
 
             logger.info(f"✅ S3 리포트 저장 완료: {s3_key}")
             return {
@@ -197,16 +203,19 @@ class YouTubeReporterService:
                 "error": str(e)
             }
 
-    async def _save_youtube_metadata(self, user_id: str, job_id: str, youtube_url: str):
-        """YouTube 메타데이터 저장"""
+    async def _save_youtube_metadata(self, user_id: str, job_id: str, youtube_url: str, youtube_title: str = "", youtube_channel: str = "", youtube_duration: str = "", youtube_thumbnail: str = ""):
+        """YouTube 메타데이터 저장 (상세 정보 포함)"""
         try:
-            # YouTube 정보 수집 (간단한 버전)
             metadata = {
                 "youtube_url": youtube_url,
                 "user_id": user_id,
                 "job_id": job_id,
                 "timestamp": datetime.utcnow().isoformat(),
-                "service": "youtube_reporter"
+                "service": "youtube_reporter",
+                "youtube_title": youtube_title,
+                "youtube_channel": youtube_channel,
+                "youtube_duration": youtube_duration,
+                "youtube_thumbnail": youtube_thumbnail
             }
 
             # 메타데이터를 S3에 저장
