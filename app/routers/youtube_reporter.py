@@ -29,7 +29,7 @@ async def run_youtube_analysis(job_id: str, user_id: str, youtube_url: str, incl
         logger.error(f"백그라운드 YouTube 분석 실패: {job_id} - {str(e)}")
 
 
-@router.post("/analyze", response_model=YouTubeReporterResponse)
+@router.post("/youtube/analyze", response_model=YouTubeReporterResponse)
 async def create_youtube_analysis(
         request: YouTubeReporterRequest,
         background_tasks: BackgroundTasks,
