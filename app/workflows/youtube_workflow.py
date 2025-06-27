@@ -3,9 +3,10 @@ from typing import TypedDict, Dict, Any, List
 from langgraph.graph import StateGraph
 from .caption_extractor import CaptionAgent
 from .content_summarizer import SummaryAgent
-from .visualization_generator import SmartVisualAgent
 from .report_builder import ReportAgent
 from app.services.state_manager import state_manager
+from app.agents.tagging_agent import TaggingAgent
+from app.agents.visualization_agent import VisualizationAgent
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class GraphState(TypedDict):
     youtube_url: str
     caption: str
     summary: str
+    visualization_requests: List[Dict[str, Any]]
     visual_sections: List[Dict[str, Any]]
     report_result: Dict[str, Any]
     final_output: Dict[str, Any]
@@ -30,7 +32,8 @@ class YouTubeReporterWorkflow:
         logger.info("YouTube Reporter 워크플로우 초기화 중...")
         self.caption_agent = CaptionAgent()
         self.summary_agent = SummaryAgent()
-        self.visual_agent = SmartVisualAgent()
+        self.tagging_agent = TaggingAgent()
+        self.visualization_agent = VisualizationAgent()
         self.report_agent = ReportAgent()
         self.graph = self._build_graph()
         logger.info("✅ YouTube Reporter 워크플로우 초기화 완료")
@@ -42,15 +45,17 @@ class YouTubeReporterWorkflow:
         # 노드 추가
         builder.add_node("caption_node", self.caption_agent)
         builder.add_node("summary_node", self.summary_agent)
-        builder.add_node("visual_node", self.visual_agent)
+        builder.add_node("tagging_node", self.tagging_agent)
+        builder.add_node("visualization_node", self.visualization_agent)
         builder.add_node("report_node", self.report_agent)
         builder.add_node("finalize_node", self._finalize_result)
 
         # 엣지 연결 - 순차적 실행
         builder.set_entry_point("caption_node")
         builder.add_edge("caption_node", "summary_node")
-        builder.add_edge("summary_node", "visual_node")
-        builder.add_edge("visual_node", "report_node")
+        builder.add_edge("summary_node", "tagging_node")
+        builder.add_edge("tagging_node", "visualization_node")        
+        builder.add_edge("visualization_node", "report_node")
         builder.add_edge("report_node", "finalize_node")
         builder.add_edge("finalize_node", "__end__")
 
@@ -146,6 +151,7 @@ class YouTubeReporterWorkflow:
             "youtube_url": youtube_url,
             "caption": "",
             "summary": "",
+            "visualization_requests": [],
             "visual_sections": [],
             "report_result": {},
             "final_output": {}
