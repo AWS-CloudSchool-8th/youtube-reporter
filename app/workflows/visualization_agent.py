@@ -264,12 +264,18 @@ class VisualizationAgent(Runnable):
                     json_part = content[start_idx:end_idx + 1]
                     viz_result = json.loads(json_part)
                     
-                    # jihyung 브랜치와 동일한 형식으로 저장
-                    generated_visualizations.append({
-                        "viz_id": viz_id,
-                        "original_request": req,
-                        "visualization": viz_result
-                    })
+                    # ReportAgent(yesol 브랜치)에 맞는 형식으로 변환
+                    visual_section = {
+                        "title": viz_result.get('title', f'시각화 {i+1}'),
+                        "visualization_type": self._convert_viz_type(viz_result.get('type')),
+                        "data": viz_result,  # 전체 시각화 데이터
+                        "insight": viz_result.get('insight', ''),
+                        "position": {"after_paragraph": i},  # 순서대로 배치
+                        "purpose": req.get('purpose', ''),
+                        "user_benefit": f"{req.get('content_description', '')}에 대한 시각적 이해를 돕습니다."
+                    }
+                    
+                    generated_visualizations.append(visual_section)
                     
                     # 시각화 타입별 로깅
                     viz_type = viz_result.get('type', 'unknown')
@@ -286,5 +292,18 @@ class VisualizationAgent(Runnable):
         
         logger.info(f"🎨 시각화 생성 완료: {len(generated_visualizations)}/{len(visualization_requests)}개 성공")
         
-        # 성공한 시각화들을 state에 추가
-        return {**state, "generated_visualizations": generated_visualizations}
+        # yesol 브랜치 ReportAgent와 호환되도록 visual_sections에 저장
+        return {**state, "visual_sections": generated_visualizations}
+    
+    def _convert_viz_type(self, viz_type: str) -> str:
+        """새로운 시각화 타입을 ReportAgent가 이해할 수 있는 형식으로 변환"""
+        type_mapping = {
+            "chartjs": "chart",
+            "plotly": "chart", 
+            "table": "table",
+            "visjs": "network",
+            "reactflow": "flow",
+            "d3js": "timeline",
+            "creative": "text"
+        }
+        return type_mapping.get(viz_type, "chart")
