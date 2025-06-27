@@ -34,7 +34,7 @@ from pydantic import BaseModel
 class YouTubeAnalysisRequestBody(BaseModel):
     youtube_url: str
 
-@router.post("/youtube/analysis")
+@router.post("/youtube-reporter/analyze")
 async def analyze_youtube_with_fsm(
     request: YouTubeAnalysisRequestBody,
     raw_request: Request,
