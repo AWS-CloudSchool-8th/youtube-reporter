@@ -14,11 +14,9 @@ class UserS3Service:
         return f"users/{user_id}/{file_type}/"
     
     def upload_user_report(self, user_id: str, job_id: str, content: str, file_type: str = "json") -> str:
-        """사용자별 보고서 업로드"""
+        """보고서 업로드 (대시보드 호환 경로)"""
         try:
-            path = self._get_user_path(user_id, "reports")
-            key = f"{path}{job_id}_report.{file_type}"
-            
+            key = f"reports/{user_id}/{job_id}_report.{file_type}"
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Key=key,
@@ -30,7 +28,6 @@ class UserS3Service:
                     "created_at": datetime.utcnow().isoformat()
                 }
             )
-            
             return key
         except Exception as e:
             raise Exception(f"보고서 업로드 실패: {str(e)}")
