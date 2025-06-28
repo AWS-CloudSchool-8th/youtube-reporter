@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Dict, Any, List, Optional
-from app.services.s3_service import s3_service
+from app.services.user_s3_service import user_s3_service
 from app.core.config import settings
 from app.core.auth import get_current_user
 import json
@@ -22,22 +22,28 @@ async def list_s3_objects(
     - **max_keys**: 최대 객체 수
     """
     try:
-        objects = s3_service.list_objects(prefix=prefix, max_keys=max_keys)
+        response = user_s3_service.s3_client.list_objects_v2(
+            Bucket=user_s3_service.bucket_name,
+            Prefix=prefix,
+            MaxKeys=max_keys
+        )
         
-        return {
-            "bucket": s3_service.bucket_name,
-            "region": settings.AWS_REGION,
-            "prefix": prefix,
-            "objects": [
-                {
+        objects = []
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                objects.append({
                     "Key": obj.get("Key", ""),
                     "Size": obj.get("Size", 0),
                     "LastModified": obj.get("LastModified", "").isoformat() if hasattr(obj.get("LastModified", ""), "isoformat") else obj.get("LastModified", ""),
                     "ETag": obj.get("ETag", ""),
                     "StorageClass": obj.get("StorageClass", "")
-                }
-                for obj in objects
-            ]
+                })
+        
+        return {
+            "bucket": user_s3_service.bucket_name,
+            "region": settings.AWS_REGION,
+            "prefix": prefix,
+            "objects": objects
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"S3 객체 목록 조회 실패: {str(e)}")
@@ -51,17 +57,13 @@ async def get_s3_object(key: str) -> Dict[str, Any]:
     """
     try:
         # S3 객체 헤더 조회
-        response = s3_service.s3_client.head_object(
-            Bucket=s3_service.bucket_name,
+        response = user_s3_service.s3_client.head_object(
+            Bucket=user_s3_service.bucket_name,
             Key=key
         )
         
         # 미리 서명된 URL 생성
-        url = s3_service.s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': s3_service.bucket_name, 'Key': key},
-            ExpiresIn=3600
-        )
+        url = user_s3_service.get_presigned_url(key)
         
         return {
             "key": key,
@@ -81,43 +83,58 @@ async def list_reports_with_metadata(current_user: dict = Depends(get_current_us
     """
     try:
         user_id = current_user["user_id"]
-        # 보고서 파일 목록 가져오기 (사용자별)
-        report_objects = s3_service.list_objects(prefix=f"reports/{user_id}/", max_keys=100)
+        
+        # 사용자별 보고서 파일 목록 가져오기 (올바른 경로 사용)
+        prefix = f"users/{user_id}/reports/"
+        
+        response = user_s3_service.s3_client.list_objects_v2(
+            Bucket=user_s3_service.bucket_name,
+            Prefix=prefix,
+            MaxKeys=100
+        )
         
         reports = []
-        for obj in report_objects:
+        
+        if 'Contents' not in response:
+            return reports
+            
+        for obj in response['Contents']:
             if obj.get("Key", "").endswith("_report.json"):
                 try:
                     # 보고서 파일 내용 가져오기
-                    report_content = s3_service.get_file_content(obj.get("Key", ""))
+                    report_content = user_s3_service.get_file_content(obj.get("Key", ""))
                     if report_content:
                         report_data = json.loads(report_content)
                         
                         # job_id 추출
-                        job_id = obj.get("Key", "").replace(f"reports/{user_id}/", "").replace("_report.json", "")
+                        job_id = obj.get("Key", "").replace(prefix, "").replace("_report.json", "")
                         
                         # 메타데이터 파일 가져오기
                         metadata_key = f"metadata/{user_id}/{job_id}_metadata.json"
-                        metadata_content = s3_service.get_file_content(metadata_key)
                         metadata = {}
                         
-                        if metadata_content:
-                            try:
+                        try:
+                            metadata_content = user_s3_service.get_file_content(metadata_key)
+                            if metadata_content:
                                 metadata = json.loads(metadata_content)
-                            except:
-                                pass
+                        except:
+                            # 메타데이터가 없어도 계속 진행
+                            pass
                         
                         # 미리 서명된 URL 생성
-                        report_url = s3_service.s3_client.generate_presigned_url(
-                            'get_object',
-                            Params={'Bucket': s3_service.bucket_name, 'Key': obj.get("Key", "")},
-                            ExpiresIn=3600
-                        )
+                        report_url = user_s3_service.get_presigned_url(obj.get("Key", ""))
+                        
+                        # 보고서 데이터에서 제목 추출 시도
+                        title = metadata.get("youtube_title", "")
+                        if not title and report_data.get("report"):
+                            title = report_data["report"].get("title", f"Report {job_id}")
+                        if not title:
+                            title = f"Report {job_id}"
                         
                         reports.append({
                             "id": job_id,
                             "key": obj.get("Key", ""),
-                            "title": metadata.get("youtube_title", f"Report {job_id}"),
+                            "title": title,
                             "youtube_url": metadata.get("youtube_url", ""),
                             "youtube_channel": metadata.get("youtube_channel", "Unknown Channel"),
                             "youtube_duration": metadata.get("youtube_duration", "Unknown"),
@@ -125,6 +142,8 @@ async def list_reports_with_metadata(current_user: dict = Depends(get_current_us
                             "type": "YouTube",
                             "last_modified": obj.get("LastModified", "").isoformat() if hasattr(obj.get("LastModified", ""), "isoformat") else obj.get("LastModified", ""),
                             "url": report_url,
+                            "reportUrl": report_url,
+                            "hasAudio": False,  # TODO: 오디오 파일 존재 여부 확인
                             "metadata": metadata
                         })
                         
