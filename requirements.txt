@@ -1,29 +1,33 @@
-# Corecore
+# Core
 langchain==0.1.20
 langgraph==0.0.45
 langsmith==0.1.31
-langchain-aws==0.1.7
+langchain-aws==0.1.4
 
 # Python tool interpreter
-ipython  # PythonREPLTool에서 사용 가능 (langchain.tools.python.tool)
+ipython
+langchain-experimental
 
 # LLM API
-boto3  # Bedrock (Claude)
-openai  # DALL·E API 사용
+boto3
+openai
 
-# 요청 및 .env
-requests
-python-dotenv
-
-# 타입 지원
-typing-extensions
-
-# LangGraph 의존성 (선택적으로 최신화)
-pydantic<2.0  # LangChain 일부 버전에서 2.x 미지원
-
-
+# Web framework
 fastapi
 uvicorn
 
-# 기타 (이미지 생성 후 파일 저장 등 사용 시)
+# Requests and env
+requests
+python-dotenv
+
+# Type support
+typing-extensions
+
+# Pydantic
+pydantic<2.0
+
+# Visualization
 matplotlib
+seaborn
+pandas
+numpy
