@@ -20,7 +20,7 @@ uvicorn
 requests
 python-dotenv
 
-# Type support
+# Type support support
 typing-extensions
 
 # Pydantic
