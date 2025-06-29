@@ -48,5 +48,40 @@ pipeline {
                 }
             }
         }
+        stage('Update Helm Values') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${GIT_CREDENTIALS_ID}",
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_PASSWORD'
+                )]) {
+                    sh """
+                    git config user.name "Jenkins CI"
+                    git config user.email "jenkins@yourcompany.com"
+                    
+                    # values.yaml에서 이미지 태그 업데이트
+                    sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
+                    
+                    # 변경사항 커밋 및 푸시
+                    git add helm/argocd/values.yaml
+                    git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
+                    
+                    # 인증된 URL로 푸시
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
+                    """
+                }
+            }
     }
 }
+
+
+
+    post {
+        success {
+            echo "✅ 파이프라인 성공! ArgoCD가 자동으로 배포를 시작합니다."
+        }
+        failure {
+            echo "❌ 파이프라인 실패"
+
+
+
