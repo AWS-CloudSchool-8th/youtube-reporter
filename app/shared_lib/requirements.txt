@@ -1,1 +1,10 @@
+fastapi
+uvicorn
+pydantic>=2.0
+pydantic_settings>=2.0
+python-dotenv
 redis
+sqlalchemy
+python-jose[cryptography]
+psycopg2-binary
+

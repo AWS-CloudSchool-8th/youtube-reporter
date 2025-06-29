@@ -8,7 +8,7 @@ class SignUpRequest(BaseModel):
     @field_validator("password_confirm")
     def passwords_match(cls, v, info):
         if info.data and "password" in info.data and v != info.data["password"]:
-            raise ValueError("비밀번호가 일치하지 않습니다.")
+            raise ValueError("Passwords do not match.")
         return v
 
 class ConfirmSignUpRequest(BaseModel):
@@ -22,3 +22,4 @@ class SignInRequest(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
     email: EmailStr
+
