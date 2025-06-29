@@ -7,7 +7,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/sjh980701/youtube-reporter
+    repoURL: https://github.com/AWS-CloudSchool-8th/youtube-reporter
     targetRevision: main
     path: helm/argocd
 
