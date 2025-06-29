@@ -64,7 +64,7 @@ pipeline {
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
                     git add helm/argocd/values.yaml
                     
-                    git diff --quiet helm/argocd/values.yaml || git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
+                    git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
                     
                     git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
                     """
