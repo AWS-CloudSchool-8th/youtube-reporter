@@ -83,5 +83,6 @@ pipeline {
         failure {
             echo "❌ 파이프라인 실패"
 
-
+        }
+    }
 
