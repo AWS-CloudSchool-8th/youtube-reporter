@@ -14,10 +14,10 @@ COPY document_service/services ./services
 
 # shared-lib 복사 (루트 기준 상대 경로로 접근)
 # 공유 라이브러리를 /shared_lib로 지정
-COPY shared_lib /shared_lib
+COPY shared_lib ./shared_lib
 
 # PYTHONPATH 환경 변수 설정
-ENV PYTHONPATH="/app:/shared_lib"
+ENV PYTHONPATH="/app"
 
 # FastAPI 실행
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

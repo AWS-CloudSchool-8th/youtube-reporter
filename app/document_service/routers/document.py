@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import Dict, Any
-from app.services.document_service import document_service
-from app.models.document import DocumentAnalysisRequest, DocumentAnalysisResponse
+from services.document_service import document_service
+from shared_lib.models.document import DocumentAnalysisRequest, DocumentAnalysisResponse
 from datetime import datetime
 import uuid
 
@@ -15,17 +15,10 @@ async def analyze_document(
     file: UploadFile = File(...),
     request: DocumentAnalysisRequest = None
 ) -> Dict[str, Any]:
-    """
-    문서 파일을 업로드하고 분석합니다.
-    
-    - **file**: 분석할 문서 파일 (PDF, DOCX, XLSX, CSV, TXT)
-    - **request**: 분석 요청 옵션 (메타데이터, 오디오 포함 여부 등)
-    """
     try:
-        # 문서 처리
         result = await document_service.process_document(file)
         
-        # 응답 생성
+    
         response = DocumentAnalysisResponse(
             document_id=str(uuid.uuid4()),
             status="completed",
