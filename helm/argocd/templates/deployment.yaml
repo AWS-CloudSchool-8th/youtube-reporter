@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-reporter
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: youtube-reporter
+  template:
+    metadata:
+      labels:
+        app: youtube-reporter
+    spec:
+      containers:
+        - name: youtube-reporter
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8000
+
