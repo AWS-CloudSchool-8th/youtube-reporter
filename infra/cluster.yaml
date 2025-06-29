@@ -1,0 +1,24 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: pricluster-cicd
+  region: us-west-2
+
+vpc:
+  id: "vpc-0f25f38d2fcc0bcec"
+  subnets:
+    private:
+      us-west-2a: 
+        id: "subnet-0e4854316937e1e0b"
+      us-west-2c:
+        id: "subnet-09951a24325d4896c"
+
+nodeGroups:
+  - name: private-ng
+    instanceType: t3.medium
+    desiredCapacity: 2
+    privateNetworking: true
+    amiFamily: AmazonLinux2
+    volumeSize: 20
+
