@@ -80,7 +80,8 @@ pipeline {
             echo "✅ 파이프라인 성공! ArgoCD가 자동으로 배포를 시작합니다." 
         } 
         failure { 
-            echo "❌ 파이프라인 실패" 
+            echo " 파이프라인 실패 !" 
         } 
     } 
 }
+
