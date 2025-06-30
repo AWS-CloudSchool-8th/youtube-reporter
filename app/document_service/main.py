@@ -9,8 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../shar
 app = FastAPI(
     title="Document Analysis Service",
     description="Supports analysis of document files such as PDF, DOCX, XLSX, CSV, TXT.",
-    version="1.0.0",
-    root_path="/document"
+    version="1.0.0"
 )
 
 # 라우터 등록
