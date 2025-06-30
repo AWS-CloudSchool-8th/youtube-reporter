@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: msa-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: auth.example.com
+      http:
+        paths:
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
+    - host: report.example.com
+      http:
+        paths:
+          - path: /report
+            pathType: Prefix
+            backend:
+              service:
+                name: report-service
+                port:
+                  number: 80
+    - host: document.example.com
+      http:
+        paths:
+          - path: /document
+            pathType: Prefix
+            backend:
+              service:
+                name: document-service
+                port:
+                  number: 80
+    - host: youtube.example.com
+      http:
+        paths:
+          - path: /youtube
+            pathType: Prefix
+            backend:
+              service:
+                name: youtube-service
+                port:
+                  number: 80
+    - host: analyzer.example.com
+      http:
+        paths:
+          - path: /analyzer
+            pathType: Prefix
+            backend:
+              service:
+                name: analyzer-service
+                port:
+                  number: 80

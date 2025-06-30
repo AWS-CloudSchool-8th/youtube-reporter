@@ -1,0 +1,301 @@
+---
+# Source: tissue-chart/templates/service.yaml
+# templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-service
+  labels:
+    app: report-service
+spec:
+  selector:
+    app: report-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-service
+  labels:
+    app: document-service
+spec:
+  selector:
+    app: document-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: youtube-service
+  labels:
+    app: youtube-service
+spec:
+  selector:
+    app: youtube-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: analyzer-service
+  labels:
+    app: analyzer-service
+spec:
+  selector:
+    app: analyzer-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+# Source: tissue-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  labels:
+    app: auth-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/auth_service:latest
+          ports:
+            - containerPort: 8000
+          command: ["echo", "SERVICE=auth-service"]
+          env:
+            - name: COGNITO_CLIENT_ID
+              value: "6rqobnfsf0lnfen24me10j7d2v"
+            - name: COGNITO_CLIENT_SECRET
+              value: "1gjtqd8hu2kibsg4pu47gvu7qpatjacaer3ajp5lm0pj5e30o89q"
+            - name: AWS_REGION
+              value: "us-west-2"
+---
+# Source: tissue-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-service
+  labels:
+    app: report-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report-service
+  template:
+    metadata:
+      labels:
+        app: report-service
+    spec:
+      containers:
+        - name: report-service
+          image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/report_service:latest
+          ports:
+            - containerPort: 8000
+          command: ["echo", "SERVICE=report-service"]
+          env:
+---
+# Source: tissue-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: document-service
+  labels:
+    app: document-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: document-service
+  template:
+    metadata:
+      labels:
+        app: document-service
+    spec:
+      containers:
+        - name: document-service
+          image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/document_service:latest
+          ports:
+            - containerPort: 8000
+          command: ["echo", "SERVICE=document-service"]
+          env:
+---
+# Source: tissue-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-service
+  labels:
+    app: youtube-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: youtube-service
+  template:
+    metadata:
+      labels:
+        app: youtube-service
+    spec:
+      containers:
+        - name: youtube-service
+          image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/youtube_service:latest
+          ports:
+            - containerPort: 8000
+          command: ["echo", "SERVICE=youtube-service"]
+          env:
+---
+# Source: tissue-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analyzer-service
+  labels:
+    app: analyzer-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analyzer-service
+  template:
+    metadata:
+      labels:
+        app: analyzer-service
+    spec:
+      containers:
+        - name: analyzer-service
+          image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/analyzer_service:latest
+          ports:
+            - containerPort: 8000
+          command: ["echo", "SERVICE=analyzer-service"]
+          env:
+---
+# Source: tissue-chart/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: auth.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: report-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: report.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: report-service
+                port:
+                  number: 80
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: document-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: document.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: document-service
+                port:
+                  number: 80
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: youtube-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: youtube.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: youtube-service
+                port:
+                  number: 80
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: analyzer-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: analyzer.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: analyzer-service
+                port:
+                  number: 80
