@@ -16,7 +16,7 @@ class RunResponse(BaseModel):
 @app.post("/run", response_model=RunResponse)
 def run_pipeline(request: RunRequest):
     try:
-        # ✅ 함수 호출로 수정
+        # ✅ 함수 호출로 수정!!
         result = run_graph(youtube_url=request.youtube_url)
         return {"final_output": result.get("final_output")}
     except Exception as e:
