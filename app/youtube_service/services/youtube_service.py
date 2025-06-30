@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from fastapi import HTTPException
-from app.models.youtube import YouTubeVideoInfo, YouTubeSearchResponse, YouTubeAnalysisResponse
+from shared_lib.models.youtube import YouTubeVideoInfo, YouTubeSearchResponse, YouTubeAnalysisResponse
 from youtube_search import YoutubeSearch
 import re
 import logging
@@ -9,7 +9,7 @@ import requests
 import os
 from dotenv import load_dotenv
 
-# 로깅 설정
+# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -21,27 +21,23 @@ class YouTubeService:
         pass
 
     async def search_videos(self, query: str, max_results: int = 10) -> YouTubeSearchResponse:
-        """YouTube 비디오 검색"""
+        """Search YouTube videos"""
         try:
-            logger.info(f"YouTube 검색 시작: query={query}, max_results={max_results}")
+            logger.info(f"Start YouTube search: query={query}, max_results={max_results}")
             
-            # 검색 요청
             search_results = YoutubeSearch(
                 query,
                 max_results=max_results
             ).to_dict()
 
-            logger.info(f"검색 결과 수: {len(search_results)}")
+            logger.info(f"Number of results: {len(search_results)}")
 
-            # 응답 생성
             videos = []
             for item in search_results:
                 try:
-                    # 조회수 문자열을 숫자로 변환
                     views = item.get('views', '0')
                     views = int(re.sub(r'[^\d]', '', views)) if views else 0
 
-                    # 재생 시간 문자열을 초 단위로 변환
                     duration = item.get('duration', '0:00')
                     duration_seconds = 0
                     
@@ -62,57 +58,54 @@ class YouTubeService:
                         title=item['title'],
                         description=item.get('description', ''),
                         channel_title=item['channel'],
-                        published_at=datetime.now(),  # 실제 게시일은 API에서 제공하지 않음
+                        published_at=datetime.now(),  # Publish date not available
                         view_count=views,
-                        like_count=0,  # API에서 제공하지 않음
-                        comment_count=0,  # API에서 제공하지 않음
+                        like_count=0,
+                        comment_count=0,
                         duration=str(duration_seconds),
                         thumbnail_url=item['thumbnails'][0] if item.get('thumbnails') else ''
                     )
                     videos.append(video)
                 except Exception as e:
-                    logger.error(f"비디오 정보 변환 중 오류: {str(e)}")
+                    logger.error(f"Error converting video info: {str(e)}")
                     continue
 
-            logger.info(f"성공적으로 변환된 비디오 수: {len(videos)}")
+            logger.info(f"Successfully converted videos: {len(videos)}")
 
             return YouTubeSearchResponse(
                 query=query,
                 total_results=len(videos),
                 videos=videos,
-                next_page_token=None  # API에서 제공하지 않음
+                next_page_token=None
             )
 
         except Exception as e:
-            logger.error(f"YouTube 검색 실패: {str(e)}")
+            logger.error(f"Search failed: {str(e)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"YouTube 검색 실패: {str(e)}"
+                detail=f"YouTube search failed: {str(e)}"
             )
 
     async def analyze_video(self, video_id: str, include_comments: bool = True,
-                          include_transcript: bool = True, max_comments: int = 100) -> YouTubeAnalysisResponse:
-        """YouTube 비디오 분석"""
+                            include_transcript: bool = True, max_comments: int = 100) -> YouTubeAnalysisResponse:
+        """Analyze YouTube video"""
         try:
-            logger.info(f"비디오 분석 시작: video_id={video_id}")
+            logger.info(f"Start video analysis: video_id={video_id}")
             
-            # 비디오 정보 요청
             search_results = YoutubeSearch(
                 f"id:{video_id}",
                 max_results=1
             ).to_dict()
 
             if not search_results:
-                logger.error(f"비디오를 찾을 수 없음: {video_id}")
-                raise HTTPException(status_code=404, detail="비디오를 찾을 수 없습니다")
+                logger.error(f"Video not found: {video_id}")
+                raise HTTPException(status_code=404, detail="Video not found")
 
             item = search_results[0]
             
-            # 조회수 문자열을 숫자로 변환
             views = item.get('views', '0')
             views = int(re.sub(r'[^\d]', '', views)) if views else 0
 
-            # 재생 시간 문자열을 초 단위로 변환
             duration = item.get('duration', '0:00')
             duration_parts = duration.split(':')
             if len(duration_parts) == 2:
@@ -126,38 +119,35 @@ class YouTubeService:
                 title=item['title'],
                 description=item.get('description', ''),
                 channel_title=item['channel'],
-                published_at=datetime.now(),  # 실제 게시일은 API에서 제공하지 않음
+                published_at=datetime.now(),
                 view_count=views,
-                like_count=0,  # API에서 제공하지 않음
-                comment_count=0,  # API에서 제공하지 않음
+                like_count=0,
+                comment_count=0,
                 duration=str(duration_seconds),
                 thumbnail_url=item['thumbnails'][0] if item.get('thumbnails') else ''
             )
 
-            # 기본 분석 결과
             analysis_results = {
-                "engagement_rate": 0,  # API에서 제공하지 않음
-                "comment_ratio": 0,  # API에서 제공하지 않음
-                "like_ratio": 0  # API에서 제공하지 않음
+                "engagement_rate": 0,
+                "comment_ratio": 0,
+                "like_ratio": 0
             }
 
-            # 댓글 분석 (API에서 제공하지 않음)
             comments_analysis = None
             if include_comments:
                 comments_analysis = {
                     "status": "not_available",
-                    "message": "댓글 분석은 현재 지원되지 않습니다"
+                    "message": "Comment analysis is not supported"
                 }
 
-            # 자막 분석 (API에서 제공하지 않음)
             transcript_analysis = None
             if include_transcript:
                 transcript_analysis = {
                     "status": "not_available",
-                    "message": "자막 분석은 현재 지원되지 않습니다"
+                    "message": "Transcript analysis is not supported"
                 }
 
-            logger.info(f"비디오 분석 완료: {video_id}")
+            logger.info(f"Video analysis complete: {video_id}")
 
             return YouTubeAnalysisResponse(
                 video_info=video_info,
@@ -169,14 +159,14 @@ class YouTubeService:
             )
 
         except Exception as e:
-            logger.error(f"비디오 분석 실패: {str(e)}")
+            logger.error(f"Video analysis failed: {str(e)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"YouTube 비디오 분석 실패: {str(e)}"
+                detail=f"YouTube video analysis failed: {str(e)}"
             )
 
     def extract_youtube_caption_tool(self, youtube_url: str) -> str:
-        """YouTube URL에서 자막을 추출하는 함수 (Vidcap API 활용)"""
+        """Extract YouTube captions using Vidcap API"""
         api_url = "https://vidcap.xyz/api/v1/youtube/caption"
         params = {"url": youtube_url, "locale": "ko"}
         headers = {"Authorization": f"Bearer {VIDCAP_API_KEY}"}
@@ -185,6 +175,6 @@ class YouTubeService:
             response.raise_for_status()
             return response.json().get("data", {}).get("content", "")
         except Exception as e:
-            return f"자막 추출 실패: {str(e)}"
+            return f"Failed to extract captions: {str(e)}"
 
-youtube_service = YouTubeService() 
+youtube_service = YouTubeService()

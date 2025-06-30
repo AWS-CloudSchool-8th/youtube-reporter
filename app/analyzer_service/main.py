@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from routers import analysis, audio
 
-app = FastAPI(title="Analyzer Service")
+app = FastAPI(title="Analyzer Service", root_path="/analyzer")
 
 # Include routers
 app.include_router(analysis.router)

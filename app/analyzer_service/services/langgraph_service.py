@@ -26,6 +26,19 @@ class GraphState(TypedDict):
     visual_results: List[dict]
     final_output: dict
 
+
+def call_analyzer(youtube_url: str, user_id: str):
+    try:
+        response = requests.post(
+            "http://analyzer_service:8000/internal/langgraph",
+            json={"youtube_url": youtube_url, "user_id": user_id},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+        
 # ========== 2. Tool 정의 ==========
 def extract_youtube_caption_tool(youtube_url: str) -> str:
     """YouTube URL에서 자막을 추출하는 함수"""

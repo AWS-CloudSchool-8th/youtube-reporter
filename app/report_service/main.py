@@ -4,7 +4,8 @@ from routers import report, user_analysis, s3  # report.py, user_analysis.py, s3
 app = FastAPI(
     title="Report Service",
     description="Handles report upload, listing, metadata, and user analysis tracking.",
-    version="1.0.0"
+    version="1.0.0",
+    root_path="/report"
 )
 
 # 라우터 등록

@@ -8,10 +8,13 @@ from shared_lib.core.database import get_db
 from shared_lib.models.database_models import UserAnalysisJob, UserReport, UserAudioFile
 from services.database_service import database_service
 from services.state_manager import state_manager
-from analyzer_service.services.langgraph_service import langgraph_service
+#from analyzer_service.services.langgraph_service import langgraph_service
+#from services.langgraph_service import call_analyzer
+
 from services.user_s3_service import user_s3_service
 from shared_lib.models.auth import SignInRequest
 from services.s3_service import s3_service
+import httpx
 
 router = APIRouter(prefix="/user", tags=["user-analysis"])
 
@@ -61,12 +64,26 @@ async def create_youtube_analysis(
 
 async def run_youtube_analysis(job_id: str, user_id: str, youtube_url: str, db: Session):
     try:
-        result = await langgraph_service.analyze_youtube_with_fsm(
-            youtube_url=youtube_url,
-            job_id=job_id,
-            user_id=user_id
-        )
-        
+        #result = await langgraph_service.analyze_youtube_with_fsm(
+        #    youtube_url=youtube_url,
+        #    job_id=job_id,
+        #    user_id=user_id
+        #)
+        # result = call_analyzer(youtube_url, user_id)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://analyzer_service:8000/analyze",  # 포트와 경로 확인 필요
+                json={
+                    "youtube_url": youtube_url,
+                    "user_id": user_id,
+                    "job_id": job_id
+                },
+                timeout=60
+            )
+            response.raise_for_status()
+            result = response.json()
+                       
         if result.get("final_output"):
             report_content = str(result["final_output"])
             s3_key = user_s3_service.upload_user_report(

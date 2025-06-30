@@ -2,19 +2,21 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# shared_lib, report_service 포함 복사
-COPY app/shared_lib /app/shared_lib
-COPY app/report_service /app/report_service
-ENV PYTHONPATH="/app"
-
-# shared_lib 설치
-RUN pip install /app/shared_lib
-
-# requirements 설치
-COPY app/analyzer_service/requirements.txt .
+# requirements
+COPY analyzer_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# analyzer_service 복사
-COPY app/analyzer_service /app
+# app code
+COPY analyzer_service/main.py ./main.py
+COPY analyzer_service/routers ./routers
+COPY analyzer_service/services ./services
+COPY report_service ./report_service
+
+
+# shared_lib, auth_service 등 통신/의존 필요한 경우만 포함
+COPY shared_lib ./shared_lib
+COPY auth_service ./auth_service
+
+ENV PYTHONPATH=/app
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

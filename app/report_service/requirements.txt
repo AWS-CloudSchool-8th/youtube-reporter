@@ -3,10 +3,13 @@ uvicorn
 boto3
 sqlalchemy
 python-dotenv
-pydantic
+pydantic[email]
+httpx
 pydantic_settings>=2.0
 python-jose[cryptography]
 # psycopg2 → psycopg2-binary
 psycopg2-binary
 requests
 langgraph
+langchain_aws
+langchain_experimental
