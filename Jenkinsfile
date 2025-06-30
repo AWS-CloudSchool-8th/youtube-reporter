@@ -56,7 +56,7 @@ pipeline {
                     usernameVariable: 'GIT_USERNAME',
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
-                    sh '''
+                    sh """
                     git checkout main
                     git config user.name "Jenkins CI"
                     git config user.email "jenkins@yourcompany.com"
@@ -64,16 +64,12 @@ pipeline {
                     git pull --rebase origin main
 
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
-            # 변경사항이 있는 경우에만 커밋 & 푸시
-                    if ! git diff --quiet helm/argocd/values.yaml; then
-                        echo "📦 values.yaml 변경됨 → push 진행"
-                        git add helm/argocd/values.yaml
-                        git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
-                    else
-                        echo "✅ 이미지 태그 동일 → push 생략"
-                    fi
-                    '''
+                    git add helm/argocd/values.yaml
+                    
+                    git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
+                    
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
+                    """
                 }
             }
         }
