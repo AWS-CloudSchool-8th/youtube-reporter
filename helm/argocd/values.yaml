@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app
-  tag: build-26
+  tag: build-27
   pullPolicy: IfNotPresent
 
 service:
