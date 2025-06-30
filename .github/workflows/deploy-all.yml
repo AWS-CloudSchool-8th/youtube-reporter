@@ -10,12 +10,17 @@ jobs:
 
     strategy:
       matrix:
-        service:
-          - auth_service
-          - report_service
-          - document_service
-          - youtube_service
-          - analyzer_service
+        include:
+          - service: auth_service
+            deployment: auth-service
+          - service: report_service
+            deployment: report-service
+          - service: document_service
+            deployment: document-service
+          - service: youtube_service
+            deployment: youtube-service
+          - service: analyzer_service
+            deployment: analyzer-service
 
     steps:
     - name: Checkout code
@@ -44,4 +49,4 @@ jobs:
 
     - name: Restart Deployment on EKS
       run: |
-        kubectl rollout restart deployment ${{ matrix.service }} -n test
+        kubectl rollout restart deployment ${{ matrix.deployment }} -n test
