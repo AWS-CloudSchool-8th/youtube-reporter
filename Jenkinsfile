@@ -11,6 +11,27 @@ pipeline {
     }
 
     stages {
+        // 첫 번째 스테이지에 skip ci 체크 추가
+        stage('Check Skip CI') {
+            steps {
+                script {
+                    def lastCommitMessage = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (lastCommitMessage.contains('[skip ci]') || 
+                        lastCommitMessage.contains('[ci skip]')) {
+                        currentBuild.result = 'ABORTED'
+                        error('Skipping CI due to [skip ci] in commit message')
+                    }
+                }
+            }
+        }
+
+
+
+    stages {
         stage('Clone Repository') {
             steps {
                 checkout([$class: 'GitSCM',
