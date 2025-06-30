@@ -1,7 +1,6 @@
 apiVersion: v2
-name: youtube-reporter
-description: A Helm chart for deploying youtube-reporter with ArgoCD
+name: argocd
+description: A Helm chart for installing ArgoCD
 type: application
 version: 0.1.0
-appVersion: "1.0"
-
+appVersion: "2.10.0"  # ArgoCD 버전은 원하는 걸로 설정

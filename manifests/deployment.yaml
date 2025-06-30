@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-reporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: youtube-reporter
+  template:
+    metadata:
+      labels:
+        app: youtube-reporter
+    spec:
+      containers:
+        - name: youtube-reporter
+          image: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app:build-23
+          ports:
+            - containerPort: 8000

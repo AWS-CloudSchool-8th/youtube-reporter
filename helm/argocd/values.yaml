@@ -1,10 +1,20 @@
-replicaCount: 1
+# ArgoCD 기본 설정 덮어쓰기
+configs:
+  cm:
+    application.instanceLabelKey: argocd.argoproj.io/instance
+    exec.enabled: true
+    timeout.reconciliation: 30s
 
-image:
-  repository: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app
-  tag: build-10
-  pullPolicy: IfNotPresent
+server:
+  service:
+    type: LoadBalancer  # 외부에서 접속 가능하게 하려면 LoadBalancer
+  ingress:
+    enabled: false      # 나중에 Ingress 쓸 거면 true로 변경
 
-service:
-  type: ClusterIP
-  port: 8000
+controller:
+  metrics:
+    enabled: true
+
+repoServer:
+  metrics:
+    enabled: true
