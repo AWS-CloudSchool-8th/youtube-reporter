@@ -9,12 +9,11 @@ langchain-aws==0.1.4
 ipython
 langchain-experimental
 
-# LLM API
+# LLM API 
 boto3
 openai
 
 # Web framework 
-# hitest
 fastapi
 uvicorn
 
