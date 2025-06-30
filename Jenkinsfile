@@ -11,25 +11,24 @@ pipeline {
     }
 
     stages {
-        stage('Check for [skip ci]') {
-            when {
-                expression {
-                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return !msg.contains("[skip ci]")
-                }
-            }
+        stage('Check Skip CI') {
             steps {
-                echo "✅ 정상 커밋입니다. 파이프라인 계속 진행합니다."
+                script {
+                    def lastCommitMessage = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (lastCommitMessage.contains('[skip ci]') || 
+                        lastCommitMessage.contains('[ci skip]')) {
+                        currentBuild.result = 'ABORTED'
+                        error('Skipping CI due to [skip ci] in commit message')
+                    }
+                }
             }
         }
 
         stage('Clone Repository') {
-            when {
-                expression {
-                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return !msg.contains("[skip ci]")
-                }
-            }
             steps {
                 checkout([$class: 'GitSCM',
                     branches: [[name: '*/main']],
@@ -42,12 +41,6 @@ pipeline {
         }
 
         stage('Docker Build') {
-            when {
-                expression {
-                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return !msg.contains("[skip ci]")
-                }
-            }
             steps {
                 sh """
                 docker build -t ${ECR_REPO}:${IMAGE_TAG} .
@@ -57,12 +50,6 @@ pipeline {
         }
 
         stage('Push to ECR') {
-            when {
-                expression {
-                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return !msg.contains("[skip ci]")
-                }
-            }
             steps {
                 withCredentials([[ 
                     $class: 'AmazonWebServicesCredentialsBinding',
@@ -80,12 +67,6 @@ pipeline {
         }
 
         stage('Update Helm Values') {
-            when {
-                expression {
-                    def msg = sh(script: "git log -1 --pretty=%B", returnStdout: true).trim()
-                    return !msg.contains("[skip ci]")
-                }
-            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: "${GIT_CREDENTIALS_ID}",
@@ -93,15 +74,15 @@ pipeline {
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
                     sh """
-                    git checkout -B helm-updates
+                    git checkout main
                     git config user.name "Jenkins CI"
                     git config user.email "jenkins@yourcompany.com"
-
+                    
+                    git pull --rebase origin main
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
                     git add helm/argocd/values.yaml
                     git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
-
-                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git helm-updates --force
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
                     """
                 }
             }
