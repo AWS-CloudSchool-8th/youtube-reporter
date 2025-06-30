@@ -9,11 +9,11 @@ spec:
   source:
     repoURL: https://github.com/AWS-CloudSchool-8th/youtube-reporter
     targetRevision: main
-    path: helm/argocd
+    path: helm/youtube-reporter
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: youtube-reporter
 
   syncPolicy:
     automated:
