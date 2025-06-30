@@ -3,12 +3,6 @@ name: Deploy all services to EKS
 on:
   push:
     branches: [eungyo]
-    paths:
-      - 'auth_service/**'
-      - 'report_service/**'
-      - 'document_service/**'
-      - 'youtube_service/**'
-      - 'analyzer_service/**'
 
 jobs:
   deploy:
