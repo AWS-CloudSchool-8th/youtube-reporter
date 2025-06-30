@@ -61,6 +61,8 @@ pipeline {
                     git config user.name "Jenkins CI"
                     git config user.email "jenkins@yourcompany.com"
                     
+                    git pull --rebase origin main
+
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
                     git add helm/argocd/values.yaml
                     
