@@ -9,7 +9,9 @@ spec:
   source:
     repoURL: https://github.com/AWS-CloudSchool-8th/youtube-reporter
     targetRevision: main
-    path: helm/youtube-reporter
+    path: manifests
+    directory:
+      recurse: true
 
   destination:
     server: https://kubernetes.default.svc
