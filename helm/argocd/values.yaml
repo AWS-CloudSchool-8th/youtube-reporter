@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app
-  tag: build-123  # ✅ 이 값은 Jenkins가 빌드 번호에 따라 자동으로 바꿔줍니다
+  tag: build-32
   pullPolicy: IfNotPresent
 
 service:
