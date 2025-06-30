@@ -79,7 +79,11 @@ pipeline {
                     git config user.email "jenkins@yourcompany.com"
                     
                     git pull --rebase origin main
+<<<<<<< HEAD
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' manifests/deployment.yaml
+=======
+                    sed -i 's|image: .*|image: ${ECR_REPO}:${IMAGE_TAG}|' manifests/deployment.yaml
+>>>>>>> 790a4b416ce6bce289f9eff004c52b71c6b1e344
                     git add manifests/deployment.yaml
                     git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
                     git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main

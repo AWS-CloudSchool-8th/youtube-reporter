@@ -14,6 +14,10 @@ spec:
     spec:
       containers:
         - name: youtube-reporter
+<<<<<<< HEAD
           image: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app:build-23
+=======
+          image: 492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app:build-19
+>>>>>>> 790a4b416ce6bce289f9eff004c52b71c6b1e344
           ports:
             - containerPort: 8000
