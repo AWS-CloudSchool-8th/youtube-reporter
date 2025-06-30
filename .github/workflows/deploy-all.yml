@@ -34,7 +34,7 @@ jobs:
 
     - name: Build and Push Docker image to ECR
       run: |
-        docker build -t ${{ matrix.service }} ./${{ matrix.service }}
+        docker build -t ${{ matrix.service }} ./app/${{ matrix.service }}
         docker tag ${{ matrix.service }}:latest 922805825674.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:latest
         docker push 922805825674.dkr.ecr.us-east-1.amazonaws.com/${{ matrix.service }}:latest
 
