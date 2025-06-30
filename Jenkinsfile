@@ -11,27 +11,6 @@ pipeline {
     }
 
     stages {
-        // 첫 번째 스테이지에 skip ci 체크 추가
-        stage('Check Skip CI') {
-            steps {
-                script {
-                    def lastCommitMessage = sh(
-                        script: 'git log -1 --pretty=%B',
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (lastCommitMessage.contains('[skip ci]') || 
-                        lastCommitMessage.contains('[ci skip]')) {
-                        currentBuild.result = 'ABORTED'
-                        error('Skipping CI due to [skip ci] in commit message')
-                    }
-                }
-            }
-        }
-
-
-
-    stages {
         stage('Clone Repository') {
             steps {
                 checkout([$class: 'GitSCM',
@@ -78,18 +57,16 @@ pipeline {
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
                     sh """
-                    git checkout main
+                    # helm-updates 브랜치로 체크아웃 (무한 루프 방지)
+                    git checkout -B helm-updates
                     git config user.name "Jenkins CI"
                     git config user.email "jenkins@yourcompany.com"
                     
-                    git pull --rebase origin main
-
                     sed -i 's/tag: .*/tag: ${IMAGE_TAG}/' helm/argocd/values.yaml
                     git add helm/argocd/values.yaml
+                    git commit -m "Update image tag to ${IMAGE_TAG}"
                     
-                    git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
-                    
-                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
+                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git helm-updates --force
                     """
                 }
             }
