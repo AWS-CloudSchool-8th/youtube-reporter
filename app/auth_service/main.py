@@ -23,4 +23,8 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+for route in app.routes:
+    print(f"? {route.path}")
+
+
 app.include_router(auth_router, prefix="/auth")
