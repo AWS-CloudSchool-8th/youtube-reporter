@@ -12,6 +12,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# ? CORS 허용
+origins = [
+    "http://34.228.65.221:3000",
+    "*"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+for route in app.routes:
+    print(f"? {route.path}")
+    
 # 라우터 등록
 app.include_router(document.router)
 
