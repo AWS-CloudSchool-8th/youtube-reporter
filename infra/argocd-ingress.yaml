@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: argocd-ingress
+  name: argocd-ingress2
   namespace: argocd
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
