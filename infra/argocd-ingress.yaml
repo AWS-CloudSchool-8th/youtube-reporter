@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: argocd.internal.example.com   # 도메인 매핑 예정
+    - host: argocd.example.com   # 도메인 매핑 예정
       http:
         paths:
           - path: /
