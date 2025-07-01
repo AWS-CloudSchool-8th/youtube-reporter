@@ -20,8 +20,7 @@ server:
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
       alb.ingress.kubernetes.io/subnets: subnet-013b35b1e548c8003,subnet-0893b28b5ed33b838,subnet-07946e2ab2bcb3e85  # ← 네 퍼블릭 서브넷 ID
     hosts:
-      - host: argocd.example.com
-        paths:
+      - paths:
           - /
 
 controller:
