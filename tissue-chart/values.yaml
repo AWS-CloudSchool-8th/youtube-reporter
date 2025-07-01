@@ -2,28 +2,39 @@ services:
   - name: auth-service
     image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/auth_service:latest
     port: 8000
+    pathPrefix: /auth
     ingressHost: auth.example.com
-
+    cognitoClientId: 6rqobnfsf0lnfen24me10j7d2v
+    cognitoClientSecret: 1gjtqd8hu2kibsg4pu47gvu7qpatjacaer3ajp5lm0pj5e30o89q
+    awsRegion: us-west-2
+    
   - name: report-service
     image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/report_service:latest
     port: 8000
     ingressHost: report.example.com
+    pathPrefix: /report
 
   - name: document-service
     image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/document_service:latest
     port: 8000
     ingressHost: document.example.com
+    pathPrefix: /document
 
   - name: youtube-service
     image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/youtube_service:latest
     port: 8000
     ingressHost: youtube.example.com
+    pathPrefix: /youtube
 
   - name: analyzer-service
     image: 922805825674.dkr.ecr.us-east-1.amazonaws.com/analyzer_service:latest
     port: 8000
     ingressHost: analyzer.example.com
+    pathPrefix: /analyzer
 
 serviceAccount:
   create: false
   name: ""
+
+ingress:
+  enabled: true

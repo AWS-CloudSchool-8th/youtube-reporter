@@ -2,54 +2,44 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: msa-ingress
+  namespace: test
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-    - host: auth.example.com
-      http:
+    - http:
         paths:
-          - path: /auth
-            pathType: Prefix
+          - path: /auth(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: auth-service
                 port:
                   number: 80
-    - host: report.example.com
-      http:
-        paths:
-          - path: /report
-            pathType: Prefix
+          - path: /report(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: report-service
                 port:
                   number: 80
-    - host: document.example.com
-      http:
-        paths:
-          - path: /document
-            pathType: Prefix
+          - path: /document(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: document-service
                 port:
                   number: 80
-    - host: youtube.example.com
-      http:
-        paths:
-          - path: /youtube
-            pathType: Prefix
+          - path: /youtube(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: youtube-service
                 port:
                   number: 80
-    - host: analyzer.example.com
-      http:
-        paths:
-          - path: /analyzer
-            pathType: Prefix
+          - path: /analyzer(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: analyzer-service

@@ -21,7 +21,13 @@ spec:
           ports:
             - containerPort: {{ .port }}
           command: ["uvicorn"]
-          args: ["main:app", "--host", "0.0.0.0", "--port={{ .port }}"]
+          args:
+            - "main:app"
+            - "--host"
+            - "0.0.0.0"
+            - "--port={{ .port }}"
+            - "--root-path={{ .pathPrefix }}"
+
           env:
             {{- if eq .name "auth-service" }}
             - name: COGNITO_CLIENT_ID
