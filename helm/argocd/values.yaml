@@ -6,16 +6,19 @@ configs:
     timeout.reconciliation: 30s
 
 server:
-  service:
-    type: ClusterIP 
-    servicePortHttp: 80
-    servicePortHttps: 443
-  containerPort: 8080
   ingress:
     enabled: true
     ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/backend-protocol: HTTP
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+      alb.ingress.kubernetes.io/subnets: subnet-013b35b1e548c8003,subnet-0893b28b5ed33b838,subnet-07946e2ab2bcb3e85  # ← 네 퍼블릭 서브넷 ID
     hosts:
-      - argocd.internal.example.com     # 나중에 Ingress 쓸 거면 true로 변경
+      - host: argocd.example.com
+        paths:
+          - /
 
 controller:
   metrics:
