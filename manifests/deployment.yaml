@@ -15,5 +15,6 @@ spec:
       containers:
         - name: youtube-reporter
           image: 922805825674.dkr.ecr.us-west-2.amazonaws.com/testcd:1
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
