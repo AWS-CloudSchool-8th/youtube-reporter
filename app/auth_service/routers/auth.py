@@ -8,6 +8,7 @@ from services.cognito_service import (
 from botocore.exceptions import ClientError
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+#router = APIRouter(tags=["authentication"])
 
 @router.post("/signup")
 def signup(req: SignUpRequest):
