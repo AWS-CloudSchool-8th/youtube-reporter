@@ -6,6 +6,10 @@ configs:
     timeout.reconciliation: 30s
 
 server:
+  service:
+    type: ClusterIP
+    port: 80   # 추가 또는 확인
+
   ingress:
     enabled: true
     ingressClassName: alb
