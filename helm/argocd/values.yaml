@@ -8,6 +8,7 @@ configs:
 server:
   service:
     type: ClusterIP 
+    servicePortHttp: 80
   ingress:
     enabled: true
     ingressClassName: alb
