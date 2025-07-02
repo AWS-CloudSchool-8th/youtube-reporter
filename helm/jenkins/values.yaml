@@ -1,40 +1,86 @@
-controller:
-  adminPassword: admin1234  # 최초 로그인 비밀번호 (보안 강화 필요)
-  serviceType: ClusterIP    # 프라이빗 접근용
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "2Gi"
-    limits:
-      cpu: "1000m"
-      memory: "4Gi"
+jenkins:
+  controller:
+    adminPassword: admin1234  # 최초 로그인 비밀번호 (보안 강화 필요)
+    serviceType: ClusterIP    # 프라이빗 접근용
+    
+    # 🔥 용량 대폭 증가
+    resources:
+      requests:
+        cpu: "1000m"          # 1 CPU
+        memory: "4Gi"         # 4GB RAM
+      limits:
+        cpu: "2000m"          # 2 CPU
+        memory: "8Gi"         # 8GB RAM
 
-  persistence:
+    persistence:
+      enabled: true
+      storageClass: gp2       # EKS 기본 StorageClass
+      size: 200Gi             # 🔥 200GB로 증가 (빌드 아티팩트, Docker 이미지 등)
+      accessMode: ReadWriteOnce
+
+    # 필수 플러그인들 (GitHub webhook, Docker, AWS 관련)
+    installPlugins:
+      - kubernetes:3937.vd7b_82db_e347b_
+      - workflow-aggregator:596.v8c21c963d92d
+      - git:5.0.0
+      - github:1.37.3.1
+      - github-branch-source:1703.vd5a_2b_29c6cdc
+      - pipeline-github-lib:42.v0739460cda_c4
+      - configuration-as-code:1625.v27444588cc3d
+      - credentials-binding:523.vd859a_4b_122e6
+      - docker-workflow:563.vd5d2e5c4007f
+      - pipeline-aws:1.43
+      - amazon-ecr:1.7
+      - build-timeout:1.27
+      - timestamper:1.25
+      - ws-cleanup:0.45
+      - ant:475.vf34069fef73c
+      - gradle:2.8.2
+
+    # Jenkins 설정을 코드로 관리 (JCasC)
+    JCasC:
+      defaultConfig: true
+      configScripts:
+        welcome-message: |
+          jenkins:
+            systemMessage: "YouTube Reporter Jenkins CI/CD Server"
+        
+        # GitHub webhook을 위한 보안 설정
+        security: |
+          jenkins:
+            securityRealm:
+              local:
+                allowsSignup: false
+                users:
+                  - id: "admin"
+                    password: "admin1234"
+            authorizationStrategy:
+              globalMatrix:
+                permissions:
+                  - "Overall/Administer:admin"
+                  - "Overall/Read:authenticated"
+
+    # ingress 비활성화 (port-forward로 접근)
+    ingress:
+      enabled: false
+
+    # Jenkins URL 설정 (나중에 webhook에서 사용)
+    jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
+
+  agent:
     enabled: true
-    storageClass: gp2         # EKS 기본 StorageClass (필요 시 efs 등으로 교체)
-    size: 100Gi               # 💡 용량 충분히 설정
-    accessMode: ReadWriteOnce
+    # 🔥 Agent 용량도 증가
+    resources:
+      requests:
+        cpu: "500m"           # 0.5 CPU
+        memory: "1Gi"         # 1GB RAM
+      limits:
+        cpu: "1000m"          # 1 CPU
+        memory: "2Gi"         # 2GB RAM
 
-  installPlugins:
-    - kubernetes:1.30.1
-    - workflow-aggregator:2.7
-    - git:5.2.1
-    - configuration-as-code:1729.vd130548b_2893
-    - credentials-binding:640.v5b_9c367de2e8
-
-  ingress:
-    enabled: false            # ingress는 사용하지 않음 (port-forward 또는 SSM 사용)
-
-  jenkinsUriPrefix: ""
-  jenkinsUrlProtocol: http
-  jenkinsUrl: ""
-
-agent:
-  enabled: true
-  resources:
-    requests:
-      cpu: "200m"
-      memory: "512Mi"
-    limits:
-      cpu: "500m"
-      memory: "1Gi"
+# ServiceAccount 권한 설정 (Docker 빌드를 위해)
+serviceAccount:
+  create: true
+  annotations:
+    # EKS에서 ECR 접근을 위한 IRSA 설정 (나중에 추가)
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/jenkins-ecr-role
