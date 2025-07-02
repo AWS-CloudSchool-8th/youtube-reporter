@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes.document import router as document_router  # 경로는 실제 위치에 맞게 조정
+from routers.document import router as document_router  # 경로는 실제 위치에 맞게 조정
 
 app = FastAPI()
 
