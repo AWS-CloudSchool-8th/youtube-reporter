@@ -15,24 +15,9 @@ server:
     type: ClusterIP
     port: 80
 
-  # ArgoCD 기본 제공 ingress 활성화
+  # ArgoCD 기본 제공 ingress 비활성화 (별도 생성)
   ingress:
-    enabled: true
-    ingressClassName: alb
-    annotations:
-      alb.ingress.kubernetes.io/scheme: internet-facing
-      alb.ingress.kubernetes.io/target-type: ip
-      alb.ingress.kubernetes.io/backend-protocol: HTTP
-      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-      alb.ingress.kubernetes.io/healthcheck-path: /healthz
-      # ArgoCD insecure 모드를 위한 추가 설정
-      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # host 설정 제거
-    hosts: []
-    paths:
-      - /
-    pathType: Prefix
+    enabled: false
 
   # insecure 모드 활성화
   extraArgs:
