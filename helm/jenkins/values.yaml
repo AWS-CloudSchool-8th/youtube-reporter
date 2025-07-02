@@ -1,86 +1,23 @@
-jenkins:
-  controller:
-    adminPassword: admin1234  # 최초 로그인 비밀번호 (보안 강화 필요)
-    serviceType: ClusterIP    # 프라이빗 접근용
-    
-    # 리소스 설정
-    resources:
-      requests:
-        cpu: "500m"           # 0.5 CPU
-        memory: "2Gi"         # 2GB RAM
-      limits:
-        cpu: "1000m"          # 1 CPU
-        memory: "4Gi"         # 4GB RAM
+controller:
+  installPlugins:
+    - kubernetes:1.31.1
+    - workflow-aggregator:2.6
+    - git:4.10.0
+    - generic-webhook-trigger:1.85
+  adminPassword: admin123  # 초기 비밀번호 설정
 
-    persistence:
-      enabled: true
-      storageClass: gp2-csi   # 올바른 StorageClass 이름
-      size: 50Gi              # 50GB
-      accessMode: ReadWriteOnce
+  serviceType: ClusterIP
 
-    # 필수 플러그인들 (GitHub webhook, Docker, AWS 관련)
-    installPlugins:
-      - kubernetes:3937.vd7b_82db_e347b_
-      - workflow-aggregator:596.v8c21c963d92d
-      - git:5.0.0
-      - github:1.37.3.1
-      - github-branch-source:1703.vd5a_2b_29c6cdc
-      - pipeline-github-lib:42.v0739460cda_c4
-      - configuration-as-code:1625.v27444588cc3d
-      - credentials-binding:523.vd859a_4b_122e6
-      - docker-workflow:563.vd5d2e5c4007f
-      - pipeline-aws:1.43
-      - amazon-ecr:1.7
-      - build-timeout:1.27
-      - timestamper:1.25
-      - ws-cleanup:0.45
-      - ant:475.vf34069fef73c
-      - gradle:2.8.2
+  servicePort: 8080
 
-    # Jenkins 설정을 코드로 관리 (JCasC)
-    JCasC:
-      defaultConfig: true
-      configScripts:
-        welcome-message: |
-          jenkins:
-            systemMessage: "YouTube Reporter Jenkins CI/CD Server"
-        
-        # GitHub webhook을 위한 보안 설정
-        security: |
-          jenkins:
-            securityRealm:
-              local:
-                allowsSignup: false
-                users:
-                  - id: "admin"
-                    password: "admin1234"
-            authorizationStrategy:
-              globalMatrix:
-                permissions:
-                  - "Overall/Administer:admin"
-                  - "Overall/Read:authenticated"
+  # SSM을 통해 port-forward 접속 예정
+  serviceAnnotations: {}
 
-    # ingress 비활성화 (port-forward로 접근)
-    ingress:
-      enabled: false
+persistence:
+  enabled: false  # PVC 없이 ephemeral
 
-    # Jenkins URL 설정 (나중에 webhook에서 사용)
-    jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
+agent:
+  enabled: false  # 기본 agent는 꺼둠
 
-  agent:
-    enabled: true
-    # Agent 리소스 설정
-    resources:
-      requests:
-        cpu: "500m"           # 0.5 CPU
-        memory: "1Gi"         # 1GB RAM
-      limits:
-        cpu: "1000m"          # 1 CPU
-        memory: "2Gi"         # 2GB RAM
-
-# ServiceAccount 권한 설정
-serviceAccount:
+rbac:
   create: true
-  annotations: {}
-    # 🔄 ECR 접근용 IRSA는 나중에 설정
-    # eks.amazonaws.com/role-arn: "arn:aws:iam::922805825674:role/jenkins-ecr-role"
