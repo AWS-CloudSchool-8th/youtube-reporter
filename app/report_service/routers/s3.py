@@ -5,8 +5,8 @@ from shared_lib.core.config import settings
 from shared_lib.core.auth import get_current_user
 import json
 
+#router = APIRouter(    prefix="/s3",    tags=["s3"])
 router = APIRouter(
-    prefix="/s3",
     tags=["s3"]
 )
 

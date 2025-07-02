@@ -16,7 +16,8 @@ from shared_lib.models.auth import SignInRequest
 from services.s3_service import s3_service
 import httpx
 
-router = APIRouter(prefix="/user", tags=["user-analysis"])
+#router = APIRouter(prefix="/user", tags=["user-analysis"])
+router = APIRouter(tags=["user-analysis"])
 
 class YouTubeAnalysisRequest:
     def __init__(self, youtube_url: str):

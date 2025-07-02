@@ -3,7 +3,8 @@ from shared_lib.models.audio import AudioRequest, AudioResponse
 from services.audio_service import audio_service
 from datetime import datetime
 
-router = APIRouter(prefix="/audio", tags=["audio"])
+#router = APIRouter(prefix="/audio", tags=["audio"])
+router = APIRouter( tags=["audio"])
 
 @router.post("/generate", response_model=AudioResponse)
 async def generate_audio(request: AudioRequest):

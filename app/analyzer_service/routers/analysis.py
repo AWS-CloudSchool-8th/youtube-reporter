@@ -12,7 +12,8 @@ from services.audio_service import audio_service
 from services.analysis_service import analysis_service
 from shared_lib.core.config import settings
 
-router = APIRouter(prefix="/analysis", tags=["analysis"])
+#router = APIRouter(prefix="/analysis", tags=["analysis"])
+router = APIRouter( tags=["analysis"])
 
 # 분석 작업 저장소
 analysis_jobs = {}

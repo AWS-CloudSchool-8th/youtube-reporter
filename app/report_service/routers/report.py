@@ -4,8 +4,11 @@ from services.s3_service import s3_service
 from shared_lib.core.config import settings
 import json
 
+#router = APIRouter(
+#    prefix="/reports",
+#    tags=["reports"]
+#)
 router = APIRouter(
-    prefix="/reports",
     tags=["reports"]
 )
 

@@ -5,11 +5,11 @@ from shared_lib.models.document import DocumentAnalysisRequest, DocumentAnalysis
 from datetime import datetime
 import uuid
 
+#    prefix="/analysis/document",
+
 router = APIRouter(
-    prefix="/analysis/document",
     tags=["document"]
 )
-
 @router.post("", response_model=DocumentAnalysisResponse)
 async def analyze_document(
     file: UploadFile = File(...),
