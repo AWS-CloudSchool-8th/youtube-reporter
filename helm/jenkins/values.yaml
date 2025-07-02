@@ -78,9 +78,9 @@ jenkins:
         cpu: "1000m"          # 1 CPU
         memory: "2Gi"         # 2GB RAM
 
-# ServiceAccount 권한 설정 (Docker 빌드를 위해)
+# ServiceAccount 권한 설정
 serviceAccount:
   create: true
   annotations: {}
-    # EKS에서 ECR 접근을 위한 IRSA 설정 (나중에 추가)
-    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/jenkins-ecr-role
+    # 🔄 ECR 접근용 IRSA는 나중에 설정
+    # eks.amazonaws.com/role-arn: "arn:aws:iam::922805825674:role/jenkins-ecr-role"
