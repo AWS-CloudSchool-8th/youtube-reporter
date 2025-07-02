@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from routers import document
 import sys
 import os
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # shared-lib 경로를 PYTHONPATH 외에도 수동으로 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../shared_lib")))
