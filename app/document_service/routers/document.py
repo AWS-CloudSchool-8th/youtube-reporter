@@ -8,6 +8,7 @@ import uuid
 #    prefix="/analysis/document",
 
 router = APIRouter(
+prefix="/analysis/document",
     tags=["document"]
 )
 @router.post("", response_model=DocumentAnalysisResponse)
