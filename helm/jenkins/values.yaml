@@ -3,19 +3,19 @@ jenkins:
     adminPassword: admin1234  # 최초 로그인 비밀번호 (보안 강화 필요)
     serviceType: ClusterIP    # 프라이빗 접근용
     
-    # 🔥 용량 대폭 증가
+    # 🔥 임시로 용량 축소
     resources:
       requests:
-        cpu: "1000m"          # 1 CPU
-        memory: "4Gi"         # 4GB RAM
+        cpu: "500m"           # 0.5 CPU (기존 1CPU에서 축소)
+        memory: "2Gi"         # 2GB RAM (기존 4GB에서 축소)
       limits:
-        cpu: "2000m"          # 2 CPU
-        memory: "8Gi"         # 8GB RAM
+        cpu: "1000m"          # 1 CPU (기존 2CPU에서 축소)
+        memory: "4Gi"         # 4GB RAM (기존 8GB에서 축소)
 
     persistence:
       enabled: true
-      storageClass: gp2       # EKS 기본 StorageClass
-      size: 200Gi             # 🔥 200GB로 증가 (빌드 아티팩트, Docker 이미지 등)
+      storageClass: gp2-csi   # 🔥 올바른 StorageClass 이름으로 수정
+      size: 50Gi              # 🔥 20GB로 축소 (안전한 크기)
       accessMode: ReadWriteOnce
 
     # 필수 플러그인들 (GitHub webhook, Docker, AWS 관련)
@@ -65,22 +65,4 @@ jenkins:
       enabled: false
 
     # Jenkins URL 설정 (나중에 webhook에서 사용)
-    jenkinsUrl: "http://jenkins.jenkins.svc.cluster.local:8080"
-
-  agent:
-    enabled: true
-    # 🔥 Agent 용량도 증가
-    resources:
-      requests:
-        cpu: "500m"           # 0.5 CPU
-        memory: "1Gi"         # 1GB RAM
-      limits:
-        cpu: "1000m"          # 1 CPU
-        memory: "2Gi"         # 2GB RAM
-
-# ServiceAccount 권한 설정 (Docker 빌드를 위해)
-serviceAccount:
-  create: true
-  annotations:
-    # EKS에서 ECR 접근을 위한 IRSA 설정 (나중에 추가)
-    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/jenkins-ecr-role
+    jenkinsUrl: "http://jenkins.jenkins.svc.cluster
