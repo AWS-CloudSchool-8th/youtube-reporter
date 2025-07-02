@@ -17,8 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+    
+app.include_router(youtube.router)
+
 
 for route in app.routes:
     print(f"? {route.path}")
-    
-app.include_router(youtube.router)
