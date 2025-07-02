@@ -1,18 +1,38 @@
 controller:
   installPlugins:
-    - kubernetes:1.31.1
-    - workflow-aggregator:2.6
-    - git:4.10.0
-    - generic-webhook-trigger:1.85
+    - kubernetes:4253.v7700d91739e5
+    - workflow-aggregator:596.v8c21c963d92d
+    - git:5.2.1
+    - generic-webhook-trigger:2.2.2
+    - configuration-as-code:1775.v810dc950b_514
+    - job-dsl:1.87
+  
   admin:
-      password: test123
-
+    password: test123
+  
   serviceType: ClusterIP
-
   servicePort: 8080
-
+  
+  # 리소스 제한 설정 (노드 리소스에 맞게 조정)
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1500m
+      memory: 2Gi
+  
+  # JVM 힙 메모리 설정
+  javaOpts: "-Xmx1536m -Xms512m"
+  
   # SSM을 통해 port-forward 접속 예정
   serviceAnnotations: {}
+  
+  # 노드 선택기 (필요시)
+  nodeSelector: {}
+  
+  # 톨러레이션 (필요시) 
+  tolerations: []
 
 persistence:
   enabled: false  # PVC 없이 ephemeral
@@ -22,3 +42,14 @@ agent:
 
 rbac:
   create: true
+
+# 서비스 어카운트 설정
+serviceAccount:
+  create: true
+  name: jenkins
+
+# 보안 컨텍스트
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
