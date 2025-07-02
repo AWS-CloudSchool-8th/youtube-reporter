@@ -1,40 +1,63 @@
-from fastapi import FastAPI
-from routers import document
-import sys
-import os
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException, Request, Depends
+from app.models.youtube import (
+    YouTubeSearchRequest,
+    YouTubeSearchResponse,
+    YouTubeAnalysisRequest,
+    YouTubeAnalysisResponse
+)
+from app.services.youtube_service import youtube_service
+from app.core.auth import get_current_user
 
-
-# shared-lib 경로를 PYTHONPATH 외에도 수동으로 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../shared_lib")))
-
-app = FastAPI(
-    title="Document Analysis Service",
-    description="Supports analysis of document files such as PDF, DOCX, XLSX, CSV, TXT.",
-    version="1.0.0"
+router = APIRouter(
+    prefix="/youtube",
+    tags=["youtube"]
 )
 
-# ? CORS 허용
-origins = [
-    "http://34.228.65.221:3000",
-    "*"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-for route in app.routes:
-    print(f"? {route.path}")
+@router.post("/search", response_model=YouTubeSearchResponse)
+async def search_videos(request: YouTubeSearchRequest) -> YouTubeSearchResponse:
+    """
+    YouTube 비디오 검색
     
-# 라우터 등록
-app.include_router(document.router)
+    - **query**: 검색할 키워드
+    - **max_results**: 최대 검색 결과 수 (기본값: 10)
+    """
+    try:
+        return await youtube_service.search_videos(
+            query=request.query,
+            max_results=request.max_results,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# 헬스체크 엔드포인트
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
+from pydantic import BaseModel
+
+class YouTubeAnalysisRequestBody(BaseModel):
+    youtube_url: str
+
+@router.post("/youtube-reporter/analyze")
+async def analyze_youtube_with_fsm(
+    request: YouTubeAnalysisRequestBody,
+    raw_request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """LangGraph FSM을 사용한 YouTube 분석"""
+    from app.services.analysis_service import analysis_service
+    
+    print(f"DEBUG: Content-Type: {raw_request.headers.get('content-type')}")
+    print(f"DEBUG: 요청 데이터: {request}")
+    print(f"DEBUG: youtube_url: {request.youtube_url}")
+    
+    body = await raw_request.body()
+    print(f"DEBUG: Raw body: {body}")
+    
+    try:
+        # user_id를 명시적으로 전달
+        result = await analysis_service.analyze_youtube_with_fsm(
+            request.youtube_url,
+            user_id=current_user["user_id"]
+        )
+        return result
+        
+    except Exception as e:
+        print(f"DEBUG: 에러 발생: {e}")
+        raise HTTPException(status_code=500, detail=f"FSM 분석 실패: {str(e)}") 
