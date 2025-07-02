@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
-from app.models.youtube import (
+from shared_lib.models.youtube import (
     YouTubeSearchRequest,
     YouTubeSearchResponse,
     YouTubeAnalysisRequest,
     YouTubeAnalysisResponse
 )
-from app.services.youtube_service import youtube_service
-from app.core.auth import get_current_user
+from youtube_service import youtube_service
+from shared_lib.core.auth import get_current_user
 
 router = APIRouter(
     prefix="/youtube",
