@@ -1,10 +1,9 @@
 controller:
+  # 최소한의 필수 플러그인만 설치
   installPlugins:
     - kubernetes:4253.v7700d91739e5
     - workflow-aggregator:596.v8c21c963d92d
     - git:5.2.1
-    - generic-webhook-trigger:2.2.2
-    - configuration-as-code:1963.v24e046127a_3f  # 최신 버전으로 업데이트
   
   admin:
     password: test123
@@ -12,24 +11,19 @@ controller:
   serviceType: ClusterIP
   servicePort: 8080
   
-  # 리소스 제한 설정 (더 보수적으로 조정)
+  # 리소스 제한 설정
   resources:
     requests:
       cpu: 200m
       memory: 512Mi
     limits:
       cpu: 1000m
-      memory: 1Gi
+      memory: 30Gi
   
-  # JVM 힙 메모리 설정 (더 작게)
+  # JVM 힙 메모리 설정
   javaOpts: "-Xmx768m -Xms256m"
   
-  # Init Container 타임아웃 증가
-  initContainerEnv:
-    - name: JENKINS_UC_DOWNLOAD_TIMEOUT
-      value: "300"
-  
-  # Plugin 설치 시간 증가를 위한 설정
+  # Init Container 리소스
   initContainerResources:
     requests:
       cpu: 100m
@@ -37,49 +31,16 @@ controller:
     limits:
       cpu: 500m
       memory: 512Mi
-  
-  # Pod 우선순위 설정
-  priorityClassName: ""
-  
-  # 노드 선택 및 톨러레이션 (Pod 밀도가 낮은 노드 선호)
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values:
-              - jenkins
-          topologyKey: kubernetes.io/hostname
-  
-  # SSM을 통해 port-forward 접속 예정
-  serviceAnnotations: {}
-  
-  # 노드 선택기 (필요시)
-  nodeSelector: {}
-  
-  # 톨러레이션 (필요시) 
-  tolerations: []
 
 persistence:
-  enabled: false  # PVC 없이 ephemeral
+  enabled: false
 
 agent:
-  enabled: false  # 기본 agent는 꺼둠
+  enabled: false
 
 rbac:
   create: true
 
-# 서비스 어카운트 설정
 serviceAccount:
   create: true
   name: jenkins
-
-# 보안 컨텍스트
-securityContext:
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
