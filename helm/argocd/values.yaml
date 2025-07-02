@@ -4,12 +4,18 @@ configs:
     application.instanceLabelKey: argocd.argoproj.io/instance
     exec.enabled: true
     timeout.reconciliation: 30s
+    # ALB URL 설정
+    url: "http://k8s-argocd-argocdse-4e422fdd70-1088846251.us-west-2.elb.amazonaws.com"
+  params:
+    # ArgoCD 서버를 insecure 모드로 실행 (HTTP 허용)
+    server.insecure: true
 
 server:
   service:
     type: ClusterIP
-    port: 80   # 추가 또는 확인
+    port: 80
 
+  # ArgoCD 기본 제공 ingress 활성화
   ingress:
     enabled: true
     ingressClassName: alb
@@ -18,10 +24,19 @@ server:
       alb.ingress.kubernetes.io/target-type: ip
       alb.ingress.kubernetes.io/backend-protocol: HTTP
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
-      alb.ingress.kubernetes.io/subnets: subnet-013b35b1e548c8003,subnet-0893b28b5ed33b838,subnet-07946e2ab2bcb3e85  # ← 네 퍼블릭 서브넷 ID
-      hosts: []
-      paths:
-        - /
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
+      # ArgoCD insecure 모드를 위한 추가 설정
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # host 설정 제거
+    hosts: []
+    paths:
+      - /
+    pathType: Prefix
+
+  # insecure 모드 활성화
+  extraArgs:
+    - --insecure
 
 controller:
   metrics:
