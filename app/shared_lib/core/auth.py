@@ -9,8 +9,9 @@ security = HTTPBearer()
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
     try:
         token = credentials.credentials
-        
+        print(f"[DEBUG] 받은 토큰: {token}")
         result = verify_access_token(token)
+        print(f"[DEBUG] 검증 결과: {result}")
         
         if not result["valid"]:
             raise HTTPException(

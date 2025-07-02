@@ -100,6 +100,9 @@ def get_user_info(access_token: str):
 
 def verify_access_token(access_token: str):
     try:
+        # 반드시 region_name 명시
+        client = boto3.client("cognito-idp", region_name="us-west-2")
+
         response = client.get_user(AccessToken=access_token)
         return {"valid": True, "username": response['Username']}
     except ClientError as e:
