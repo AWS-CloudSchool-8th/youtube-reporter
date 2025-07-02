@@ -4,7 +4,8 @@ controller:
     - workflow-aggregator:2.6
     - git:4.10.0
     - generic-webhook-trigger:1.85
-  adminPassword: admin123  # 초기 비밀번호 설정
+  admin:
+      password: test123
 
   serviceType: ClusterIP
 
