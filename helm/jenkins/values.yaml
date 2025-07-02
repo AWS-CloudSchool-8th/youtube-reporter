@@ -4,8 +4,7 @@ controller:
     - workflow-aggregator:596.v8c21c963d92d
     - git:5.2.1
     - generic-webhook-trigger:2.2.2
-    - configuration-as-code:1775.v810dc950b_514
-    - job-dsl:1.87
+    - configuration-as-code:1963.v24e046127a_3f  # 최신 버전으로 업데이트
   
   admin:
     password: test123
@@ -13,17 +12,48 @@ controller:
   serviceType: ClusterIP
   servicePort: 8080
   
-  # 리소스 제한 설정 (노드 리소스에 맞게 조정)
+  # 리소스 제한 설정 (더 보수적으로 조정)
   resources:
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 200m
+      memory: 512Mi
     limits:
-      cpu: 1500m
-      memory: 2Gi
+      cpu: 1000m
+      memory: 1Gi
   
-  # JVM 힙 메모리 설정
-  javaOpts: "-Xmx1536m -Xms512m"
+  # JVM 힙 메모리 설정 (더 작게)
+  javaOpts: "-Xmx768m -Xms256m"
+  
+  # Init Container 타임아웃 증가
+  initContainerEnv:
+    - name: JENKINS_UC_DOWNLOAD_TIMEOUT
+      value: "300"
+  
+  # Plugin 설치 시간 증가를 위한 설정
+  initContainerResources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Pod 우선순위 설정
+  priorityClassName: ""
+  
+  # 노드 선택 및 톨러레이션 (Pod 밀도가 낮은 노드 선호)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - jenkins
+          topologyKey: kubernetes.io/hostname
   
   # SSM을 통해 port-forward 접속 예정
   serviceAnnotations: {}
