@@ -9,6 +9,7 @@ from services.youtube_service import youtube_service
 from shared_lib.core.auth import get_current_user
 
 router = APIRouter(
+prefix="/youtube",
     tags=["youtube"]
 )
 
