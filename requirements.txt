@@ -9,7 +9,7 @@ langchain-aws==0.1.4
 ipython
 langchain-experimental
 
-# LLM API 
+# LLM API d 
 boto3
 openai
 
