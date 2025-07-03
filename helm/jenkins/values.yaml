@@ -24,6 +24,6 @@ controller:
     name: jenkins-sa
 
 persistence:
-  enabled: true
+  enabled: false  # 임시로 비활성화
   size: 8Gi
-  storageClass: gp2-csi  # gp2에서 gp2-csi로 변경
+  storageClass: gp2-csi
