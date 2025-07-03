@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - http:  # host 없이 설정
+    - http:  # host 없이 설정해야함
         paths:
           - path: /
             pathType: Prefix
