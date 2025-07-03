@@ -1,26 +1,64 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
+controller:
+  # Jenkins 관리자 계정
+  admin:
+    username: admin
+    password: admin1234  # 실제 배포 전에는 Secret 또는 외부 Vault 연동 권장
+
+  # Jenkins 서비스 포트 설정
+  servicePort: 8080
+  targetPort: 8080
+  serviceType: ClusterIP  # 프라이빗 환경에서는 NodePort나 LoadBalancer 사용 안 함
+
+  # 리소스 제한 (적절히 조절)
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+  # Persistence (PVC)
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: gp2  # EKS에서 사용하는 StorageClass
+    accessMode: ReadWriteOnce
+
+  # 내부 DNS로만 접근할 수 있도록 Ingress는 꺼둠
+  ingress:
+    enabled: false
+
+  # Webhook 접근 허용을 위한 Jenkins URL 설정 (API Gateway 통해 호출될 경우)
+  jenkinsUrl: http://jenkins.jenkins.svc.cluster.local:8080
+  jenkinsUriPrefix: ""
+  jenkinsAdminEmail: "sjh98070156@gmail.com"
+  # 보안: CSRF 보호 설정
+  csrf:
+    defaultCrumbIssuer:
+      enabled: true
+      proxyCompatability: true
+
+  # 사용하지 않는 플러그인은 설치 안 함
+  installPlugins: []
+
+agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
   name: jenkins
-  namespace: argocd
-spec:
-  project: default
 
-  source:
-    repoURL: https://github.com/AWS-CloudSchool-8th/youtube-reporter
-    targetRevision: main
-    path: helm/jenkins
-    helm:
-      valueFiles:
-        - values.yaml
-
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: jenkins
-
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+# metrics exporter는 꺼둠 (필요 시 enable)
+metrics:
+  enabled: false

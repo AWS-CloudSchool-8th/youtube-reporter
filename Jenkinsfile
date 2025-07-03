@@ -1,9 +1,11 @@
 pipeline {
-    agent any
+    agent {
+        label 'docker-agent'
+    }
 
     environment {
         AWS_REGION = 'us-west-2'
-        ECR_REPO = '492021314651.dkr.ecr.us-west-2.amazonaws.com/youtube-reporter-app'
+        ECR_REPO = '922805825674.dkr.ecr.us-west-2.amazonaws.com/testcd'
         IMAGE_TAG = "build-${BUILD_NUMBER}"
         GIT_REPO = 'https://github.com/AWS-CloudSchool-8th/youtube-reporter.git'
         GIT_CREDENTIALS_ID = 'git_cre'
@@ -42,26 +44,44 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh """
-                docker build -t ${ECR_REPO}:${IMAGE_TAG} .
-                docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
-                """
+                container('docker') {
+                    sh """
+                        # Docker 데몬 시작 대기
+                        echo "Starting Docker daemon..."
+                        dockerd --host=unix:///var/run/docker.sock &
+                        
+                        for i in \$(seq 1 15); do
+                            if docker info >/dev/null 2>&1; then
+                                echo "Docker daemon is ready!"
+                                break
+                            fi
+                            echo "Waiting... (\$i/15)"
+                            sleep 2
+                        done
+                        
+                        # Docker 빌드
+                        docker build -t ${ECR_REPO}:${IMAGE_TAG} .
+                        docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
+                    """
+                }
             }
         }
 
         stage('Push to ECR') {
             steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "${AWS_CREDENTIALS_ID}"
-                ]]) {
-                    sh """
-                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
-                    docker push ${ECR_REPO}:${IMAGE_TAG}
-                    docker push ${ECR_REPO}:latest
-                    docker image rm ${ECR_REPO}:${IMAGE_TAG}
-                    docker image rm ${ECR_REPO}:latest
-                    """
+                container('docker') {
+                    withCredentials([[ 
+                        \$class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: "${AWS_CREDENTIALS_ID}"
+                    ]]) {
+                        sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
+                        docker push ${ECR_REPO}:${IMAGE_TAG}
+                        docker push ${ECR_REPO}:latest
+                        docker image rm ${ECR_REPO}:${IMAGE_TAG}
+                        docker image rm ${ECR_REPO}:latest
+                        """
+                    }
                 }
             }
         }
@@ -82,7 +102,7 @@ pipeline {
                     sed -i 's|image: .*|image: ${ECR_REPO}:${IMAGE_TAG}|' manifests/deployment.yaml
                     git add manifests/deployment.yaml
                     git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"
-                    git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
+                    git push https://\${GIT_USERNAME}:\${GIT_PASSWORD}@github.com/AWS-CloudSchool-8th/youtube-reporter.git main
                     """
                 }
             }
