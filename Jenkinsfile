@@ -59,7 +59,7 @@ pipeline {
                             sleep 2
                         done
                         
-                        # Docker 빌드
+                        # Docker 빌드!
                         docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                         docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
                     """
