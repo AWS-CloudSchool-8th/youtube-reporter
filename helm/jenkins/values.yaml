@@ -1,38 +1,129 @@
+# 현재 클러스터 환경에 최적화된 Jenkins 설정
+
 controller:
-  # 플러그인 설치 완전 비활성화
-  installPlugins: false
-  
+  image:
+    repository: "jenkins/jenkins"
+    tag: "2.504.3-jdk21"
+    pullPolicy: "IfNotPresent"
+
   admin:
-    password: test123
-  
-  serviceType: ClusterIP
-  servicePort: 8080
-  
-  # 리소스 설정 최소화
+    username: "admin"
+    password: "test123"
+
+  # 플러그인 - 모니터링 환경에 맞게 최소화
+  installPlugins:
+    - kubernetes:4253.v7700d91739e5
+    - workflow-aggregator:596.v8c21c963d92d
+    - git:5.2.1
+    - configuration-as-code:1963.v24e046127a_3f
+    - prometheus:2.0.6  # 기존 Prometheus와 연동
+
+  # Init Container - 여유있게 설정
+  initContainerResources:
+    requests:
+      cpu: "800m"         # 충분한 CPU
+      memory: "1.5Gi"     # 1.5GB
+    limits:
+      cpu: "1500m"
+      memory: "2.5Gi"     # 2.5GB
+
+  initContainerEnv:
+    - name: "JAVA_OPTS"
+      value: "-Xmx2048m -Xms512m"  # 2GB JVM 힙
+    - name: "JENKINS_UC_DOWNLOAD_TIMEOUT"
+      value: "900"
+
+  # 메인 Jenkins 컨테이너 - 적절한 리소스
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: "800m"         # 0.8 CPU
+      memory: "1.5Gi"     # 1.5GB
     limits:
-      cpu: 800m
-      memory: 1Gi
+      cpu: "1500m"        # 1.5 CPU
+      memory: "2.5Gi"     # 2.5GB (EC2 대비 충분)
+
+  # JVM 설정 - 메모리 효율적
+  javaOpts: "-Xmx2048m -Xms512m -Djenkins.install.runSetupWizard=false -XX:+UseContainerSupport -XX:MaxRAMPercentage=80"
   
-  # JVM 설정
-  javaOpts: "-Xmx768m -Xms256m"
+  jenkinsOpts: "--httpPort=8080"
+  serviceType: "ClusterIP"
+  servicePort: 8080
 
-persistence:
-  enabled: false
+  # Health Check - 충분한 시간
+  healthProbeLivenessInitialDelay: 180    # 3분
+  healthProbeReadinessInitialDelay: 120   # 2분
+  healthProbeLivenessTimeout: 10
+  healthProbeReadinessTimeout: 10
 
+  # 노드 배치 전략 (Prometheus 피하기)
+  nodeSelector: {}
+  
+  # Prometheus와 같은 노드 피하기
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values: ["prometheus"]
+          topologyKey: kubernetes.io/hostname
+
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Agent - 활성화 (리소스 여유 있음)
 agent:
-  enabled: false
+  enabled: true
+  image:
+    repository: "jenkins/inbound-agent"
+    tag: "4.13.3-1-jdk17"
+  
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "800m"
+      memory: "1Gi"
 
+# 영구 저장소 - 넉넉하게
+persistence:
+  enabled: true
+  storageClass: "gp2"    # AWS EBS GP2 사용
+  accessMode: "ReadWriteOnce"
+  size: "30Gi"           # 30GB (성능과 공간 확보)
+
+# RBAC
 rbac:
   create: true
+  readSecrets: false
 
 serviceAccount:
   create: true
-  name: jenkins
+  name: ""
 
-# 플러그인 초기화 비활성화
-initContainerResources: {}
-initContainerEnv: []
+# 모니터링 연동 (기존 Prometheus 활용)
+prometheus:
+  enabled: true
+  serviceMonitorAdditionalLabels:
+    release: kube-prometheus-stack  # 기존 Prometheus와 연동
+  
+# 백업 설정
+backup:
+  enabled: false
+
+# Jenkins Configuration as Code
+JCasC:
+  defaultConfig: true
+  configScripts:
+    welcome-message: |
+      jenkins:
+        systemMessage: "Welcome to Jenkins on Kubernetes! 🚀"
+    prometheus-config: |
+      unclassified:
+        prometheusConfiguration:
+          path: "prometheus"
+          useAuthenticatedEndpoint: false
