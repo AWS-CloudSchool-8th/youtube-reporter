@@ -1,182 +1,28 @@
-# Jenkins Helm Chart Values for EKS
-# 참고: https://artifacthub.io/packages/helm/jenkinsci/jenkins
-
 controller:
-  # Jenkins 컨트롤러 설정
-  image: "jenkins/jenkins"
-  tag: "2.401.3-lts"
-  imagePullPolicy: "Always"
-  
-  # 리소스 설정 (EKS 환경에 맞게)
+  adminUser: admin
+  adminPassword: admin
+
+  serviceType: ClusterIP
+  ingress:
+    enabled: false  # 나중에 필요하면 true + ingress 설정
+
   resources:
     requests:
       cpu: "500m"
       memory: "1Gi"
     limits:
-      cpu: "2000m"
-      memory: "4Gi"
-  
-  # JVM 옵션 (메모리 효율적으로)
-  javaOpts: "-Xms1g -Xmx2g"
-  
-  # Jenkins 초기 설정
-  jenkinsOpts: ""
-  jenkinsUrl: ""
-  jenkinsUriPrefix: ""
-  
-  # 서비스 타입 (프라이빗 EKS이므로 ClusterIP)
-  serviceType: ClusterIP
-  servicePort: 8080
-  targetPort: 8080
-  
-  # NodePort는 사용하지 않음 (port-forward 사용할 예정)
-  # nodePort: 32000
-  
-  # 보안 설정
-  useSecurity: true
-  enableRawHtmlMarkupFormatter: false
-  
-  # 관리자 계정 설정
-  admin:
-    existingSecret: ""
-    userKey: jenkins-admin-user
-    passwordKey: jenkins-admin-password
-    # 초기값 (실제로는 Secret으로 관리)
-    username: admin
-    password: "changeme123!"
-  
-  # Ingress 설정 (일단 비활성화, port-forward 사용)
-  ingress:
-    enabled: false
-    # 나중에 필요하면 활성화
-    # ingressClassName: nginx
-    # annotations: {}
-    # hostName: jenkins.local
-  
-  # 플러그인 설치 (CI/CD에 필요한 기본 플러그인들)
-  installPlugins:
-    - kubernetes:3937.vd7b_82db_e347b_
-    - workflow-aggregator:590.v6a_d052e5a_a_b_5
-    - git:4.13.0
-    - configuration-as-code:1625.v27444588cc3d
-    - pipeline-stage-view:2.25
-    - build-timeout:1.27
-    - credentials-binding:523.vd859a_4b_122e6
-    - timestamper:1.17
-    - ws-cleanup:0.45
-    - ant:475.vf34069fef73c
-    - gradle:2.8.2
-    - pipeline-github-lib:38.v445716ea_edda_
-    - pipeline-stage-step:305.ve96d0205c1c6
-    - github:1.37.0
-    - github-branch-source:1703.vd5a_2b_29c6cdc
-    - docker-workflow:521.v1a_a_dd2073b_2e
-    - generic-webhook-trigger:1.84.1
-  
-  # JCasC (Jenkins Configuration as Code)
-  JCasC:
-    enabled: true
-    defaultConfig: true
-    configScripts:
-      welcome-message: |
-        jenkins:
-          systemMessage: "Jenkins EKS에서 실행 중입니다."
-      security: |
-        jenkins:
-          securityRealm:
-            local:
-              allowsSignup: false
-              users:
-                - id: admin
-                  password: ${JENKINS_ADMIN_PASSWORD}
-          authorizationStrategy:
-            globalMatrix:
-              permissions:
-                - "Overall/Administer:admin"
-                - "Overall/Read:authenticated"
-  
-  # 추가 환경변수
-  containerEnv:
-    - name: JENKINS_ADMIN_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: jenkins-admin-secret
-          key: password
+      cpu: "1"
+      memory: "2Gi"
 
-# Agent 설정 (Kubernetes에서 동적으로 Pod 생성)
-agent:
-  enabled: true
-  image: "jenkins/inbound-agent"
-  tag: "3107.v665000b_51092-5"
-  
-  # Agent 리소스
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "1000m"
-      memory: "1Gi"
-  
-  # Agent 설정
-  alwaysPullImage: true
-  podRetention: "Never"
-  showRawYaml: true
-  
-  # Agent용 볼륨 (Docker 소켓 마운트 등)
-  volumes:
-    - type: HostPath
-      hostPath: /var/run/docker.sock
-      mountPath: /var/run/docker.sock
-  
-  # 기본 Agent 템플릿
-  podTemplates:
-    docker-agent: |
-      - name: docker-agent
-        label: docker
-        serviceAccount: jenkins
-        containers:
-        - name: docker
-          image: docker:20.10-dind
-          privileged: true
-          ttyEnabled: true
-          command: "cat"
+  # optional: session manager agent 설치된 이미지로 커스텀 가능
+  image: 
+    tag: "lts-jdk17"  # jdk21 도 가능하지만 안정적 LTS 추천
 
-# Persistence (중요: 데이터 영속성)
+  serviceAccount:
+    create: true
+    name: jenkins-sa
+
 persistence:
   enabled: true
-  existingClaim: ""
-  storageClass: "gp3"  # EKS에서 권장하는 스토리지 클래스
-  accessMode: "ReadWriteOnce"
-  size: "20Gi"
-  volumes:
-  #  - name: nothing
-  #    emptyDir: {}
-  mounts:
-  #  - name: nothing
-  #    mountPath: /var/nothing
-  #    readOnly: true
-
-# Network Policy (보안 강화)
-networkPolicy:
-  enabled: false
-  # 나중에 활성화하면 좋음
-  # apiVersion: networking.k8s.io/v1
-  # internalAgents:
-  #   allowed: true
-
-# Service Account 설정
-serviceAccount:
-  create: true
-  name: jenkins
-  annotations: {}
-
-# RBAC 설정 (Kubernetes 리소스 접근 권한)
-rbac:
-  create: true
-  readSecrets: true
-
-# Security Context
-securityContext:
-  runAsUser: 1000
-  fsGroup: 1000
+  size: 8Gi
+  storageClass: gp2  # EKS 기본이면 gp2, ebs-csi면 ebs-sc 등 사용
