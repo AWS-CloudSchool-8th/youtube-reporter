@@ -1,10 +1,12 @@
 controller:
-  adminUser: admin
-  adminPassword: admin
+  admin:
+    username: admin
+    password: admin
 
   serviceType: ClusterIP
+
   ingress:
-    enabled: false  # 나중에 필요하면 true + ingress 설정
+    enabled: false
 
   resources:
     requests:
@@ -14,9 +16,8 @@ controller:
       cpu: "1"
       memory: "2Gi"
 
-  # optional: session manager agent 설치된 이미지로 커스텀 가능
-  image: 
-    tag: "lts-jdk17"  # jdk21 도 가능하지만 안정적 LTS 추천
+  image:
+    tag: "lts-jdk17"
 
   serviceAccount:
     create: true
@@ -25,4 +26,4 @@ controller:
 persistence:
   enabled: true
   size: 8Gi
-  storageClass: gp2  # EKS 기본이면 gp2, ebs-csi면 ebs-sc 등 사용
+  storageClass: gp2
