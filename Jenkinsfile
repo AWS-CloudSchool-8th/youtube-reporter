@@ -71,7 +71,7 @@ pipeline {
             steps {
                 container('docker') {
                     withCredentials([[ 
-                        \$class: 'AmazonWebServicesCredentialsBinding',
+                        $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: "${AWS_CREDENTIALS_ID}"
                     ]]) {
                         sh """
