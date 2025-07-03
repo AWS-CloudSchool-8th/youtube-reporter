@@ -1,9 +1,6 @@
 controller:
-  # 최소한의 필수 플러그인만 설치
-  installPlugins:
-    - kubernetes:4253.v7700d91739e5
-    - workflow-aggregator:596.v8c21c963d92d
-    - git:5.2.1
+  # 플러그인 설치 완전 비활성화
+  installPlugins: false
   
   admin:
     password: test123
@@ -11,26 +8,17 @@ controller:
   serviceType: ClusterIP
   servicePort: 8080
   
-  # 리소스 제한 설정
+  # 리소스 설정 최소화
   resources:
     requests:
       cpu: 200m
       memory: 512Mi
     limits:
-      cpu: 1000m
-      memory: 30Gi
+      cpu: 800m
+      memory: 1Gi
   
-  # JVM 힙 메모리 설정
+  # JVM 설정
   javaOpts: "-Xmx768m -Xms256m"
-  
-  # Init Container 리소스
-  initContainerResources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
 
 persistence:
   enabled: false
@@ -44,3 +32,7 @@ rbac:
 serviceAccount:
   create: true
   name: jenkins
+
+# 플러그인 초기화 비활성화
+initContainerResources: {}
+initContainerEnv: []
