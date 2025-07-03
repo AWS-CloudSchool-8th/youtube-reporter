@@ -1,129 +1,182 @@
-# 현재 클러스터 환경에 최적화된 Jenkins 설정
+# Jenkins Helm Chart Values for EKS
+# 참고: https://artifacthub.io/packages/helm/jenkinsci/jenkins
 
 controller:
-  image:
-    repository: "jenkins/jenkins"
-    tag: "2.504.3-jdk21"
-    pullPolicy: "IfNotPresent"
-
-  admin:
-    username: "admin"
-    password: "test123"
-
-  # 플러그인 - 모니터링 환경에 맞게 최소화
-  installPlugins:
-    - kubernetes:4253.v7700d91739e5
-    - workflow-aggregator:596.v8c21c963d92d
-    - git:5.2.1
-    - configuration-as-code:1963.v24e046127a_3f
-    - prometheus:2.0.6  # 기존 Prometheus와 연동
-
-  # Init Container - 여유있게 설정
-  initContainerResources:
-    requests:
-      cpu: "800m"         # 충분한 CPU
-      memory: "1.5Gi"     # 1.5GB
-    limits:
-      cpu: "1500m"
-      memory: "2.5Gi"     # 2.5GB
-
-  initContainerEnv:
-    - name: "JAVA_OPTS"
-      value: "-Xmx2048m -Xms512m"  # 2GB JVM 힙
-    - name: "JENKINS_UC_DOWNLOAD_TIMEOUT"
-      value: "900"
-
-  # 메인 Jenkins 컨테이너 - 적절한 리소스
+  # Jenkins 컨트롤러 설정
+  image: "jenkins/jenkins"
+  tag: "2.401.3-lts"
+  imagePullPolicy: "Always"
+  
+  # 리소스 설정 (EKS 환경에 맞게)
   resources:
     requests:
-      cpu: "800m"         # 0.8 CPU
-      memory: "1.5Gi"     # 1.5GB
+      cpu: "500m"
+      memory: "1Gi"
     limits:
-      cpu: "1500m"        # 1.5 CPU
-      memory: "2.5Gi"     # 2.5GB (EC2 대비 충분)
-
-  # JVM 설정 - 메모리 효율적
-  javaOpts: "-Xmx2048m -Xms512m -Djenkins.install.runSetupWizard=false -XX:+UseContainerSupport -XX:MaxRAMPercentage=80"
+      cpu: "2000m"
+      memory: "4Gi"
   
-  jenkinsOpts: "--httpPort=8080"
-  serviceType: "ClusterIP"
+  # JVM 옵션 (메모리 효율적으로)
+  javaOpts: "-Xms1g -Xmx2g"
+  
+  # Jenkins 초기 설정
+  jenkinsOpts: ""
+  jenkinsUrl: ""
+  jenkinsUriPrefix: ""
+  
+  # 서비스 타입 (프라이빗 EKS이므로 ClusterIP)
+  serviceType: ClusterIP
   servicePort: 8080
-
-  # Health Check - 충분한 시간
-  healthProbeLivenessInitialDelay: 180    # 3분
-  healthProbeReadinessInitialDelay: 120   # 2분
-  healthProbeLivenessTimeout: 10
-  healthProbeReadinessTimeout: 10
-
-  # 노드 배치 전략 (Prometheus 피하기)
-  nodeSelector: {}
+  targetPort: 8080
   
-  # Prometheus와 같은 노드 피하기
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values: ["prometheus"]
-          topologyKey: kubernetes.io/hostname
+  # NodePort는 사용하지 않음 (port-forward 사용할 예정)
+  # nodePort: 32000
+  
+  # 보안 설정
+  useSecurity: true
+  enableRawHtmlMarkupFormatter: false
+  
+  # 관리자 계정 설정
+  admin:
+    existingSecret: ""
+    userKey: jenkins-admin-user
+    passwordKey: jenkins-admin-password
+    # 초기값 (실제로는 Secret으로 관리)
+    username: admin
+    password: "changeme123!"
+  
+  # Ingress 설정 (일단 비활성화, port-forward 사용)
+  ingress:
+    enabled: false
+    # 나중에 필요하면 활성화
+    # ingressClassName: nginx
+    # annotations: {}
+    # hostName: jenkins.local
+  
+  # 플러그인 설치 (CI/CD에 필요한 기본 플러그인들)
+  installPlugins:
+    - kubernetes:3937.vd7b_82db_e347b_
+    - workflow-aggregator:590.v6a_d052e5a_a_b_5
+    - git:4.13.0
+    - configuration-as-code:1625.v27444588cc3d
+    - pipeline-stage-view:2.25
+    - build-timeout:1.27
+    - credentials-binding:523.vd859a_4b_122e6
+    - timestamper:1.17
+    - ws-cleanup:0.45
+    - ant:475.vf34069fef73c
+    - gradle:2.8.2
+    - pipeline-github-lib:38.v445716ea_edda_
+    - pipeline-stage-step:305.ve96d0205c1c6
+    - github:1.37.0
+    - github-branch-source:1703.vd5a_2b_29c6cdc
+    - docker-workflow:521.v1a_a_dd2073b_2e
+    - generic-webhook-trigger:1.84.1
+  
+  # JCasC (Jenkins Configuration as Code)
+  JCasC:
+    enabled: true
+    defaultConfig: true
+    configScripts:
+      welcome-message: |
+        jenkins:
+          systemMessage: "Jenkins EKS에서 실행 중입니다."
+      security: |
+        jenkins:
+          securityRealm:
+            local:
+              allowsSignup: false
+              users:
+                - id: admin
+                  password: ${JENKINS_ADMIN_PASSWORD}
+          authorizationStrategy:
+            globalMatrix:
+              permissions:
+                - "Overall/Administer:admin"
+                - "Overall/Read:authenticated"
+  
+  # 추가 환경변수
+  containerEnv:
+    - name: JENKINS_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: jenkins-admin-secret
+          key: password
 
-  runAsUser: 1000
-  fsGroup: 1000
-
-# Agent - 활성화 (리소스 여유 있음)
+# Agent 설정 (Kubernetes에서 동적으로 Pod 생성)
 agent:
   enabled: true
-  image:
-    repository: "jenkins/inbound-agent"
-    tag: "4.13.3-1-jdk17"
+  image: "jenkins/inbound-agent"
+  tag: "3107.v665000b_51092-5"
   
+  # Agent 리소스
   resources:
     requests:
-      cpu: "300m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "256Mi"
     limits:
-      cpu: "800m"
+      cpu: "1000m"
       memory: "1Gi"
+  
+  # Agent 설정
+  alwaysPullImage: true
+  podRetention: "Never"
+  showRawYaml: true
+  
+  # Agent용 볼륨 (Docker 소켓 마운트 등)
+  volumes:
+    - type: HostPath
+      hostPath: /var/run/docker.sock
+      mountPath: /var/run/docker.sock
+  
+  # 기본 Agent 템플릿
+  podTemplates:
+    docker-agent: |
+      - name: docker-agent
+        label: docker
+        serviceAccount: jenkins
+        containers:
+        - name: docker
+          image: docker:20.10-dind
+          privileged: true
+          ttyEnabled: true
+          command: "cat"
 
-# 영구 저장소 - 넉넉하게
+# Persistence (중요: 데이터 영속성)
 persistence:
   enabled: true
-  storageClass: "gp2"    # AWS EBS GP2 사용
+  existingClaim: ""
+  storageClass: "gp3"  # EKS에서 권장하는 스토리지 클래스
   accessMode: "ReadWriteOnce"
-  size: "30Gi"           # 30GB (성능과 공간 확보)
+  size: "20Gi"
+  volumes:
+  #  - name: nothing
+  #    emptyDir: {}
+  mounts:
+  #  - name: nothing
+  #    mountPath: /var/nothing
+  #    readOnly: true
 
-# RBAC
-rbac:
-  create: true
-  readSecrets: false
+# Network Policy (보안 강화)
+networkPolicy:
+  enabled: false
+  # 나중에 활성화하면 좋음
+  # apiVersion: networking.k8s.io/v1
+  # internalAgents:
+  #   allowed: true
 
+# Service Account 설정
 serviceAccount:
   create: true
-  name: ""
+  name: jenkins
+  annotations: {}
 
-# 모니터링 연동 (기존 Prometheus 활용)
-prometheus:
-  enabled: true
-  serviceMonitorAdditionalLabels:
-    release: kube-prometheus-stack  # 기존 Prometheus와 연동
-  
-# 백업 설정
-backup:
-  enabled: false
+# RBAC 설정 (Kubernetes 리소스 접근 권한)
+rbac:
+  create: true
+  readSecrets: true
 
-# Jenkins Configuration as Code
-JCasC:
-  defaultConfig: true
-  configScripts:
-    welcome-message: |
-      jenkins:
-        systemMessage: "Welcome to Jenkins on Kubernetes! 🚀"
-    prometheus-config: |
-      unclassified:
-        prometheusConfiguration:
-          path: "prometheus"
-          useAuthenticatedEndpoint: false
+# Security Context
+securityContext:
+  runAsUser: 1000
+  fsGroup: 1000
