@@ -75,6 +75,7 @@ pipeline {
                         credentialsId: "${AWS_CREDENTIALS_ID}"
                     ]]) {
                         sh """
+                        apk add --no-cache aws-cli
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}
                         docker push ${ECR_REPO}:${IMAGE_TAG}
                         docker push ${ECR_REPO}:latest
