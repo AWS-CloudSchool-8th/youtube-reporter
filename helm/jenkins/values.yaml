@@ -26,4 +26,4 @@ controller:
 persistence:
   enabled: true
   size: 8Gi
-  storageClass: gp2
+  storageClass: gp2-csi  # gp2에서 gp2-csi로 변경
