@@ -5,7 +5,7 @@ configs:
     exec.enabled: true
     timeout.reconciliation: 30s
     # ALB URL 설정
-    url: "http://k8s-argocd-argocdse-4e422fdd70-1088846251.us-west-2.elb.amazonaws.com"
+    url: "${ARGOCD_URL}"
   params:
     # ArgoCD 서버를 insecure 모드로 실행 (HTTP 허용)
     server.insecure: true
@@ -15,7 +15,7 @@ server:
     type: ClusterIP
     port: 80
 
-  # ArgoCD 기본 제공 ingress 비활성화 (별도 생성)
+  # ArgoCD test기본 제공 ingress 비활성화 (별도 생성)
   ingress:
     enabled: false
 

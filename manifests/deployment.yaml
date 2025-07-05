@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: youtube-reporter
-          image: 922805825674.dkr.ecr.us-west-2.amazonaws.com/testcd:build-20
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

@@ -4,12 +4,15 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'us-west-2'
-        ECR_REPO = '922805825674.dkr.ecr.us-west-2.amazonaws.com/testcd'
+        // Jenkins Credentials에서 가져올 환경 변수들
+        AWS_REGION = "${env.AWS_REGION ?: 'us-west-2'}"
+        AWS_ACCOUNT_ID = credentials('aws-account-id')
+        ECR_REPOSITORY = credentials('ecr-repository-name')
+        ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
         IMAGE_TAG = "build-${BUILD_NUMBER}"
-        GIT_REPO = 'https://github.com/AWS-CloudSchool-8th/youtube-reporter.git'
-        GIT_CREDENTIALS_ID = 'git_cre'
-        AWS_CREDENTIALS_ID = 'aws_cre'
+        GIT_REPO = "https://github.com/AWS-CloudSchool-8th/youtube-reporter.git"
+        GIT_CREDENTIALS_ID = "${env.GIT_CREDENTIALS_ID ?: 'git_cre'}"
+        AWS_CREDENTIALS_ID = "${env.AWS_CREDENTIALS_ID ?: 'aws_cre'}"
     }
 
     stages {
@@ -46,7 +49,6 @@ pipeline {
             steps {
                 container('docker') {
                     sh """
-                        # Docker 데몬 시작 대기
                         echo "Starting Docker daemon..."
                         dockerd --host=unix:///var/run/docker.sock &
                         
@@ -59,7 +61,6 @@ pipeline {
                             sleep 2
                         done
                         
-                        # Docker 빌드!
                         docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                         docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_REPO}:latest
                     """
@@ -100,6 +101,7 @@ pipeline {
                     git config user.email "jenkins@yourcompany.com"
                     
                     git pull --rebase origin main
+                    # 실제 이미지 경로로 업데이트
                     sed -i 's|image: .*|image: ${ECR_REPO}:${IMAGE_TAG}|' manifests/deployment.yaml
                     git add manifests/deployment.yaml
                     git commit -m "Update image tag to ${IMAGE_TAG} [skip ci]"

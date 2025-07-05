@@ -24,7 +24,41 @@ controller:
     name: jenkins-sa
 
 persistence:
-  enabled: true  # 임시로 비활성화
-  size: 30Gi
-  existingClaim: ""
-  storageClass: "gp2-csi"
+  enabled: false  # 임시로 비활성화
+  size: 8Gi
+  storageClass: gp2-csi
+
+controller:
+  agent:
+    enabled: true
+    defaultsProviderTemplate: ""
+    jenkinsUrl: null
+    jenkinsTunnel: null
+    kubernetesConnectTimeout: 5
+    kubernetesReadTimeout: 15
+    maxRequestsPerHostStr: "32"
+    namespace: null
+    image: "jenkins/inbound-agent"
+    tag: "3309.v27b_9314fd1a_4-6"
+    workingDir: "/home/jenkins/agent"
+    nodeUsageMode: "NORMAL"
+    customJenkinsLabels: []
+    
+    # Pod Template 설정
+    podTemplates:
+      docker-agent: |
+        - name: docker-agent
+          label: docker-agent
+          serviceAccount: default
+          containers:
+            - name: jnlp
+              image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-6
+              workingDir: /home/jenkins/agent
+              resourceRequestCpu: 512m
+              resourceRequestMemory: 512Mi
+              resourceLimitCpu: 512m
+              resourceLimitMemory: 512Mi
+            - name: docker
+              image: docker:dind
+              privileged: true
+              workingDir: /home/jenkins/agent

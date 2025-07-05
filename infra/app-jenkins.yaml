@@ -1,8 +1,8 @@
 controller:
   # Jenkins 관리자 계정
   admin:
-    username: admin
-    password: admin1234  # 실제 배포 전에는 Secret 또는 외부 Vault 연동 권장
+    username: ${JENKINS_ADMIN_USERNAME}
+    password: ${JENKINS_ADMIN_PASSWORD}  # 실제 배포 전에는 Secret 또는 외부 Vault 연동 권장
 
   # Jenkins 서비스 포트 설정
   servicePort: 8080
@@ -32,7 +32,8 @@ controller:
   # Webhook 접근 허용을 위한 Jenkins URL 설정 (API Gateway 통해 호출될 경우)
   jenkinsUrl: http://jenkins.jenkins.svc.cluster.local:8080
   jenkinsUriPrefix: ""
-  jenkinsAdminEmail: "sjh98070156@gmail.com"
+  jenkinsAdminEmail: "${JENKINS_ADMIN_EMAIL}"
+  
   # 보안: CSRF 보호 설정
   csrf:
     defaultCrumbIssuer:
