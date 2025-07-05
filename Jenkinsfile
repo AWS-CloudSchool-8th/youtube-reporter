@@ -10,7 +10,7 @@ pipeline {
         ECR_REPOSITORY = credentials('ecr-repository-name')
         ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
         IMAGE_TAG = "build-${BUILD_NUMBER}"
-        GIT_REPO = "https://github.com/AWS-CloudSchool-8th/youtube-reporter.git"
+        GIT_REPO = "https://github.com/AWS-CloudSchool/tissue-backend"
         GIT_CREDENTIALS_ID = "${env.GIT_CREDENTIALS_ID ?: 'git_cre'}"
         AWS_CREDENTIALS_ID = "${env.AWS_CREDENTIALS_ID ?: 'aws_cre'}"
     }
